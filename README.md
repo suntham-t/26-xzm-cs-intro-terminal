@@ -94,8 +94,8 @@ powershell -ExecutionPolicy Bypass -File app\build.ps1
 - 产物：`app\dist\计算概论学习终端.exe`（PyInstaller onefile，约 **147 MB**，内含 web/content/引擎）+ 桌面快捷方式
 - `build.ps1` 必须保持 **UTF-8 with BOM**：Windows PowerShell 5.1 读无 BOM 的 `.ps1` 会按 GBK 解码，中文直接解析失败
 - **exe 不进仓库**（超过 GitHub 单文件 100 MB 硬限制），发布在 Release 里
-- 已构建版本：[Releases · v1.1.0](https://github.com/suntham-t/26-xzm-cs-intro-terminal/releases/tag/v1.1.0) —— `course-terminal-1.1.0-win64.exe`（154.7 MB，内含 web/content/引擎；双击即用）
-- 上一版：[v1.0.0](https://github.com/suntham-t/26-xzm-cs-intro-terminal/releases/tag/v1.0.0)（附 `course-terminal-manual-1.0.0.pdf` 使用说明书）
+- 已构建版本：[Releases · v1.1.1](https://github.com/suntham-t/26-xzm-cs-intro-terminal/releases/tag/v1.1.1) —— `course-terminal-1.1.1-win64.exe`（154.7 MB，内含 web/content/引擎；双击即用）
+- 历史版本：[v1.1.0](https://github.com/suntham-t/26-xzm-cs-intro-terminal/releases/tag/v1.1.0) · [v1.0.0](https://github.com/suntham-t/26-xzm-cs-intro-terminal/releases/tag/v1.0.0)（后者附 `course-terminal-manual-1.0.0.pdf` 使用说明书）
 
 ---
 
@@ -200,6 +200,7 @@ course-terminal/
 | 自动抓的作业等可写内容 | `%LOCALAPPDATA%\course-terminal\content\...` |
 | AI 生成的边界用例（每题一个 json） | `%LOCALAPPDATA%\course-terminal\homework-cases\...` |
 | OJ 登录状态（只有 session cookie，没有密码） | `%LOCALAPPDATA%\course-terminal\oj-session.json` |
+| 上一次 OJ 登录的诊断（status/result/message，不含密码） | `%LOCALAPPDATA%\course-terminal\oj-login-last.json` |
 | 日志 / 端口 | `%TEMP%\course-terminal.log` / `%TEMP%\course-terminal-port.txt` |
 
 - 「读过哪张卡 + 连续天数」只存在 WebView2 的 localStorage（`ic.days.v1`：`days[]` + 位置书签）；`progress.json` 是砍掉进度机制之前的遗留，现在只读不写

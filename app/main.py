@@ -3381,8 +3381,12 @@ def _oj_parse_form(html):
                 continue
             options = []
             for oa, otxt in re.findall(r"<option\b([^>]*)>([\s\S]*?)</option>", sm.group(2), re.I):
-                options.append({"value": _html_attr(oa, "value"),
-                                "text": re.sub(r"<[^>]+>", "", otxt).strip(),
+                label = re.sub(r"<[^>]+>", "", otxt).strip()
+                val = _html_attr(oa, "value")
+                # 有的模板 <option>Python3</option> 不写 value —— 那就用显示文本，
+                # 否则提交上去的 language 是空串，OJ 会当成"没选语言"
+                options.append({"value": val if val != "" else label,
+                                "text": label,
                                 "selected": "selected" in oa.lower()})
             selects.append({"name": name, "options": options})
             chosen = next((o["value"] for o in options if o["selected"]), None)

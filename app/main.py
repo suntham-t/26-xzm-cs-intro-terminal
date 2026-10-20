@@ -3308,18 +3308,33 @@ def _oj_load_jar():
     return jar
 
 
-def _oj_save_jar(jar):
+def _oj_load_meta():
+    try:
+        with open(OJ_SESSION_FILE, "r", encoding="utf-8") as fh:
+            d = json.load(fh)
+        return d if isinstance(d, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _oj_nickname():
+    return str(_oj_load_meta().get("nickname") or "")
+
+
+def _oj_save_jar(jar, nickname=None):
     cookies = [{"name": c.name, "value": c.value, "domain": c.domain, "path": c.path}
                for c in jar]
     if not cookies:
         return
+    nick = nickname if nickname else _oj_nickname()
     with OJ_LOCK:
         try:
             os.makedirs(DATA_DIR, exist_ok=True)
             tmp = OJ_SESSION_FILE + ".tmp"
             with open(tmp, "w", encoding="utf-8") as fh:
                 fh.write(json.dumps({"saved_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
-                                     "cookies": cookies}, ensure_ascii=False, indent=2))
+                                     "nickname": nick, "cookies": cookies},
+                                    ensure_ascii=False, indent=2))
                 fh.flush()
                 os.fsync(fh.fileno())
             os.replace(tmp, OJ_SESSION_FILE)
@@ -3341,6 +3356,11 @@ def _oj_open(opener, url, data=None, referer=None, timeout=25):
     if data is not None:
         headers["Content-Type"] = "application/x-www-form-urlencoded"
         headers["X-Requested-With"] = "XMLHttpRequest"
+        try:
+            parts = urllib.parse.urlsplit(url)
+            headers["Origin"] = "%s://%s" % (parts.scheme, parts.netloc)
+        except ValueError:
+            pass
     req = urllib.request.Request(url, data=data, headers=headers)
     try:
         with opener.open(req, timeout=timeout) as resp:
@@ -3366,6 +3386,10 @@ def _oj_parse_form(html):
         if not re.search(r"<textarea\b", inner, re.I):
             continue
         fields = {}
+        for bm in re.finditer(r"<button\b([^>]*)>", inner, re.I):
+            bname = _html_attr(bm.group(1), "name")
+            if bname:
+                fields[bname] = _html_attr(bm.group(1), "value") or "1"
         for im in re.finditer(r"<input\b([^>]*)>", inner, re.I):
             name = _html_attr(im.group(1), "name")
             if not name:
@@ -3402,15 +3426,46 @@ def _oj_parse_form(html):
     return None
 
 
-def _oj_status_url(problem_url, no):
+def _oj_status_url(problem_url, no, nickname=""):
     parts = urllib.parse.urlsplit(problem_url)
     seg = [p for p in parts.path.split("/") if p]
     if not seg:
         return ""
     seg = seg[:-1]                       # .../<class>/<no>/ → .../<class>
     path = "/" + "/".join(seg) + "/status/"
-    query = urllib.parse.urlencode({"problemNumber": no})
-    return urllib.parse.urlunsplit((parts.scheme, parts.netloc, path, query, ""))
+    params = {"problemNumber": no}
+    if nickname:
+        params["userName"] = nickname
+    return urllib.parse.urlunsplit((parts.scheme, parts.netloc, path,
+                                    urllib.parse.urlencode(params), ""))
+
+
+def _oj_status_top(opener, problem_url, no, nickname, code_len):
+    """状态页第一行（最新的那条）。按昵称过滤时就是"我自己的最新一条"。"""
+    url = _oj_status_url(problem_url, no, nickname)
+    if not url:
+        return None
+    st, page, _u = _oj_open(opener, url, timeout=20)
+    if st != 200:
+        return None
+    for cells in _oj_status_rows(page):
+        row = _oj_row_result(cells, code_len)
+        if row:
+            return row
+    return None
+
+
+def _oj_fresh_upload(text):
+    """状态页的"提交时间"列是不是刚刚 —— 用来防"读到别人几分钟前的 AC"。"""
+    t = str(text or "")
+    return ("刚刚" in t or "秒" in t or "1分钟" in t or "1 分钟" in t)
+
+
+def _oj_row_key(row):
+    if not row:
+        return ""
+    return "|".join(str(row.get(k) or "") for k in
+                    ("owner", "submitted_at", "code_size", "verdict"))
 
 
 def _oj_status_rows(html):
@@ -3496,13 +3551,31 @@ def oj_login(email, password):
         return {"ok": False,
                 "error": message or "登录失败（账号或密码不对？）",
                 "detail": {"status": status, "result": result, "message": message}}
-    _oj_save_jar(jar)
+    nick = _oj_whoami(opener)
+    _oj_save_jar(jar, nick)
     if probe is False:
         # 接口说成功、提交页却还是 401：多半是 cookie 没带过去。别直接判"账号错"，
         # 让用户继续走提交，真没登录的话提交会再弹一次登录框。
         return {"ok": True, "message": "已登录（提交页还没确认，交题时再看）",
                 "warning": "登录接口返回成功，但提交页仍显示未登录"}
     return {"ok": True, "message": "已登录"}
+
+
+def _oj_whoami(opener):
+    """登录后从首页里认出"我是谁"（昵称）。认不出就返回空 —— 后面靠代码长度兜底。"""
+    st, body, _url = _oj_open(opener, OJ_BASE + "/", timeout=15)
+    if st != 200:
+        return ""
+    for pat in (r'href="/(?:user|u)/([^"/?#]+)',
+                r'href="[^"]*/(?:user|u)/([^"/?#]+)',
+                r'class="[^"]*(?:user|nick)[^"]*"[^>]*>\s*([^<]{1,40})<'):
+        m = re.search(pat, body)
+        if m:
+            name = urllib.parse.unquote(m.group(1)).strip()
+            low = name.lower()
+            if name and len(name) <= 40 and "login" not in low and "register" not in low:
+                return name
+    return ""
 
 
 def _oj_login_probe(opener):
@@ -3516,8 +3589,15 @@ def _oj_login_probe(opener):
             url = str(p.get("oj_url") or "")
             if not url:
                 continue
-            status, _body, _u = _oj_open(opener, url.rstrip("/") + "/submit/", timeout=15)
+            status, probe_body, _u = _oj_open(opener, url.rstrip("/") + "/submit/", timeout=15)
             if status == 200:
+                try:
+                    dbg = os.path.join(DATA_DIR, "oj-submit-debug")
+                    os.makedirs(dbg, exist_ok=True)
+                    with open(os.path.join(dbg, "login-probe.html"), "w", encoding="utf-8") as fh:
+                        fh.write("%s\n\n%s" % (url.rstrip("/") + "/submit/", probe_body))
+                except OSError:
+                    pass
                 return True
             if status == 401:
                 return False
@@ -3540,7 +3620,14 @@ def oj_logout():
 
 
 def oj_submit(hw_id, no, code):
-    """提交一道题并等结果。返回 {ok, need_login} 或 {ok, verdict, ...}。"""
+    """提交一道题并等结果。
+
+    ★ 铁律：**只有状态页上"新出现的那一行"才能当结果**。
+      状态页是公开的，所有人共用；以前找不到自己那行时会顺手拿最新一行，
+      于是别人的 AC 会显示成你的 AC（用户报的"说 AC 了但我没交"就是这么来的）。
+      现在的判据：提交前先记下第一行；提交后必须是「和它不同」并且「时间是刚刚」，
+      认不出昵称时还要求代码长度对得上；等不到就老实说"没确认"，绝不猜。
+    """
     problem, err = _find_homework_problem(hw_id, no)
     if problem is None:
         return {"ok": False, "error": err}
@@ -3550,10 +3637,12 @@ def oj_submit(hw_id, no, code):
     code = str(code or "")
     if not code.strip():
         return {"ok": False, "error": "代码是空的"}
+    code_len = len(code.encode("utf-8"))
     submit_url = problem_url.rstrip("/") + "/submit/"
 
     jar = _oj_load_jar()
     opener = _oj_opener(jar)
+    nick = _oj_nickname()
     status, html, _u = _oj_open(opener, submit_url)
     if status == 401:
         return {"ok": False, "need_login": True,
@@ -3572,50 +3661,60 @@ def oj_submit(hw_id, no, code):
                 fields[sel["name"]] = py["value"]
     action = urllib.parse.urljoin(submit_url, form["action"] or submit_url)
     data = urllib.parse.urlencode(fields, doseq=True).encode("utf-8")
-    _log("OJ 提交：%s 第 %s 题，%d 字节" % (hw_id, no, len(code.encode("utf-8"))))
+
+    # ① 提交前先看一眼状态页：记下"已有的第一行"，后面用来判断有没有新记录
+    before_top = _oj_status_top(opener, problem_url, no, nick, code_len)
+    _log("OJ 提交：%s 第 %s 题 %d 字节（表单字段 %s，昵称=%r，提交前首行=%s）"
+         % (hw_id, no, code_len, sorted(fields.keys()), nick,
+            (before_top or {}).get("owner", "")))
+
     status, body, final_url = _oj_open(opener, action, data=data, referer=submit_url, timeout=40)
-    if status == 401:
+    # 留一份现场：表单长什么样、我们发了什么、OJ 回了什么。
+    # 提交失败时没有这个就只能靠猜（submit 页结构只有登录后才看得到）。
+    try:
+        dbg = os.path.join(DATA_DIR, "oj-submit-debug")
+        os.makedirs(dbg, exist_ok=True)
+        with open(os.path.join(dbg, "submit-page.html"), "w", encoding="utf-8") as fh:
+            fh.write(html)
+        with open(os.path.join(dbg, "submit-response.html"), "w", encoding="utf-8") as fh:
+            fh.write(body)
+        with open(os.path.join(dbg, "submit-request.txt"), "w", encoding="utf-8") as fh:
+            fh.write("POST %s\n字段: %s\ntextarea: %s\n代码字节: %d\n"
+                     % (action, sorted(fields.keys()), form["textarea"], code_len))
+    except OSError:
+        pass
+    if status == 401 or ("你还没有登入" in body) or ('name="password"' in body and 'name="email"' in body):
         return {"ok": False, "need_login": True, "error": "登录已过期，请重新登录"}
     if status == 0:
         return {"ok": False, "error": "提交请求失败：%s" % _redact(body)}
+    _log("OJ 提交返回：HTTP %s → %s（%d 字节）" % (status, final_url, len(body)))
 
-    # 有的版本直接回一个 JSON（ajax 提交），有的回状态页
-    code_len = len(code.encode("utf-8"))
-    code_v, cn_v = _oj_verdict(body)
-    if code_v and code_v != "PENDING":
-        return {"ok": True, "verdict": code_v, "verdict_cn": cn_v,
-                "raw": "", "message": "已提交"}
-
-    # 轮询公开的状态页（不用登录也能看）
-    status_url = _oj_status_url(problem_url, no)
-    deadline = time.monotonic() + 40
-    last = None
+    # ② 轮询状态页：只认"新出现 + 时间是刚刚"的那一行
+    status_url = _oj_status_url(problem_url, no, nick)
+    deadline = time.monotonic() + 45
+    fresh_seen = None
     while status_url and time.monotonic() < deadline:
-        st, page, _p = _oj_open(opener, status_url, timeout=20)
-        if st == 200:
-            rows = _oj_status_rows(page)
-            cand = None
-            for cells in rows:
-                row = _oj_row_result(cells, code_len)
-                if not row:
-                    continue
-                if row["size_match"]:
-                    cand = row
-                    break
-                if cand is None:
-                    cand = row
-            if cand:
-                last = cand
-                if cand["verdict"] != "PENDING":
-                    return {"ok": True, "message": "已提交",
-                            "status_url": status_url, **cand}
+        top = _oj_status_top(opener, problem_url, no, nick, code_len)
+        if top:
+            is_new = _oj_row_key(top) != _oj_row_key(before_top)
+            same_owner = (not nick) or (nick in str(top.get("owner") or ""))
+            ok_row = is_new and _oj_fresh_upload(top.get("submitted_at")) and same_owner
+            if ok_row and not nick:
+                ok_row = bool(top.get("size_match"))
+            if ok_row:
+                fresh_seen = top
+                if top["verdict"] != "PENDING":
+                    return {"ok": True, "verified": True, "message": "已提交（状态页已核对）",
+                            "status_url": status_url, **top}
         time.sleep(2)
-    if last:
-        return {"ok": True, "message": "已提交，但没等到评测结果（可能是别人刚提交的那行）",
-                "status_url": status_url, **last}
-    return {"ok": True, "message": "已提交，但没读到评测结果 —— 去 OJ 状态页看看",
-            "status_url": status_url}
 
+    if fresh_seen:
+        return {"ok": True, "verified": False,
+                "message": "已提交，但还在评测中 —— 过一会儿去 OJ 看结果",
+                "status_url": status_url, **fresh_seen}
+    return {"ok": True, "verified": False, "verdict": "", "verdict_cn": "",
+            "message": "提交请求已发出，但**没在状态页看到新的记录** —— 很可能没交上去，去 OJ 核对一下",
+            "status_url": status_url}
 
 
 # ---------------- 提示词 ----------------
@@ -6808,6 +6907,35 @@ def serve(port, verbose=False):
 
 # ---------------------------------------------------------------- 主流程
 
+
+def _enable_context_menu():
+    """把 WebView2 的右键菜单（复制 / 粘贴 / 全选）打开。
+
+    pywebview 把这一项绑在 debug 上（platforms/edgechromium.py 里是
+    settings.AreDefaultContextMenusEnabled = _state["debug"]），debug=False 时
+    **整个右键菜单都没有** —— 「测一测」的代码框于是没法右键粘贴。
+    这里只补这一项，DevTools / 状态栏仍然保持关闭。
+    """
+    try:
+        from webview.platforms import edgechromium                # noqa: PLC0415
+        orig = edgechromium.EdgeChrome.on_webview_ready
+
+        def patched(self, sender, args):
+            orig(self, sender, args)
+            try:
+                settings = sender.CoreWebView2.Settings
+                settings.AreDefaultContextMenusEnabled = True
+                settings.IsStatusBarEnabled = False
+                settings.AreDevToolsEnabled = False
+            except Exception:                                      # noqa: BLE001
+                pass
+
+        edgechromium.EdgeChrome.on_webview_ready = patched
+        _log("右键菜单：已打开（仅复制/粘贴，DevTools 仍关闭）")
+    except Exception as exc:                                       # noqa: BLE001
+        _log("右键菜单补丁没打上（忽略）：%r" % exc)
+
+
 def main(argv=None):
     global ASSETS, PYTRACER, EXPLAIN, VIEWER_HTML, ENGINE_ERROR
 
@@ -6890,6 +7018,7 @@ def main(argv=None):
                     os.makedirs(DATA_DIR, exist_ok=True)
                     os.makedirs(STORAGE_DIR, exist_ok=True)
                     _log("WebView2 持久化目录：%s" % STORAGE_DIR)
+                    _enable_context_menu()
                     webview.start(private_mode=False, storage_path=STORAGE_DIR)
                 except Exception as exc:                      # noqa: BLE001
                     _idle_until_interrupt("窗口启动失败（%r）" % exc)

@@ -6089,7 +6089,7 @@ function renderProblem(){
     (p.global_id ? '<span class="lim">OJ #' + escapeHtml(p.global_id) + "</span>" : "") +
     '<span class="sp"></span>' +
     (HW_ALL.busy ? '<button class="tb" data-act="hwallcancel">⏹ 停止（' + HW_ALL.done + " / " + HW_ALL.total + "）</button>" : "") +
-    (p.oj_url ? '<button class="primary subBtn" data-act="hwautosubmit" title="用你自己的 OJ 账号直接提交这道题，并读回评测结果">🚀 自动提交</button>' : "") +
+    (p.oj_url ? '<button class="primary subBtn" data-act="hwautosubmit" title="' + attr(hwSubmitHint()) + '">🚀 自动提交</button>' : "") +
     (p.oj_url ? '<button class="tb" data-act="hwsubmit" title="复制代码并打开提交页（手动交）">📤 复制并去提交</button>' : "") +
     '<button class="tb" data-act="hwback">‹ 回作业列表</button>' +
     "</div>";
@@ -6283,6 +6283,8 @@ function aiEnsure(){
 function hwAnalysisHtml(){
   var p = HW.prob, a = aiEnsure(), out = [];
   var builtin = !!(a && a.builtin);
+  /* 自动提交的结果放最上面 —— 从「解析」页签直接交题时，结果不能只长在「测一测」里 */
+  if (testState() && testState().sub) out.push(hwSubmitResultHtml(testState().sub));
   out.push('<div class="aiBar">');
   if (a && a.busy){
     out.push('<button class="primary" disabled>✨ 正在生成…</button>');
@@ -6720,6 +6722,7 @@ function hwSubmitResultHtml(s){
   var cls = s.verdict === "AC" ? "pass" : (s.verdict ? "fail" : "skip");
   var txt = s.verdict ? (s.verdict + (s.verdictCn ? " · " + s.verdictCn : "")) : (s.message || "已提交");
   var out = ['<div class="resBox" style="margin-top:14px"><div class="resHead">🚀 自动提交' +
+    '<span class="vfy skip">' + (s.from === "ai" ? "AI 代码" : "我的代码") + "</span>" +
     '<span class="verdict ' + cls + '">' + escapeHtml(txt) + "</span>" +
     (s.mem ? '<span class="vfy skip">' + escapeHtml(s.mem) + (s.time ? " · " + escapeHtml(s.time) : "") + "</span>" : "") +
     "</div>"];
@@ -6916,21 +6919,44 @@ function hwSubmit(){
 /* ---------------- 自动提交（用你自己的 OJ 账号） ----------------
  * 链路：POST /homework/submit → 后端用登录态 POST 表单 → 轮询公开状态页拿"结果"列。
  * 密码只随这一次登录发给 OJ，**不落盘**；本机只留 session cookie（已 icacls 收紧）。 */
+/* 自动提交交哪一份代码：
+   · 在「解析」页签、且有 AI 生成的代码 → 交 AI 的（解析完直接交）
+   · 否则「测一测」里有代码 → 交你自己的
+   · 都没有 → 提示 */
+function hwSubmitCode(){
+  var t = testState();
+  var mine = String(t.code || "");
+  var ai = String(aiBlockCode(0) || "");
+  if (HW.tab === "analysis" && ai.trim()) return { code: ai, from: "ai" };
+  if (mine.trim()) return { code: mine, from: "mine" };
+  if (ai.trim()) return { code: ai, from: "ai" };
+  return { code: "", from: "" };
+}
+function hwSubmitHint(){
+  var pick = hwSubmitCode();
+  if (pick.from === "ai") return "提交「解析」里 AI 写的那份代码";
+  if (pick.from === "mine") return "提交「测一测」里你自己的代码";
+  return "用你自己的 OJ 账号直接提交这道题，并读回评测结果";
+}
 function hwAutoSubmit(){
   var p = HW.prob;
   if (!p || !p.oj_url) return;
   stashProbCode();
-  var code = String(testState().code || "");
-  if (!code.trim()){ toast("先把代码写进「测一测」"); return; }
+  var pick = hwSubmitCode();
+  if (!pick.code.trim()){
+    toast("先写代码，或在「解析」里生成一份");
+    return;
+  }
   var ok = "";
   try{ ok = localStorage.getItem("ic.oj.consent") || ""; }catch(e){ ok = ""; }
-  if (!ok){ openOjConsent(); return; }
-  hwDoAutoSubmit(code);
+  if (!ok){ openOjConsent(pick.from); return; }
+  hwDoAutoSubmit(pick.code, pick.from);
 }
-function openOjConsent(){
+function openOjConsent(from){
+  var which = (from === "ai") ? "「解析」里 AI 写的代码" : "「测一测」里你自己的代码";
   openModal("ojconsent", "🚀 自动提交说明",
     '<div class="body" style="font-size:14px;line-height:1.9">' +
-      "<p>点「同意」之后，这个终端会用<b>你自己的 OpenJudge 账号</b>，把「测一测」里当前这份代码直接提交到这道题，并读回评测结果。</p>" +
+      "<p>点「同意」之后，这个终端会用<b>你自己的 OpenJudge 账号</b>，把" + which + "直接提交到这道题，并读回评测结果。</p>" +
       "<p>· 密码只在登录时发给 OJ 一次，<b>本机不保存</b>；只保存登录状态（session cookie）。</p>" +
       "<p>· 提交记录会出现在 OJ 的提交列表里，和你在网页上交一模一样 —— 包括可能的次数限制。</p>" +
       "<p>· 每次提交前不会再问，直到你在 AI 设置里退出登录。</p>" +
@@ -6939,9 +6965,10 @@ function openOjConsent(){
     '<button data-act="closemodal">算了，手动交</button></div>',
     { keepSurface: true });
 }
-function hwDoAutoSubmit(code){
+function hwDoAutoSubmit(code, from){
   var t = testState();
-  t.sub = { busy: true, verdict: "", verdictCn: "", error: "", message: "", mem: "", time: "", at: "", url: "" };
+  t.sub = { busy: true, from: from || "mine", verdict: "", verdictCn: "", error: "",
+            message: "", mem: "", time: "", at: "", url: "" };
   renderProblem(); fillProbCode();
   toast("正在提交并等评测…（最长约 40 秒）");
   postJson("/homework/submit", { hw: HW.hw.id, no: HW.prob.no, code: code }).then(function(d){
@@ -8341,7 +8368,8 @@ function onDocClick(e){
     try{ localStorage.setItem("ic.oj.consent", "1"); }catch(e){}
     closeModal();
     stashProbCode();
-    hwDoAutoSubmit(String(testState().code || ""));
+    var pick0 = hwSubmitCode();
+    hwDoAutoSubmit(pick0.code, pick0.from);
   }
   else if (act === "ojdologin") ojDoLogin();
   else if (act === "hwmark"){ hwSetMark(btn.getAttribute("data-v")); renderProblem(); }

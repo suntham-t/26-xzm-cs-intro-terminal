@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>图标方向对照</title>
+<style>
+  body{margin:0;background:#fff;font:13px/1.5 system-ui,"Segoe UI","Microsoft YaHei",sans-serif;color:#1f2328}
+  .hd{padding:14px 24px 10px;border-bottom:1px solid #eceef2}
+  .hd h1{margin:0 0 3px;font-size:17px;font-weight:600;color:#1f4e9c}
+  .hd div{color:#6a737d;font-size:12.5px}
+  table{border-collapse:collapse;width:100%}
+  td,th{padding:10px 14px;border-bottom:1px solid #eceef2;vertical-align:middle;text-align:left}
+  th{font-size:12px;color:#6a737d;font-weight:500;background:#fafbfc}
+  .nm{width:150px}
+  .nm b{display:block;font-size:13.5px}
+  .nm span{color:#6a737d;font-size:11.5px}
+  .big{width:96px}
+  .sz{width:56px;text-align:center}
+  .px{image-rendering:pixelated}
+  .why{color:#6a737d;font-size:12px;line-height:1.6}
+  .pick{background:#f4f8ff}
+  .badge{display:inline-block;font-size:11px;color:#fff;background:#1f4e9c;
+         border-radius:9px;padding:1px 8px;margin-left:6px;vertical-align:1px}
+</style>
+</head>
+<body>
+<div class="hd">
+  <h1>图标方向对照（真实像素尺寸）</h1>
+  <div>「小」那一组是按真实像素画出来的：Windows 任务栏和资源管理器小图标就长这样。缩到 16px 还认得出，才算能用。</div>
+</div>
+<table>
+  <tr>
+    <th class="nm">方向</th><th class="big">原图</th>
+    <th class="sz">48</th><th class="sz">32</th><th class="sz">24</th><th class="sz">16</th>
+    <th>它在说什么 / 顾虑</th>
+  </tr>
+  <tr id="rA" class="pick"></tr>
+  <tr id="rE"></tr>
+  <tr id="rC"></tr>
+  <tr id="rB"></tr>
+</table>
+<script>
+function tile(inner){
+  return '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">'
+       + '<stop offset="0" stop-color="#24559f"/><stop offset="1" stop-color="#1b3f80"/>'
+       + '</linearGradient></defs>'
+       + '<rect x="8" y="8" width="240" height="240" rx="52" fill="url(#g)"/>' + inner;
+}
+/* 甲：三个位置点，当前那个更大更实 */
+const A = tile([62,128,196].map((x,i)=>
+  '<circle cx="'+x+'" cy="130" r="'+(i===2?32:19)+'" fill="#fff" opacity="'+(i===2?1:.45)+'"/>'
+).join(''));
+/* 戊：两空心环 + 一实心点 */
+const E = tile(
+  '<circle cx="58" cy="130" r="20" fill="none" stroke="#fff" stroke-width="10" opacity=".5"/>'
++ '<circle cx="122" cy="130" r="20" fill="none" stroke="#fff" stroke-width="10" opacity=".5"/>'
++ '<circle cx="192" cy="130" r="31" fill="#fff"/>');
+/* 丙：一个终端提示符 + 一条输出线 */
+const C = tile(
+  '<path d="M78 92 l44 38 -44 38" stroke="#fff" stroke-width="22" fill="none"'
++ ' stroke-linecap="round" stroke-linejoin="round"/>'
++ '<rect x="150" y="119" width="54" height="20" rx="10" fill="#fff" opacity=".6"/>'
++ '<rect x="78" y="196" width="112" height="16" rx="8" fill="#fff" opacity=".45"/>');
+/* 乙：卡片堆叠 */
+const B = tile(
+  '<rect x="52" y="58" width="150" height="104" rx="12" fill="#fff" opacity=".3"/>'
++ '<rect x="66" y="90" width="150" height="104" rx="12" fill="#fff" opacity=".55"/>'
++ '<rect x="80" y="122" width="150" height="104" rx="12" fill="#fff"/>'
++ '<rect x="102" y="146" width="70" height="11" rx="5.5" fill="#1f4e9c"/>'
++ '<rect x="102" y="170" width="106" height="9" rx="4.5" fill="#1f4e9c" opacity=".42"/>'
++ '<rect x="102" y="192" width="80" height="9" rx="4.5" fill="#1f4e9c" opacity=".42"/>');
+
+function cell(inner, size){
+  const cls = size <= 24 ? ' class="px"' : '';
+  return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 256 256"'+cls+'>'+inner+'</svg>';
+}
+function row(id, name, sub, inner, why, pick){
+  document.getElementById(id).innerHTML =
+      '<td class="nm"><b>'+name+(pick?'<span class="badge">推荐</span>':'')+'</b><span>'+sub+'</span></td>'
+    + '<td class="big">'+cell(inner, 84)+'</td>'
+    + [48,32,24,16].map(s=>'<td class="sz">'+cell(inner,s)+'</td>').join('')
+    + '<td class="why">'+why+'</td>';
+}
+row('rA','甲 · 位置点','知识点：我在第 37 个', A,
+    '<b>这门课的形状</b>：104 个知识点、一张卡一张卡往下走。<br>顾虑：略像播放器的指示点。', true);
+row('rE','戊 · 环 + 实心','同上，空心/实心对比更硬', E,
+    '比甲更"图表"，但 32px 下环会显细。');
+row('rC','丙 · 终端提示符','app 名字：学习终端', C,
+    '一个箭头 + 一条线，最贴"终端"。<br>顾虑：容易被读成"播放/下一步"；也离 Python 的 <code>&gt;&gt;&gt;</code> 很近，而这门课不只 Python。');
+row('rB','乙 · 卡片堆叠','卡片流本身', B,
+    '能缩，但<b>太通用</b>：深蓝底 + 白文档，放进任何文件夹都不违和 —— 也就是没有性格。');
+</script>
+</body>
+</html>

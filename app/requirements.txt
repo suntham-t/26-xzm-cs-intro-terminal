@@ -1,0 +1,5 @@
+pywebview
+pyinstaller
+# 方案丙：PDF 文字抽取 + 课件渲染的纯 Python 引擎（PDFium，自带 pdfium.dll ≈6.9MB）。
+# 没有它，exe 就不能一键重建（/health.update.rebuild_supported 会如实报 false）。
+pypdfium2

@@ -1,0 +1,2898 @@
+{
+ "_note": "key = \"chNN|<point title>\"（稳定，不随讲义平移）；levels 给 UI 取中文标签；pages[] 带 stage/chapter/serial/clean_title。点 -> 视频的人工确认部分**只加不改**，没映射的点保持不出现。",
+ "key_scheme": "chNN|<point title>",
+ "levels": {
+  "basic": "基础",
+  "main": "主线",
+  "extra": "补充",
+  "adv": "拔高"
+ },
+ "bvid": "BV1qW4y1a7fU",
+ "title": "黑马程序员python零基础全套教程，8天python从入门到精通，学python看这套就够了",
+ "up": "黑马程序员",
+ "total_pages": 164,
+ "pages": [
+  {
+   "page": 1,
+   "title": "Python导学视频",
+   "duration": 414,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "Python导学视频",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 2,
+   "title": "第一阶段-第一章-01-初识Python",
+   "duration": 416,
+   "stage": "一",
+   "chapter": "一",
+   "serial": 1,
+   "clean_title": "初识Python",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 3,
+   "title": "第一阶段-第一章-02-什么是编程语言",
+   "duration": 422,
+   "stage": "一",
+   "chapter": "一",
+   "serial": 2,
+   "clean_title": "什么是编程语言",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 4,
+   "title": "第一阶段-第一章-03-Python环境安装(Windows)",
+   "duration": 396,
+   "stage": "一",
+   "chapter": "一",
+   "serial": 3,
+   "clean_title": "Python环境安装(Windows)",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 5,
+   "title": "第一阶段-第一章-04-【拓展】-Python环境安装(MacOS)",
+   "duration": 379,
+   "stage": "一",
+   "chapter": "一",
+   "serial": 4,
+   "clean_title": "【拓展】-Python环境安装(MacOS)",
+   "is_extra": true,
+   "is_review": false
+  },
+  {
+   "page": 6,
+   "title": "第一阶段-第一章-05-【拓展】-Python环境安装(Linux)",
+   "duration": 727,
+   "stage": "一",
+   "chapter": "一",
+   "serial": 5,
+   "clean_title": "【拓展】-Python环境安装(Linux)",
+   "is_extra": true,
+   "is_review": false
+  },
+  {
+   "page": 7,
+   "title": "第一阶段-第一章-06-第一个Python程序-HelloWorld",
+   "duration": 308,
+   "stage": "一",
+   "chapter": "一",
+   "serial": 6,
+   "clean_title": "第一个Python程序-HelloWorld",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 8,
+   "title": "第一阶段-第一章-07-第一个Python程序-练习讲解",
+   "duration": 106,
+   "stage": "一",
+   "chapter": "一",
+   "serial": 7,
+   "clean_title": "第一个Python程序-练习讲解",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 9,
+   "title": "第一阶段-第一章-08-第一个Python程序-常见问题解答",
+   "duration": 316,
+   "stage": "一",
+   "chapter": "一",
+   "serial": 8,
+   "clean_title": "第一个Python程序-常见问题解答",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 10,
+   "title": "第一阶段-第一章-09-Python解释器",
+   "duration": 684,
+   "stage": "一",
+   "chapter": "一",
+   "serial": 9,
+   "clean_title": "Python解释器",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 11,
+   "title": "第一阶段-第一章-10-PyCharm开发工具的安装和基础使用",
+   "duration": 706,
+   "stage": "一",
+   "chapter": "一",
+   "serial": 10,
+   "clean_title": "PyCharm开发工具的安装和基础使用",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 12,
+   "title": "第一阶段-第一章-11-【拓展】PyCharm的基础使用",
+   "duration": 540,
+   "stage": "一",
+   "chapter": "一",
+   "serial": 11,
+   "clean_title": "【拓展】PyCharm的基础使用",
+   "is_extra": true,
+   "is_review": false
+  },
+  {
+   "page": 13,
+   "title": "第一阶段-第一章-12-第一章内容重点回顾",
+   "duration": 582,
+   "stage": "一",
+   "chapter": "一",
+   "serial": 12,
+   "clean_title": "第一章内容重点回顾",
+   "is_extra": false,
+   "is_review": true
+  },
+  {
+   "page": 14,
+   "title": "第一阶段-第二章-01-字面量",
+   "duration": 520,
+   "stage": "一",
+   "chapter": "二",
+   "serial": 1,
+   "clean_title": "字面量",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 15,
+   "title": "第一阶段-第二章-02-注释",
+   "duration": 531,
+   "stage": "一",
+   "chapter": "二",
+   "serial": 2,
+   "clean_title": "注释",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 16,
+   "title": "第一阶段-第二章-03-变量",
+   "duration": 735,
+   "stage": "一",
+   "chapter": "二",
+   "serial": 3,
+   "clean_title": "变量",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 17,
+   "title": "第一阶段-第二章-04-数据类型",
+   "duration": 602,
+   "stage": "一",
+   "chapter": "二",
+   "serial": 4,
+   "clean_title": "数据类型",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 18,
+   "title": "第一阶段-第二章-05-数据类型转换",
+   "duration": 792,
+   "stage": "一",
+   "chapter": "二",
+   "serial": 5,
+   "clean_title": "数据类型转换",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 19,
+   "title": "第一阶段-第二章-06-标识符",
+   "duration": 881,
+   "stage": "一",
+   "chapter": "二",
+   "serial": 6,
+   "clean_title": "标识符",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 20,
+   "title": "第一阶段-第二章-07-运算符",
+   "duration": 689,
+   "stage": "一",
+   "chapter": "二",
+   "serial": 7,
+   "clean_title": "运算符",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 21,
+   "title": "第一阶段-第二章-08-字符串的三种定义方式",
+   "duration": 554,
+   "stage": "一",
+   "chapter": "二",
+   "serial": 8,
+   "clean_title": "字符串的三种定义方式",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 22,
+   "title": "第一阶段-第二章-09-字符串的拼接",
+   "duration": 321,
+   "stage": "一",
+   "chapter": "二",
+   "serial": 9,
+   "clean_title": "字符串的拼接",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 23,
+   "title": "第一阶段-第二章-10-字符串格式化",
+   "duration": 775,
+   "stage": "一",
+   "chapter": "二",
+   "serial": 10,
+   "clean_title": "字符串格式化",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 24,
+   "title": "第一阶段-第二章-11-字符串格式化的精度控制",
+   "duration": 437,
+   "stage": "一",
+   "chapter": "二",
+   "serial": 11,
+   "clean_title": "字符串格式化的精度控制",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 25,
+   "title": "第一阶段-第二章-12-字符串格式化的方式2",
+   "duration": 291,
+   "stage": "一",
+   "chapter": "二",
+   "serial": 12,
+   "clean_title": "字符串格式化的方式2",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 26,
+   "title": "第一阶段-第二章-13-对表达式进行格式化",
+   "duration": 538,
+   "stage": "一",
+   "chapter": "二",
+   "serial": 13,
+   "clean_title": "对表达式进行格式化",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 27,
+   "title": "第一阶段-第二章-14-字符串格式化练习题讲解",
+   "duration": 404,
+   "stage": "一",
+   "chapter": "二",
+   "serial": 14,
+   "clean_title": "字符串格式化练习题讲解",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 28,
+   "title": "第一阶段-第二章-15-数据输入(input语句)",
+   "duration": 639,
+   "stage": "一",
+   "chapter": "二",
+   "serial": 15,
+   "clean_title": "数据输入(input语句)",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 29,
+   "title": "第一阶段-第三章-01-布尔类型和比较运算符",
+   "duration": 1064,
+   "stage": "一",
+   "chapter": "三",
+   "serial": 1,
+   "clean_title": "布尔类型和比较运算符",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 30,
+   "title": "第一阶段-第三章-02-if语句的基本格式",
+   "duration": 628,
+   "stage": "一",
+   "chapter": "三",
+   "serial": 2,
+   "clean_title": "if语句的基本格式",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 31,
+   "title": "第一阶段-第三章-03-案例-成年人判断讲解",
+   "duration": 211,
+   "stage": "一",
+   "chapter": "三",
+   "serial": 3,
+   "clean_title": "案例-成年人判断讲解",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 32,
+   "title": "第一阶段-第三章-04-if else组合判断语句",
+   "duration": 465,
+   "stage": "一",
+   "chapter": "三",
+   "serial": 4,
+   "clean_title": "if else组合判断语句",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 33,
+   "title": "第一阶段-第三章-05-案例-我要买票吗讲解",
+   "duration": 221,
+   "stage": "一",
+   "chapter": "三",
+   "serial": 5,
+   "clean_title": "案例-我要买票吗讲解",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 34,
+   "title": "第一阶段-第三章-06-if_elif_else组合使用的语法",
+   "duration": 1029,
+   "stage": "一",
+   "chapter": "三",
+   "serial": 6,
+   "clean_title": "if_elif_else组合使用的语法",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 35,
+   "title": "第一阶段-第三章-07-案例-猜猜心里数字讲解",
+   "duration": 264,
+   "stage": "一",
+   "chapter": "三",
+   "serial": 7,
+   "clean_title": "案例-猜猜心里数字讲解",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 36,
+   "title": "第一阶段-第三章-08-判断语句的嵌套",
+   "duration": 1077,
+   "stage": "一",
+   "chapter": "三",
+   "serial": 8,
+   "clean_title": "判断语句的嵌套",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 37,
+   "title": "第一阶段-第三章-09-判断语句综合案例",
+   "duration": 480,
+   "stage": "一",
+   "chapter": "三",
+   "serial": 9,
+   "clean_title": "判断语句综合案例",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 38,
+   "title": "第一阶段-第四章-01-while循环的基础应用",
+   "duration": 745,
+   "stage": "一",
+   "chapter": "四",
+   "serial": 1,
+   "clean_title": "while循环的基础应用",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 39,
+   "title": "第一阶段-第四章-02-案例求1-100的和讲解",
+   "duration": 261,
+   "stage": "一",
+   "chapter": "四",
+   "serial": 2,
+   "clean_title": "案例求1-100的和讲解",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 40,
+   "title": "第一阶段-第四章-03-while循环猜数字案例",
+   "duration": 583,
+   "stage": "一",
+   "chapter": "四",
+   "serial": 3,
+   "clean_title": "while循环猜数字案例",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 41,
+   "title": "第一阶段-第四章-04-while循环的嵌套应用",
+   "duration": 737,
+   "stage": "一",
+   "chapter": "四",
+   "serial": 4,
+   "clean_title": "while循环的嵌套应用",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 42,
+   "title": "第一阶段-第四章-05-while循环案例-九九乘法表",
+   "duration": 1201,
+   "stage": "一",
+   "chapter": "四",
+   "serial": 5,
+   "clean_title": "while循环案例-九九乘法表",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 43,
+   "title": "第一阶段-第四章-06-for循环的基础语法",
+   "duration": 616,
+   "stage": "一",
+   "chapter": "四",
+   "serial": 6,
+   "clean_title": "for循环的基础语法",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 44,
+   "title": "第一阶段-第四章-07-for循环案例-数一数多少字母a讲解",
+   "duration": 233,
+   "stage": "一",
+   "chapter": "四",
+   "serial": 7,
+   "clean_title": "for循环案例-数一数多少字母a讲解",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 45,
+   "title": "第一阶段-第四章-08-range语句",
+   "duration": 690,
+   "stage": "一",
+   "chapter": "四",
+   "serial": 8,
+   "clean_title": "range语句",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 46,
+   "title": "第一阶段-第四章-09-for循环临时变量作用域",
+   "duration": 381,
+   "stage": "一",
+   "chapter": "四",
+   "serial": 9,
+   "clean_title": "for循环临时变量作用域",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 47,
+   "title": "第一阶段-第四章-10-for循环的嵌套使用",
+   "duration": 563,
+   "stage": "一",
+   "chapter": "四",
+   "serial": 10,
+   "clean_title": "for循环的嵌套使用",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 48,
+   "title": "第一阶段-第四章-11-for循环打印九九乘法表",
+   "duration": 270,
+   "stage": "一",
+   "chapter": "四",
+   "serial": 11,
+   "clean_title": "for循环打印九九乘法表",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 49,
+   "title": "第一阶段-第四章-12-continue和break",
+   "duration": 748,
+   "stage": "一",
+   "chapter": "四",
+   "serial": 12,
+   "clean_title": "continue和break",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 50,
+   "title": "第一阶段-第四章-13-循环综合案例",
+   "duration": 475,
+   "stage": "一",
+   "chapter": "四",
+   "serial": 13,
+   "clean_title": "循环综合案例",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 51,
+   "title": "第一阶段-第五章-01-函数的初体验",
+   "duration": 707,
+   "stage": "一",
+   "chapter": "五",
+   "serial": 1,
+   "clean_title": "函数的初体验",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 52,
+   "title": "第一阶段-第五章-02-函数的基础定义语法",
+   "duration": 543,
+   "stage": "一",
+   "chapter": "五",
+   "serial": 2,
+   "clean_title": "函数的基础定义语法",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 53,
+   "title": "第一阶段-第五章-03-函数基础定义练习案例",
+   "duration": 170,
+   "stage": "一",
+   "chapter": "五",
+   "serial": 3,
+   "clean_title": "函数基础定义练习案例",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 54,
+   "title": "第一阶段-第五章-04-函数的传入参数",
+   "duration": 606,
+   "stage": "一",
+   "chapter": "五",
+   "serial": 4,
+   "clean_title": "函数的传入参数",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 55,
+   "title": "第一阶段-第五章-05-函数的参数练习案例",
+   "duration": 190,
+   "stage": "一",
+   "chapter": "五",
+   "serial": 5,
+   "clean_title": "函数的参数练习案例",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 56,
+   "title": "第一阶段-第五章-06-函数的返回值定义语法",
+   "duration": 486,
+   "stage": "一",
+   "chapter": "五",
+   "serial": 6,
+   "clean_title": "函数的返回值定义语法",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 57,
+   "title": "第一阶段-第五章-07-函数返回值之None类型",
+   "duration": 552,
+   "stage": "一",
+   "chapter": "五",
+   "serial": 7,
+   "clean_title": "函数返回值之None类型",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 58,
+   "title": "第一阶段-第五章-08-函数的说明文档",
+   "duration": 371,
+   "stage": "一",
+   "chapter": "五",
+   "serial": 8,
+   "clean_title": "函数的说明文档",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 59,
+   "title": "第一阶段-第五章-09-函数的嵌套调用",
+   "duration": 254,
+   "stage": "一",
+   "chapter": "五",
+   "serial": 9,
+   "clean_title": "函数的嵌套调用",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 60,
+   "title": "第一阶段-第五章-10-变量在函数中的作用域",
+   "duration": 587,
+   "stage": "一",
+   "chapter": "五",
+   "serial": 10,
+   "clean_title": "变量在函数中的作用域",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 61,
+   "title": "第一阶段-第五章-11-函数综合案例",
+   "duration": 1126,
+   "stage": "一",
+   "chapter": "五",
+   "serial": 11,
+   "clean_title": "函数综合案例",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 62,
+   "title": "第一阶段-第六章-01-数据容器入门",
+   "duration": 283,
+   "stage": "一",
+   "chapter": "六",
+   "serial": 1,
+   "clean_title": "数据容器入门",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 63,
+   "title": "第一阶段-第六章-02-列表的定义语法",
+   "duration": 637,
+   "stage": "一",
+   "chapter": "六",
+   "serial": 2,
+   "clean_title": "列表的定义语法",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 64,
+   "title": "第一阶段-第六章-03-列表的下标索引",
+   "duration": 721,
+   "stage": "一",
+   "chapter": "六",
+   "serial": 3,
+   "clean_title": "列表的下标索引",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 65,
+   "title": "第一阶段-第六章-04-列表的常用操作方法",
+   "duration": 1799,
+   "stage": "一",
+   "chapter": "六",
+   "serial": 4,
+   "clean_title": "列表的常用操作方法",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 66,
+   "title": "第一阶段-第六章-05-列表的常用操作课后练习讲解",
+   "duration": 343,
+   "stage": "一",
+   "chapter": "六",
+   "serial": 5,
+   "clean_title": "列表的常用操作课后练习讲解",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 67,
+   "title": "第一阶段-第六章-06-列表的循环遍历",
+   "duration": 866,
+   "stage": "一",
+   "chapter": "六",
+   "serial": 6,
+   "clean_title": "列表的循环遍历",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 68,
+   "title": "第一阶段-第六章-07-元组的定义和操作",
+   "duration": 1249,
+   "stage": "一",
+   "chapter": "六",
+   "serial": 7,
+   "clean_title": "元组的定义和操作",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 69,
+   "title": "第一阶段-第六章-08-字符串的定义和操作",
+   "duration": 1344,
+   "stage": "一",
+   "chapter": "六",
+   "serial": 8,
+   "clean_title": "字符串的定义和操作",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 70,
+   "title": "第一阶段-第六章-09-字符串的课后练习讲解",
+   "duration": 218,
+   "stage": "一",
+   "chapter": "六",
+   "serial": 9,
+   "clean_title": "字符串的课后练习讲解",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 71,
+   "title": "第一阶段-第六章-10-数据容器（序列）的切片",
+   "duration": 780,
+   "stage": "一",
+   "chapter": "六",
+   "serial": 10,
+   "clean_title": "数据容器（序列）的切片",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 72,
+   "title": "第一阶段-第六章-11-序列的切片课后练习讲解",
+   "duration": 316,
+   "stage": "一",
+   "chapter": "六",
+   "serial": 11,
+   "clean_title": "序列的切片课后练习讲解",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 73,
+   "title": "第一阶段-第六章-12-集合的定义和操作",
+   "duration": 1450,
+   "stage": "一",
+   "chapter": "六",
+   "serial": 12,
+   "clean_title": "集合的定义和操作",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 74,
+   "title": "第一阶段-第六章-13-集合的课后练习",
+   "duration": 171,
+   "stage": "一",
+   "chapter": "六",
+   "serial": 13,
+   "clean_title": "集合的课后练习",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 75,
+   "title": "第一阶段-第六章-14-字典的定义",
+   "duration": 1408,
+   "stage": "一",
+   "chapter": "六",
+   "serial": 14,
+   "clean_title": "字典的定义",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 76,
+   "title": "第一阶段-第六章-15-字典的常用操作",
+   "duration": 953,
+   "stage": "一",
+   "chapter": "六",
+   "serial": 15,
+   "clean_title": "字典的常用操作",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 77,
+   "title": "第一阶段-第六章-16-字典课后练习讲解",
+   "duration": 553,
+   "stage": "一",
+   "chapter": "六",
+   "serial": 16,
+   "clean_title": "字典课后练习讲解",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 78,
+   "title": "第一阶段-第六章-17-5类数据容器的总结对比",
+   "duration": 247,
+   "stage": "一",
+   "chapter": "六",
+   "serial": 17,
+   "clean_title": "5类数据容器的总结对比",
+   "is_extra": false,
+   "is_review": true
+  },
+  {
+   "page": 79,
+   "title": "第一阶段-第六章-18-数据容器的通用操作",
+   "duration": 984,
+   "stage": "一",
+   "chapter": "六",
+   "serial": 18,
+   "clean_title": "数据容器的通用操作",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 80,
+   "title": "第一阶段-第六章-19-拓展-字符串大小比较的方式",
+   "duration": 435,
+   "stage": "一",
+   "chapter": "六",
+   "serial": 19,
+   "clean_title": "拓展-字符串大小比较的方式",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 81,
+   "title": "第一阶段-第七章-01-函数的多返回值",
+   "duration": 262,
+   "stage": "一",
+   "chapter": "七",
+   "serial": 1,
+   "clean_title": "函数的多返回值",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 82,
+   "title": "第一阶段-第七章-02-函数的多种参数使用形式",
+   "duration": 1227,
+   "stage": "一",
+   "chapter": "七",
+   "serial": 2,
+   "clean_title": "函数的多种参数使用形式",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 83,
+   "title": "第一阶段-第七章-03-函数作为参数传递",
+   "duration": 702,
+   "stage": "一",
+   "chapter": "七",
+   "serial": 3,
+   "clean_title": "函数作为参数传递",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 84,
+   "title": "第一阶段-第七章-04-lambda匿名函数",
+   "duration": 548,
+   "stage": "一",
+   "chapter": "七",
+   "serial": 4,
+   "clean_title": "lambda匿名函数",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 85,
+   "title": "第一阶段-第八章-01-文件编码概念",
+   "duration": 427,
+   "stage": "一",
+   "chapter": "八",
+   "serial": 1,
+   "clean_title": "文件编码概念",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 86,
+   "title": "第一阶段-第八章-02-文件的读取操作",
+   "duration": 1667,
+   "stage": "一",
+   "chapter": "八",
+   "serial": 2,
+   "clean_title": "文件的读取操作",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 87,
+   "title": "第一阶段-第八章-03-文件读取的课后练习讲解",
+   "duration": 521,
+   "stage": "一",
+   "chapter": "八",
+   "serial": 3,
+   "clean_title": "文件读取的课后练习讲解",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 88,
+   "title": "第一阶段-第八章-04-文件的写出操作",
+   "duration": 599,
+   "stage": "一",
+   "chapter": "八",
+   "serial": 4,
+   "clean_title": "文件的写出操作",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 89,
+   "title": "第一阶段-第八章-05-文件的追加写入操作",
+   "duration": 293,
+   "stage": "一",
+   "chapter": "八",
+   "serial": 5,
+   "clean_title": "文件的追加写入操作",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 90,
+   "title": "第一阶段-第八章-06-文件操作的综合案例",
+   "duration": 515,
+   "stage": "一",
+   "chapter": "八",
+   "serial": 6,
+   "clean_title": "文件操作的综合案例",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 91,
+   "title": "第一阶段-第九章-01-了解异常",
+   "duration": 305,
+   "stage": "一",
+   "chapter": "九",
+   "serial": 1,
+   "clean_title": "了解异常",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 92,
+   "title": "第一阶段-第九章-02-异常的捕获",
+   "duration": 1262,
+   "stage": "一",
+   "chapter": "九",
+   "serial": 2,
+   "clean_title": "异常的捕获",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 93,
+   "title": "第一阶段-第九章-03-异常的传递性",
+   "duration": 446,
+   "stage": "一",
+   "chapter": "九",
+   "serial": 3,
+   "clean_title": "异常的传递性",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 94,
+   "title": "第一阶段-第九章-04-模块的概念和导入",
+   "duration": 1059,
+   "stage": "一",
+   "chapter": "九",
+   "serial": 4,
+   "clean_title": "模块的概念和导入",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 95,
+   "title": "第一阶段-第九章-05-自定义模块并导入",
+   "duration": 893,
+   "stage": "一",
+   "chapter": "九",
+   "serial": 5,
+   "clean_title": "自定义模块并导入",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 96,
+   "title": "第一阶段-第九章-06-自定义Python包",
+   "duration": 792,
+   "stage": "一",
+   "chapter": "九",
+   "serial": 6,
+   "clean_title": "自定义Python包",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 97,
+   "title": "第一阶段-第九章-07-安装第三方包",
+   "duration": 667,
+   "stage": "一",
+   "chapter": "九",
+   "serial": 7,
+   "clean_title": "安装第三方包",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 98,
+   "title": "第一阶段-第九章-08-异常-模块-包-综合案例讲解",
+   "duration": 1273,
+   "stage": "一",
+   "chapter": "九",
+   "serial": 8,
+   "clean_title": "异常-模块-包-综合案例讲解",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 99,
+   "title": "第一阶段-第十章-01-案例介绍",
+   "duration": 206,
+   "stage": "一",
+   "chapter": "十",
+   "serial": 1,
+   "clean_title": "案例介绍",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 100,
+   "title": "第一阶段-第十章-02-JSON数据格式的转换",
+   "duration": 894,
+   "stage": "一",
+   "chapter": "十",
+   "serial": 2,
+   "clean_title": "JSON数据格式的转换",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 101,
+   "title": "第一阶段-第十章-03-pyecharts模块简介",
+   "duration": 435,
+   "stage": "一",
+   "chapter": "十",
+   "serial": 3,
+   "clean_title": "pyecharts模块简介",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 102,
+   "title": "第一阶段-第十章-04-pyecharts的入门使用",
+   "duration": 1058,
+   "stage": "一",
+   "chapter": "十",
+   "serial": 4,
+   "clean_title": "pyecharts的入门使用",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 103,
+   "title": "第一阶段-第十章-05-数据准备",
+   "duration": 1178,
+   "stage": "一",
+   "chapter": "十",
+   "serial": 5,
+   "clean_title": "数据准备",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 104,
+   "title": "第一阶段-第十章-06-生成折线图",
+   "duration": 959,
+   "stage": "一",
+   "chapter": "十",
+   "serial": 6,
+   "clean_title": "生成折线图",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 105,
+   "title": "第一阶段-第十一章-01-数据可视化案例-地图-基础地图使用",
+   "duration": 616,
+   "stage": "一",
+   "chapter": "十一",
+   "serial": 1,
+   "clean_title": "数据可视化案例-地图-基础地图使用",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 106,
+   "title": "第一阶段-第十一章-02-全国疫情地图构建",
+   "duration": 990,
+   "stage": "一",
+   "chapter": "十一",
+   "serial": 2,
+   "clean_title": "全国疫情地图构建",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 107,
+   "title": "第一阶段-第十一章-03-河南省疫情地图绘制",
+   "duration": 625,
+   "stage": "一",
+   "chapter": "十一",
+   "serial": 3,
+   "clean_title": "河南省疫情地图绘制",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 108,
+   "title": "第一阶段-第十二章-01-基础柱状图构建",
+   "duration": 471,
+   "stage": "一",
+   "chapter": "十二",
+   "serial": 1,
+   "clean_title": "基础柱状图构建",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 109,
+   "title": "第一阶段-第十二章-02-基础时间线柱状图绘制",
+   "duration": 758,
+   "stage": "一",
+   "chapter": "十二",
+   "serial": 2,
+   "clean_title": "基础时间线柱状图绘制",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 110,
+   "title": "第一阶段-第十二章-03-动态GDP柱状图绘制",
+   "duration": 2347,
+   "stage": "一",
+   "chapter": "十二",
+   "serial": 3,
+   "clean_title": "动态GDP柱状图绘制",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 111,
+   "title": "第二阶段-第一章-01-初识对象",
+   "duration": 624,
+   "stage": "二",
+   "chapter": "一",
+   "serial": 1,
+   "clean_title": "初识对象",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 112,
+   "title": "第二阶段-第一章-02-类的成员方法",
+   "duration": 1079,
+   "stage": "二",
+   "chapter": "一",
+   "serial": 2,
+   "clean_title": "类的成员方法",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 113,
+   "title": "第二阶段-第一章-03-类和对象",
+   "duration": 574,
+   "stage": "二",
+   "chapter": "一",
+   "serial": 3,
+   "clean_title": "类和对象",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 114,
+   "title": "第二阶段-第一章-04-构造方法",
+   "duration": 742,
+   "stage": "二",
+   "chapter": "一",
+   "serial": 4,
+   "clean_title": "构造方法",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 115,
+   "title": "第二阶段-第一章-05-魔术方法",
+   "duration": 906,
+   "stage": "二",
+   "chapter": "一",
+   "serial": 5,
+   "clean_title": "魔术方法",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 116,
+   "title": "第二阶段-第一章-06-封装",
+   "duration": 1126,
+   "stage": "二",
+   "chapter": "一",
+   "serial": 6,
+   "clean_title": "封装",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 117,
+   "title": "第二阶段-第一章-07-封装的课后练习题讲解",
+   "duration": 350,
+   "stage": "二",
+   "chapter": "一",
+   "serial": 7,
+   "clean_title": "封装的课后练习题讲解",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 118,
+   "title": "第二阶段-第一章-08-继承的基础语法",
+   "duration": 1305,
+   "stage": "二",
+   "chapter": "一",
+   "serial": 8,
+   "clean_title": "继承的基础语法",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 119,
+   "title": "第二阶段-第一章-09-复写父类成员和调用父类成员",
+   "duration": 808,
+   "stage": "二",
+   "chapter": "一",
+   "serial": 9,
+   "clean_title": "复写父类成员和调用父类成员",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 120,
+   "title": "第二阶段-第一章-10-变量的类型注解",
+   "duration": 1279,
+   "stage": "二",
+   "chapter": "一",
+   "serial": 10,
+   "clean_title": "变量的类型注解",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 121,
+   "title": "第二阶段-第一章-11-函数和方法类型注解",
+   "duration": 388,
+   "stage": "二",
+   "chapter": "一",
+   "serial": 11,
+   "clean_title": "函数和方法类型注解",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 122,
+   "title": "第二阶段-第一章-12-Union联合类型注解",
+   "duration": 375,
+   "stage": "二",
+   "chapter": "一",
+   "serial": 12,
+   "clean_title": "Union联合类型注解",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 123,
+   "title": "第二阶段-第一章-13-多态",
+   "duration": 863,
+   "stage": "二",
+   "chapter": "一",
+   "serial": 13,
+   "clean_title": "多态",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 124,
+   "title": "第二阶段-第一章-14-数据分析案例步骤1-文件读取",
+   "duration": 1885,
+   "stage": "二",
+   "chapter": "一",
+   "serial": 14,
+   "clean_title": "数据分析案例步骤1-文件读取",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 125,
+   "title": "第二阶段-第一章-15-数据分析案例步骤2-数据计算",
+   "duration": 628,
+   "stage": "二",
+   "chapter": "一",
+   "serial": 15,
+   "clean_title": "数据分析案例步骤2-数据计算",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 126,
+   "title": "第二阶段-第一章-16-数据分析案例步骤3-可视化开发",
+   "duration": 578,
+   "stage": "二",
+   "chapter": "一",
+   "serial": 16,
+   "clean_title": "数据分析案例步骤3-可视化开发",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 127,
+   "title": "第二阶段-第二章-01-SQL章节前言",
+   "duration": 276,
+   "stage": "二",
+   "chapter": "二",
+   "serial": 1,
+   "clean_title": "SQL章节前言",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 128,
+   "title": "第二阶段-第二章-02-数据库介绍",
+   "duration": 454,
+   "stage": "二",
+   "chapter": "二",
+   "serial": 2,
+   "clean_title": "数据库介绍",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 129,
+   "title": "第二阶段-第二章-03-MySQL安装",
+   "duration": 870,
+   "stage": "二",
+   "chapter": "二",
+   "serial": 3,
+   "clean_title": "MySQL安装",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 130,
+   "title": "第二阶段-第二章-04-MySQL的入门使用",
+   "duration": 741,
+   "stage": "二",
+   "chapter": "二",
+   "serial": 4,
+   "clean_title": "MySQL的入门使用",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 131,
+   "title": "第二阶段-第二章-05-SQL基础和DDL",
+   "duration": 1381,
+   "stage": "二",
+   "chapter": "二",
+   "serial": 5,
+   "clean_title": "SQL基础和DDL",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 132,
+   "title": "第二阶段-第二章-06-SQL-DML",
+   "duration": 1110,
+   "stage": "二",
+   "chapter": "二",
+   "serial": 6,
+   "clean_title": "SQL-DML",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 133,
+   "title": "第二阶段-第二章-07-SQL-DQL-基础查询",
+   "duration": 397,
+   "stage": "二",
+   "chapter": "二",
+   "serial": 7,
+   "clean_title": "SQL-DQL-基础查询",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 134,
+   "title": "第二阶段-第二章-08-SQL-DQL-分组聚合",
+   "duration": 541,
+   "stage": "二",
+   "chapter": "二",
+   "serial": 8,
+   "clean_title": "SQL-DQL-分组聚合",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 135,
+   "title": "第二阶段-第二章-09-SQL-DQL-排序分页",
+   "duration": 617,
+   "stage": "二",
+   "chapter": "二",
+   "serial": 9,
+   "clean_title": "SQL-DQL-排序分页",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 136,
+   "title": "第二阶段-第二章-10-Python操作MySQL基础使用",
+   "duration": 862,
+   "stage": "二",
+   "chapter": "二",
+   "serial": 10,
+   "clean_title": "Python操作MySQL基础使用",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 137,
+   "title": "第二阶段-第二章-11-Python操作MySQL数据插入",
+   "duration": 352,
+   "stage": "二",
+   "chapter": "二",
+   "serial": 11,
+   "clean_title": "Python操作MySQL数据插入",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 138,
+   "title": "第二阶段-第二章-12-综合案例",
+   "duration": 630,
+   "stage": "二",
+   "chapter": "二",
+   "serial": 12,
+   "clean_title": "综合案例",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 139,
+   "title": "第三阶段-01-PySpark实战-前言介绍",
+   "duration": 540,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-01-PySpark实战-前言介绍",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 140,
+   "title": "第三阶段-02-基础准备",
+   "duration": 836,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-02-基础准备",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 141,
+   "title": "第三阶段-03-数据输入",
+   "duration": 851,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-03-数据输入",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 142,
+   "title": "第三阶段-04-数据计算-map方法",
+   "duration": 970,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-04-数据计算-map方法",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 143,
+   "title": "第三阶段-05-数据计算-flatMap方法",
+   "duration": 384,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-05-数据计算-flatMap方法",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 144,
+   "title": "第三阶段-06-数据计算-reduceByKey方法",
+   "duration": 554,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-06-数据计算-reduceByKey方法",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 145,
+   "title": "第三阶段-07-数据计算-练习案例1",
+   "duration": 526,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-07-数据计算-练习案例1",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 146,
+   "title": "第三阶段-08-数据计算-filter方法",
+   "duration": 272,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-08-数据计算-filter方法",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 147,
+   "title": "第三阶段-09-数据计算-distinct方法",
+   "duration": 137,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-09-数据计算-distinct方法",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 148,
+   "title": "第三阶段-10-数据计算-sortBy方法",
+   "duration": 423,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-10-数据计算-sortBy方法",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 149,
+   "title": "第三阶段-11-数据计算-练习案例2",
+   "duration": 899,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-11-数据计算-练习案例2",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 150,
+   "title": "第三阶段-12-数据输出-输出为Python对象",
+   "duration": 597,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-12-数据输出-输出为Python对象",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 151,
+   "title": "第三阶段-13-数据输出-输出到文件中",
+   "duration": 739,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-13-数据输出-输出到文件中",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 152,
+   "title": "第三阶段-14-综合案例",
+   "duration": 1238,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-14-综合案例",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 153,
+   "title": "第三阶段-15-大数据分布式集群运行综合案例代码",
+   "duration": 639,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-15-大数据分布式集群运行综合案例代码",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 154,
+   "title": "第三阶段-01-闭包",
+   "duration": 1435,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-01-闭包",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 155,
+   "title": "第三阶段-02-装饰器",
+   "duration": 705,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-02-装饰器",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 156,
+   "title": "第三阶段-03-设计模式-单例模式",
+   "duration": 546,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-03-设计模式-单例模式",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 157,
+   "title": "第三阶段-04-设计模式-工厂模式",
+   "duration": 457,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-04-设计模式-工厂模式",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 158,
+   "title": "第三阶段-05-多线程并行执行概念",
+   "duration": 551,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-05-多线程并行执行概念",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 159,
+   "title": "第三阶段-06-多线程编程",
+   "duration": 858,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-06-多线程编程",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 160,
+   "title": "第三阶段-07-Socket服务端开发",
+   "duration": 1571,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-07-Socket服务端开发",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 161,
+   "title": "第三阶段-08-Socket客户端开发",
+   "duration": 654,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-08-Socket客户端开发",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 162,
+   "title": "第三阶段-09-正则表达式-基础方法",
+   "duration": 666,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-09-正则表达式-基础方法",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 163,
+   "title": "第三阶段-10-正则表达式-元字符匹配",
+   "duration": 1820,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-10-正则表达式-元字符匹配",
+   "is_extra": false,
+   "is_review": false
+  },
+  {
+   "page": 164,
+   "title": "第三阶段-11-递归",
+   "duration": 1420,
+   "stage": null,
+   "chapter": null,
+   "serial": null,
+   "clean_title": "第三阶段-11-递归",
+   "is_extra": false,
+   "is_review": false
+  }
+ ],
+ "mapping": {
+  "ch03|编译器和解释器": {
+   "status": "mapped",
+   "point_id": "ch03-s01-p03",
+   "src_pages": [
+    10
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 10,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "一",
+     "serial": 9,
+     "clean_title": "Python解释器",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 684,
+     "confidence": 0.8,
+     "confirmed": false
+    }
+   ]
+  },
+  "ch03|安装 Python": {
+   "status": "mapped",
+   "point_id": "ch03-s02-p01",
+   "src_pages": [
+    4
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 4,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "一",
+     "serial": 3,
+     "clean_title": "Python环境安装(Windows)",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 396,
+     "confidence": 0.85,
+     "confirmed": false
+    }
+   ]
+  },
+  "ch03|集成开发环境（IDE）": {
+   "status": "mapped",
+   "point_id": "ch03-s02-p02",
+   "src_pages": [
+    11
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 11,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "一",
+     "serial": 10,
+     "clean_title": "PyCharm开发工具的安装和基础使用",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 706,
+     "confidence": 0.6,
+     "confirmed": false
+    }
+   ]
+  },
+  "ch03|方式二：在 IDE 中运行": {
+   "status": "mapped",
+   "point_id": "ch03-s02-p05",
+   "src_pages": [
+    11,
+    13
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 11,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "一",
+     "serial": 10,
+     "clean_title": "PyCharm开发工具的安装和基础使用",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 706,
+     "confidence": 0.56,
+     "confirmed": false
+    },
+    {
+     "page": 13,
+     "level": "extra",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "一",
+     "serial": 12,
+     "clean_title": "第一章内容重点回顾",
+     "is_extra": false,
+     "is_review": true,
+     "duration": 582,
+     "confidence": null,
+     "confirmed": false
+    }
+   ],
+   "extra": [
+    {
+     "page": 13,
+     "why": "练习/回顾"
+    }
+   ]
+  },
+  "ch03|第一个 Python 程序": {
+   "status": "mapped",
+   "point_id": "ch03-s03-p01",
+   "src_pages": [
+    7,
+    8
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 7,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "一",
+     "serial": 6,
+     "clean_title": "第一个Python程序-HelloWorld",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 308,
+     "confidence": 0.9,
+     "confirmed": false
+    },
+    {
+     "page": 8,
+     "level": "extra",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "一",
+     "serial": 7,
+     "clean_title": "第一个Python程序-练习讲解",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 106,
+     "confidence": null,
+     "confirmed": false
+    }
+   ],
+   "extra": [
+    {
+     "page": 8,
+     "why": "练习/回顾"
+    }
+   ]
+  },
+  "ch03|Python 语言的要件": {
+   "status": "mapped",
+   "point_id": "ch03-s03-p06",
+   "src_pages": [
+    17
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 17,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "二",
+     "serial": 4,
+     "clean_title": "数据类型",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 602,
+     "confidence": 0.6,
+     "confirmed": false
+    }
+   ]
+  },
+  "ch03|变量：数据对象的标签": {
+   "status": "mapped",
+   "point_id": "ch03-s04-p01",
+   "src_pages": [
+    16
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 16,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "二",
+     "serial": 3,
+     "clean_title": "变量",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 735,
+     "confidence": 0.9,
+     "confirmed": false
+    }
+   ]
+  },
+  "ch03|数值类型：整数和浮点数": {
+   "status": "mapped",
+   "point_id": "ch03-s04-p04",
+   "src_pages": [
+    17,
+    27
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 17,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "二",
+     "serial": 4,
+     "clean_title": "数据类型",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 602,
+     "confidence": 0.7,
+     "confirmed": false
+    },
+    {
+     "page": 27,
+     "level": "extra",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "二",
+     "serial": 14,
+     "clean_title": "字符串格式化练习题讲解",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 404,
+     "confidence": null,
+     "confirmed": false
+    }
+   ],
+   "extra": [
+    {
+     "page": 27,
+     "why": "练习/回顾"
+    }
+   ]
+  },
+  "ch03|复数和逻辑值": {
+   "status": "mapped",
+   "point_id": "ch03-s04-p05",
+   "src_pages": [
+    29
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 29,
+     "level": "basic",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "三",
+     "serial": 1,
+     "clean_title": "布尔类型和比较运算符",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 1064,
+     "confidence": 0.6,
+     "confirmed": false
+    }
+   ]
+  },
+  "ch03|比较与逻辑运算": {
+   "status": "mapped",
+   "point_id": "ch03-s04-p06",
+   "src_pages": [
+    29
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 29,
+     "level": "basic",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "三",
+     "serial": 1,
+     "clean_title": "布尔类型和比较运算符",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 1064,
+     "confidence": 0.8,
+     "confirmed": false
+    }
+   ]
+  },
+  "ch03|字符串 str": {
+   "status": "mapped",
+   "point_id": "ch03-s04-p07",
+   "src_pages": [
+    69
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 69,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "六",
+     "serial": 8,
+     "clean_title": "字符串的定义和操作",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 1344,
+     "confidence": 0.75,
+     "confirmed": false
+    }
+   ]
+  },
+  "ch03|字符串的常用方法": {
+   "status": "mapped",
+   "point_id": "ch03-s04-p08",
+   "src_pages": [
+    69,
+    70
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 69,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "六",
+     "serial": 8,
+     "clean_title": "字符串的定义和操作",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 1344,
+     "confidence": 0.7,
+     "confirmed": false
+    },
+    {
+     "page": 70,
+     "level": "extra",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "六",
+     "serial": 9,
+     "clean_title": "字符串的课后练习讲解",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 218,
+     "confidence": null,
+     "confirmed": false
+    }
+   ],
+   "extra": [
+    {
+     "page": 70,
+     "why": "练习/回顾"
+    }
+   ]
+  },
+  "ch03|input 和 print": {
+   "status": "mapped",
+   "point_id": "ch03-s05-p01",
+   "src_pages": [
+    28
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 28,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "二",
+     "serial": 15,
+     "clean_title": "数据输入(input语句)",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 639,
+     "confidence": 0.9,
+     "confirmed": false
+    }
+   ]
+  },
+  "ch03|列表和元组": {
+   "status": "mapped",
+   "point_id": "ch03-s06-p01",
+   "src_pages": [
+    63,
+    64
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 63,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "六",
+     "serial": 2,
+     "clean_title": "列表的定义语法",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 637,
+     "confidence": 0.6,
+     "confirmed": false
+    },
+    {
+     "page": 64,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "六",
+     "serial": 3,
+     "clean_title": "列表的下标索引",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 721,
+     "confidence": 0.75,
+     "confirmed": false
+    }
+   ]
+  },
+  "ch03|列表和元组的共同操作": {
+   "status": "mapped",
+   "point_id": "ch03-s06-p02",
+   "src_pages": [
+    65,
+    71,
+    72
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 65,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "六",
+     "serial": 4,
+     "clean_title": "列表的常用操作方法",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 1799,
+     "confidence": 0.65,
+     "confirmed": false
+    },
+    {
+     "page": 71,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "六",
+     "serial": 10,
+     "clean_title": "数据容器（序列）的切片",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 780,
+     "confidence": 0.85,
+     "confirmed": false
+    },
+    {
+     "page": 72,
+     "level": "extra",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "六",
+     "serial": 11,
+     "clean_title": "序列的切片课后练习讲解",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 316,
+     "confidence": null,
+     "confirmed": false
+    }
+   ],
+   "extra": [
+    {
+     "page": 72,
+     "why": "练习/回顾"
+    }
+   ]
+  },
+  "ch03|列表的其他方法": {
+   "status": "mapped",
+   "point_id": "ch03-s06-p03",
+   "src_pages": [
+    65,
+    66
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 65,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "六",
+     "serial": 4,
+     "clean_title": "列表的常用操作方法",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 1799,
+     "confidence": 0.8,
+     "confirmed": false
+    },
+    {
+     "page": 66,
+     "level": "extra",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "六",
+     "serial": 5,
+     "clean_title": "列表的常用操作课后练习讲解",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 343,
+     "confidence": null,
+     "confirmed": false
+    }
+   ],
+   "extra": [
+    {
+     "page": 66,
+     "why": "练习/回顾"
+    }
+   ]
+  },
+  "ch03|为什么需要元组？": {
+   "status": "mapped",
+   "point_id": "ch03-s06-p04",
+   "src_pages": [
+    68
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 68,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "六",
+     "serial": 7,
+     "clean_title": "元组的定义和操作",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 1249,
+     "confidence": 0.7,
+     "confirmed": false
+    }
+   ]
+  },
+  "ch03|range：连续整数序列": {
+   "status": "mapped",
+   "point_id": "ch03-s06-p07",
+   "src_pages": [
+    45
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 45,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "四",
+     "serial": 8,
+     "clean_title": "range语句",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 690,
+     "confidence": 0.9,
+     "confirmed": false
+    }
+   ]
+  },
+  "ch03|集合 set": {
+   "status": "mapped",
+   "point_id": "ch03-s06-p08",
+   "src_pages": [
+    73,
+    74
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 73,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "六",
+     "serial": 12,
+     "clean_title": "集合的定义和操作",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 1450,
+     "confidence": 0.85,
+     "confirmed": false
+    },
+    {
+     "page": 74,
+     "level": "extra",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "六",
+     "serial": 13,
+     "clean_title": "集合的课后练习",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 171,
+     "confidence": null,
+     "confirmed": false
+    }
+   ],
+   "extra": [
+    {
+     "page": 74,
+     "why": "练习/回顾"
+    }
+   ]
+  },
+  "ch03|字典 dict": {
+   "status": "mapped",
+   "point_id": "ch03-s06-p09",
+   "src_pages": [
+    75,
+    76,
+    77,
+    78,
+    79
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 75,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "六",
+     "serial": 14,
+     "clean_title": "字典的定义",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 1408,
+     "confidence": 0.85,
+     "confirmed": false
+    },
+    {
+     "page": 76,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "六",
+     "serial": 15,
+     "clean_title": "字典的常用操作",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 953,
+     "confidence": 0.9,
+     "confirmed": false
+    },
+    {
+     "page": 77,
+     "level": "extra",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "六",
+     "serial": 16,
+     "clean_title": "字典课后练习讲解",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 553,
+     "confidence": null,
+     "confirmed": false
+    },
+    {
+     "page": 78,
+     "level": "extra",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "六",
+     "serial": 17,
+     "clean_title": "5类数据容器的总结对比",
+     "is_extra": false,
+     "is_review": true,
+     "duration": 247,
+     "confidence": null,
+     "confirmed": false
+    },
+    {
+     "page": 79,
+     "level": "extra",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "六",
+     "serial": 18,
+     "clean_title": "数据容器的通用操作",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 984,
+     "confidence": null,
+     "confirmed": false
+    }
+   ],
+   "extra": [
+    {
+     "page": 77,
+     "why": "练习/回顾"
+    },
+    {
+     "page": 78,
+     "why": "练习/回顾"
+    },
+    {
+     "page": 79,
+     "why": "练习/回顾"
+    }
+   ]
+  },
+  "ch03|条件分支：if 语句": {
+   "status": "mapped",
+   "point_id": "ch03-s07-p02",
+   "src_pages": [
+    30,
+    34
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 30,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "三",
+     "serial": 2,
+     "clean_title": "if语句的基本格式",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 628,
+     "confidence": 0.85,
+     "confirmed": false
+    },
+    {
+     "page": 34,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "三",
+     "serial": 6,
+     "clean_title": "if_elif_else组合使用的语法",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 1029,
+     "confidence": 0.85,
+     "confirmed": false
+    }
+   ]
+  },
+  "ch03|条件循环：while 语句": {
+   "status": "mapped",
+   "point_id": "ch03-s07-p03",
+   "src_pages": [
+    38,
+    41
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 38,
+     "level": "basic",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "四",
+     "serial": 1,
+     "clean_title": "while循环的基础应用",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 745,
+     "confidence": 0.85,
+     "confirmed": false
+    },
+    {
+     "page": 41,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "四",
+     "serial": 4,
+     "clean_title": "while循环的嵌套应用",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 737,
+     "confidence": 0.7,
+     "confirmed": false
+    }
+   ]
+  },
+  "ch03|迭代循环：for 语句": {
+   "status": "mapped",
+   "point_id": "ch03-s07-p04",
+   "src_pages": [
+    43,
+    47
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 43,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "四",
+     "serial": 6,
+     "clean_title": "for循环的基础语法",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 616,
+     "confidence": 0.85,
+     "confirmed": false
+    },
+    {
+     "page": 47,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "四",
+     "serial": 10,
+     "clean_title": "for循环的嵌套使用",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 563,
+     "confidence": 0.7,
+     "confirmed": false
+    }
+   ]
+  },
+  "ch03|break 和 continue": {
+   "status": "mapped",
+   "point_id": "ch03-s07-p05",
+   "src_pages": [
+    49
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 49,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "四",
+     "serial": 12,
+     "clean_title": "continue和break",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 748,
+     "confidence": 0.95,
+     "confirmed": false
+    }
+   ]
+  },
+  "ch03|异常处理": {
+   "status": "mapped",
+   "point_id": "ch03-s07-p08",
+   "src_pages": [
+    92
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 92,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "九",
+     "serial": 2,
+     "clean_title": "异常的捕获",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 1262,
+     "confidence": 0.9,
+     "confirmed": false
+    }
+   ]
+  },
+  "ch03|函数": {
+   "status": "mapped",
+   "point_id": "ch03-s08-p01",
+   "src_pages": [
+    52,
+    56,
+    53
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 52,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "五",
+     "serial": 2,
+     "clean_title": "函数的基础定义语法",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 543,
+     "confidence": 0.85,
+     "confirmed": false
+    },
+    {
+     "page": 56,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "五",
+     "serial": 6,
+     "clean_title": "函数的返回值定义语法",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 486,
+     "confidence": 0.85,
+     "confirmed": false
+    },
+    {
+     "page": 53,
+     "level": "extra",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "五",
+     "serial": 3,
+     "clean_title": "函数基础定义练习案例",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 170,
+     "confidence": null,
+     "confirmed": false
+    }
+   ],
+   "extra": [
+    {
+     "page": 53,
+     "why": "练习/回顾"
+    }
+   ]
+  },
+  "ch03|参数的定义与传递": {
+   "status": "mapped",
+   "point_id": "ch03-s08-p03",
+   "src_pages": [
+    54,
+    55
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 54,
+     "level": "main",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "五",
+     "serial": 4,
+     "clean_title": "函数的传入参数",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 606,
+     "confidence": 0.8,
+     "confirmed": false
+    },
+    {
+     "page": 55,
+     "level": "extra",
+     "raw_level": null,
+     "stage": "一",
+     "chapter": "五",
+     "serial": 5,
+     "clean_title": "函数的参数练习案例",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 190,
+     "confidence": null,
+     "confirmed": false
+    }
+   ],
+   "extra": [
+    {
+     "page": 55,
+     "why": "练习/回顾"
+    }
+   ]
+  },
+  "ch03|类：定义与使用": {
+   "status": "mapped",
+   "point_id": "ch03-s08-p04",
+   "src_pages": [
+    113,
+    114,
+    116,
+    117
+   ],
+   "confirmed": false,
+   "videos": [
+    {
+     "page": 113,
+     "level": "main",
+     "raw_level": null,
+     "stage": "二",
+     "chapter": "一",
+     "serial": 3,
+     "clean_title": "类和对象",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 574,
+     "confidence": 0.78,
+     "confirmed": false
+    },
+    {
+     "page": 114,
+     "level": "main",
+     "raw_level": null,
+     "stage": "二",
+     "chapter": "一",
+     "serial": 4,
+     "clean_title": "构造方法",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 742,
+     "confidence": 0.7,
+     "confirmed": false
+    },
+    {
+     "page": 116,
+     "level": "main",
+     "raw_level": null,
+     "stage": "二",
+     "chapter": "一",
+     "serial": 6,
+     "clean_title": "封装",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 1126,
+     "confidence": 0.65,
+     "confirmed": false
+    },
+    {
+     "page": 117,
+     "level": "extra",
+     "raw_level": null,
+     "stage": "二",
+     "chapter": "一",
+     "serial": 7,
+     "clean_title": "封装的课后练习题讲解",
+     "is_extra": false,
+     "is_review": false,
+     "duration": 350,
+     "confidence": null,
+     "confirmed": false
+    }
+   ],
+   "extra": [
+    {
+     "page": 117,
+     "why": "练习/回顾"
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,22 @@
+# 构建产物：exe 走 GitHub Release 分发，不进仓库（单文件 147MB 超 GitHub 100MB 限制）
+app/dist/
+*.exe
+*.apk
+
+# 开发/调试脚手架
+_dev/
+_shot-*.png
+_probe_*.html
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini

@@ -1,0 +1,130 @@
+# content/chNN.json -> point ids (104 total)
+# id | section | level | notes_lines | slides | title
+
+# ===== ch01  走进计算机科学  |  4 sections, 17 points  |  slides 62 pages  |  notes sha256 7f37bf9149a1c8368a1abe34f81dabdb1ac532b6ee7191068d89bccea57c7214
+#   ch01-s01  no=1  课程简介   slide_range=[3, 8]  (3 points)
+ch01-s01-p01     ch01-s01         s01 level=3 lines=[96,114]    slides=[3]            课程目标
+ch01-s01-p02     ch01-s01         s01 level=3 lines=[115,235]   slides=[4, 5, 6, 7]   课程内容
+ch01-s01-p03     ch01-s01         s01 level=3 lines=[236,263]   slides=[8]            课程考核
+#   ch01-s02  no=2  计算机科学的基本概念   slide_range=[9, 13]  (4 points)
+ch01-s02-p01     ch01-s02         s02 level=3 lines=[266,273]   slides=[9]            什么是计算机科学？
+ch01-s02-p02     ch01-s02         s02 level=3 lines=[274,295]   slides=[10]           计算机科学是一门新兴的学科
+ch01-s02-p03     ch01-s02         s02 level=3 lines=[296,314]   slides=[11]           计算机科学属于信息科学的一部分
+ch01-s02-p04     ch01-s02         s02 level=3 lines=[315,477]   slides=[12, 13]       计算机科学覆盖的范围
+#   ch01-s03  no=3  计算机的发展历程   slide_range=[14, 41]  (6 points)
+ch01-s03-p01     ch01-s03         s03 level=3 lines=[480,529]   slides=[14, 15, 16, 17] 信息与信息社会
+ch01-s03-p02     ch01-s03         s03 level=3 lines=[530,645]   slides=[18, 19, 20, 21, 22, 23] 机械式的计算工具
+ch01-s03-p03     ch01-s03         s03 level=3 lines=[646,674]   slides=[24, 25]       计算机进入电子时代
+ch01-s03-p04     ch01-s03         s03 level=3 lines=[675,820]   slides=[26, 27, 28, 29, 30, 31, 32, 33] 电子计算机的分代
+ch01-s03-p05     ch01-s03         s03 level=3 lines=[821,933]   slides=[34, 35, 36, 37, 38, 39, 40] 计算机软件历史
+ch01-s03-p06     ch01-s03         s03 level=3 lines=[934,947]   slides=[41]           70多年来的发展
+#   ch01-s04  no=4  计算机的分类   slide_range=[42, 62]  (4 points)
+ch01-s04-p01     ch01-s04         s04 level=3 lines=[950,1013]  slides=[42, 43, 44, 45] 专用计算机
+ch01-s04-p02     ch01-s04         s04 level=3 lines=[1014,1034] slides=[46, 47]       通用计算机
+ch01-s04-p03     ch01-s04         s04 level=3 lines=[1035,1113] slides=[48, 49, 50, 51, 52, 53, 54] “健在的”计算机类别
+ch01-s04-p04     ch01-s04         s04 level=3 lines=[1114,1236] slides=[55, 56, 57, 58, 59, 60, 61, 62] 认识计算机系统：洋葱模型
+
+# ===== ch02  信息的表示与数字化  |  4 sections, 21 points  |  slides 90 pages  |  notes sha256 4a31286cb9e3d1a050182d0f468068040911aa00217a1b3400b7133ec7ba54be
+#   ch02-s01  no=1  数制和数制转换   slide_range=[10, 22]  (11 points)
+ch02-s01-p01     ch02-s01         s01 level=3 lines=[159,188]   slides=[10, 11]       什么是数制？
+ch02-s01-p02     ch02-s01         s01 level=3 lines=[189,212]   slides=[12]           进位计数制
+ch02-s01-p03     ch02-s01         s01 level=3 lines=[213,230]   slides=[13]           不同数制有理数的转换
+ch02-s01-p04     ch02-s01         s01 level=3 lines=[231,250]   slides=[14]           作为计算器的Python Shell
+ch02-s01-p05     ch02-s01         s01 level=3 lines=[251,282]   slides=[15]           各进制表示的算法（十转二）
+ch02-s01-p06     ch02-s01         s01 level=3 lines=[283,330]   slides=[16, 17]       各进制表示的算法（小数十转二）
+ch02-s01-p07     ch02-s01         s01 level=3 lines=[331,339]   slides=[18]           各进制数到十进制表示
+ch02-s01-p08     ch02-s01         s01 level=3 lines=[340,359]   slides=[19]           进制转换：Python内建方法
+ch02-s01-p09     ch02-s01         s01 level=3 lines=[360,363]   slides=[20]           特殊的直接转换：二进制<->八进制
+ch02-s01-p10     ch02-s01         s01 level=3 lines=[364,369]   slides=[20]           特殊的直接转换：二进制<->十六进制
+ch02-s01-p11     ch02-s01         s01 level=3 lines=[370,413]   slides=[21, 22]       进制表示的实际应用
+#   ch02-s02  no=2  二进制运算   slide_range=[24, 35]  (5 points)
+ch02-s02-p01     ch02-s02         s02 level=3 lines=[416,426]   slides=[24]           算术运算
+ch02-s02-p02     ch02-s02         s02 level=3 lines=[427,467]   slides=[25, 26]       二进制逻辑运算
+ch02-s02-p03     ch02-s02         s02 level=3 lines=[468,512]   slides=[27, 28]       二进制的移位运算
+ch02-s02-p04     ch02-s02         s02 level=3 lines=[513,586]   slides=[29, 30, 31, 32] 浮点数的二进制表示
+ch02-s02-p05     ch02-s02         s02 level=3 lines=[587,669]   slides=[33, 34, 35]   整数的二进制表示
+#   ch02-s03  no=3  计算机中的二进制   slide_range=[37, 43]  (2 points)
+ch02-s03-p01     ch02-s03         s03 level=3 lines=[672,752]   slides=[37, 38, 39, 40] 二进制信息存储容量的量化单位
+ch02-s03-p02     ch02-s03         s03 level=3 lines=[753,813]   slides=[41, 42, 43]   字与字长：CPU 一次处理多少位
+#   ch02-s04  no=4  数字化原理   slide_range=[45, 88]  (3 points)
+ch02-s04-p01     ch02-s04         s04 level=3 lines=[816,835]   slides=[45]           数字化：信息的输入与输出
+ch02-s04-p02     ch02-s04         s04 level=3 lines=[836,1604]  slides=[46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87] 各种数据类型的编码
+ch02-s04-p03     ch02-s04         s04 level=3 lines=[1605,1630] slides=[88]           数字化原理小结
+
+# ===== ch03  Python入门  |  8 sections, 66 points  |  slides 90 pages  |  notes sha256 239cb2897fafc8cd1b37f6e0f671cc098037cdcdee55abe511dbc675f37d5712
+#   ch03-s01  no=1  程序设计思维   slide_range=[6, 12]  (6 points)
+ch03-s01-p01     ch03-s01         s01 level=3 lines=[117,142]   slides=[6]            程序是什么？
+ch03-s01-p02     ch03-s01         s01 level=3 lines=[143,160]   slides=[7]            程序设计语言
+ch03-s01-p03     ch03-s01         s01 level=3 lines=[161,193]   slides=[8]            编译器和解释器
+ch03-s01-p04     ch03-s01         s01 level=3 lines=[194,212]   slides=[9]            Python 的效率取舍
+ch03-s01-p05     ch03-s01         s01 level=3 lines=[213,226]   slides=[10]           Python 名字的由来
+ch03-s01-p06     ch03-s01         s01 level=3 lines=[227,267]   slides=[11, 12]       如何用程序解决问题？
+#   ch03-s02  no=2  Python开发环境   slide_range=[14, 22]  (7 points)
+ch03-s02-p01     ch03-s02         s02 level=3 lines=[270,285]   slides=[14]           安装 Python
+ch03-s02-p02     ch03-s02         s02 level=3 lines=[286,311]   slides=[15]           集成开发环境（IDE）
+ch03-s02-p03     ch03-s02         s02 level=3 lines=[312,340]   slides=[16]           多个 Python 环境
+ch03-s02-p04     ch03-s02         s02 level=3 lines=[341,367]   slides=[17]           方式一：交互式 Shell
+ch03-s02-p05     ch03-s02         s02 level=3 lines=[368,396]   slides=[18, 19]       方式二：在 IDE 中运行
+ch03-s02-p06     ch03-s02         s02 level=3 lines=[397,419]   slides=[20]           方式三：在命令行中运行
+ch03-s02-p07     ch03-s02         s02 level=3 lines=[420,448]   slides=[21, 22]       Python 2 还是 Python 3？
+#   ch03-s03  no=3  Python程序   slide_range=[24, 30]  (6 points)
+ch03-s03-p01     ch03-s03         s03 level=3 lines=[451,480]   slides=[24]           第一个 Python 程序
+ch03-s03-p02     ch03-s03         s03 level=3 lines=[481,533]   slides=[25]           读懂报错信息
+ch03-s03-p03     ch03-s03         s03 level=3 lines=[534,550]   slides=[26]           程序的执行顺序
+ch03-s03-p04     ch03-s03         s03 level=3 lines=[551,575]   slides=[27]           代码缩进
+ch03-s03-p05     ch03-s03         s03 level=3 lines=[576,613]   slides=[28]           程序是写给人读的
+ch03-s03-p06     ch03-s03         s03 level=3 lines=[614,643]   slides=[29, 30]       Python 语言的要件
+#   ch03-s04  no=4  数据类型   slide_range=[32, 40]  (8 points)
+ch03-s04-p01     ch03-s04         s04 level=3 lines=[646,674]   slides=[32]           变量：数据对象的标签
+ch03-s04-p02     ch03-s04         s04 level=3 lines=[675,700]   slides=[33]           动态类型
+ch03-s04-p03     ch03-s04         s04 level=3 lines=[701,716]   slides=[34]           赋值语句的小技巧
+ch03-s04-p04     ch03-s04         s04 level=3 lines=[717,754]   slides=[35]           数值类型：整数和浮点数
+ch03-s04-p05     ch03-s04         s04 level=3 lines=[755,782]   slides=[36]           复数和逻辑值
+ch03-s04-p06     ch03-s04         s04 level=3 lines=[783,819]   slides=[37]           比较与逻辑运算
+ch03-s04-p07     ch03-s04         s04 level=3 lines=[820,844]   slides=[38]           字符串 str
+ch03-s04-p08     ch03-s04         s04 level=3 lines=[845,882]   slides=[39, 40]       字符串的常用方法
+#   ch03-s05  no=5  基本输入输出   slide_range=[42, 51]  (8 points)
+ch03-s05-p01     ch03-s05         s05 level=3 lines=[885,906]   slides=[42]           input 和 print
+ch03-s05-p02     ch03-s05         s05 level=3 lines=[907,923]   slides=[43]           读入一行中的多个数
+ch03-s05-p03     ch03-s05         s05 level=3 lines=[924,948]   slides=[44]           输入输出的细节
+ch03-s05-p04     ch03-s05         s05 level=3 lines=[949,962]   slides=[45]           OJ 系统
+ch03-s05-p05     ch03-s05         s05 level=3 lines=[963,996]   slides=[46, 47]       OJ：新人易犯的错误
+ch03-s05-p06     ch03-s05         s05 level=3 lines=[997,1019]  slides=[48]           例题：大小写字母互换
+ch03-s05-p07     ch03-s05         s05 level=3 lines=[1020,1045] slides=[49]           例题：A+B Problem
+ch03-s05-p08     ch03-s05         s05 level=3 lines=[1046,1089] slides=[50, 51]       例题：Theatre Square
+#   ch03-s06  no=6  容器类型   slide_range=[53, 63]  (10 points)
+ch03-s06-p01     ch03-s06         s06 level=3 lines=[1092,1107] slides=[53]           列表和元组
+ch03-s06-p02     ch03-s06         s06 level=3 lines=[1108,1132] slides=[54]           列表和元组的共同操作
+ch03-s06-p03     ch03-s06         s06 level=3 lines=[1133,1155] slides=[55]           列表的其他方法
+ch03-s06-p04     ch03-s06         s06 level=3 lines=[1156,1177] slides=[56]           为什么需要元组？
+ch03-s06-p05     ch03-s06         s06 level=3 lines=[1178,1200] slides=[57]           可变对象的引用
+ch03-s06-p06     ch03-s06         s06 level=3 lines=[1201,1228] slides=[58]           可变对象：副本与陷阱
+ch03-s06-p07     ch03-s06         s06 level=3 lines=[1229,1250] slides=[59]           range：连续整数序列
+ch03-s06-p08     ch03-s06         s06 level=3 lines=[1251,1274] slides=[60]           集合 set
+ch03-s06-p09     ch03-s06         s06 level=3 lines=[1275,1305] slides=[61]           字典 dict
+ch03-s06-p10     ch03-s06         s06 level=3 lines=[1306,1349] slides=[62, 63]       例题：Helpful Maths
+#   ch03-s07  no=7  语句、控制流与常用语法   slide_range=[65, 79]  (14 points)
+ch03-s07-p01     ch03-s07         s07 level=3 lines=[1352,1365] slides=[65]           表达式、调用与赋值
+ch03-s07-p02     ch03-s07         s07 level=3 lines=[1366,1388] slides=[66]           条件分支：if 语句
+ch03-s07-p03     ch03-s07         s07 level=3 lines=[1389,1414] slides=[67]           条件循环：while 语句
+ch03-s07-p04     ch03-s07         s07 level=3 lines=[1415,1442] slides=[68]           迭代循环：for 语句
+ch03-s07-p05     ch03-s07         s07 level=3 lines=[1443,1452] slides=[69]           break 和 continue
+ch03-s07-p06     ch03-s07         s07 level=3 lines=[1453,1479] slides=[70]           推导式
+ch03-s07-p07     ch03-s07         s07 level=3 lines=[1480,1497] slides=[71]           括号的用法
+ch03-s07-p08     ch03-s07         s07 level=3 lines=[1498,1532] slides=[72]           异常处理
+ch03-s07-p09     ch03-s07         s07 level=3 lines=[1533,1562] slides=[73]           OJ：多行输入模板
+ch03-s07-p10     ch03-s07         s07 level=3 lines=[1563,1593] slides=[74]           例题：判断闰年
+ch03-s07-p11     ch03-s07         s07 level=3 lines=[1594,1622] slides=[75]           例题：Watermelon
+ch03-s07-p12     ch03-s07         s07 level=3 lines=[1623,1651] slides=[76]           例题：Boy or Girl
+ch03-s07-p13     ch03-s07         s07 level=3 lines=[1652,1684] slides=[77]           例题：Team
+ch03-s07-p14     ch03-s07         s07 level=3 lines=[1685,1757] slides=[78, 79]       例题：验证歌德巴赫猜想
+#   ch03-s08  no=8  函数和类   slide_range=[81, 88]  (7 points)
+ch03-s08-p01     ch03-s08         s08 level=3 lines=[1760,1789] slides=[81]           函数
+ch03-s08-p02     ch03-s08         s08 level=3 lines=[1790,1807] slides=[82]           注意括号！
+ch03-s08-p03     ch03-s08         s08 level=3 lines=[1808,1831] slides=[83]           参数的定义与传递
+ch03-s08-p04     ch03-s08         s08 level=3 lines=[1832,1853] slides=[84]           类：定义与使用
+ch03-s08-p05     ch03-s08         s08 level=3 lines=[1854,1874] slides=[85]           例：力的合成
+ch03-s08-p06     ch03-s08         s08 level=3 lines=[1875,1917] slides=[86]           例题：质数的和与积
+ch03-s08-p07     ch03-s08         s08 level=3 lines=[1918,1991] slides=[87, 88]       例题：两数之和
+
+# TOTAL 104 points

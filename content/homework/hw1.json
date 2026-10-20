@@ -1,0 +1,414 @@
+{
+  "id": "hw1",
+  "title": "作业一",
+  "oj_url": "http://xzmdsa.openjudge.cn/2026ci13hw1/",
+  "fetched_at": "2026-09-26T15:10:12+08:00",
+  "deadline": "2026-10-10 13:00",
+  "problems": [
+    {
+      "no": 1,
+      "title": "判断闰年",
+      "oj_url": "http://xzmdsa.openjudge.cn/2026ci13hw1/1/",
+      "global_id": "1735",
+      "limits": {
+        "time": "1000ms",
+        "memory": "65536kB"
+      },
+      "statement_md": "## 描述\n\n判断某年是否是闰年。\n\n## 输入\n\n输入只有一行，包含一个整数a(0 < a < 3000)\n\n## 输出\n\n一行，如果公元a年是闰年输出Y，否则输出N\n\n## 提示\n\n公历纪年法中，能被4整除的大多是闰年，但能被100整除而不能被400整除的年份不是闰年， 能被3200整除的也不是闰年，如1900年是平年，2000年是闰年，3200年不是闰年。",
+      "sample_in": "2006\n",
+      "sample_out": "N\n",
+      "extra_cases": [
+        {
+          "in": "1900\n",
+          "out": "N\n",
+          "why": "整百年但不能被 400 整除，最经典的坑"
+        },
+        {
+          "in": "2000\n",
+          "out": "Y\n",
+          "why": "整百年且能被 400 整除"
+        },
+        {
+          "in": "2400\n",
+          "out": "Y\n",
+          "why": "另一个能被 400 整除的整百年，别写成只认 2000"
+        },
+        {
+          "in": "4\n",
+          "out": "Y\n",
+          "why": "范围内最小的闰年"
+        },
+        {
+          "in": "1\n",
+          "out": "N\n",
+          "why": "最小输入（0 < a），不是闰年"
+        },
+        {
+          "in": "2999\n",
+          "out": "N\n",
+          "why": "最大输入，且不能被 4 整除"
+        }
+      ],
+      "analysis_md": "### 一句话\n给一个年份，判断它是不是闰年，输出 `Y` 或 `N`。\n\n### 思路\n闰年的定义是「能被 4 整除但不能被 100 整除，或者能被 400 整除」，把它直接翻译成 Python 就是两段用 `or` 连起来的条件：\n\n- `a % 4 == 0 and a % 100 != 0`：普通闰年，比如 2004、2024；\n- `a % 400 == 0`：整百年里的特例，比如 2000。\n\n难点全在**整百年**。1900 既能被 4 整除也能被 100 整除，但它不是闰年，所以要靠「不能被 100 整除」把它挡掉；而 2000 又得被 400 整除重新放回来。这两个例外必须写在同一个条件里判断，不能拆成两条独立的 `if` 分别决定输出。\n\n题面提示里还提到「能被 3200 整除的也不是闰年」，但输入范围是 `0 < a < 3000`——**3200 永远不会出现**，不用为它写代码。真加了反而容易踩 `and` 优先级比 `or` 高、括号漏写的坑。\n\n### 常见坑\n- 只写 `a % 4 == 0`：输入 `1900` 会输出 `Y`，正确答案是 `N`。\n- 漏了 `a % 400 == 0`：输入 `2000` 会输出 `N`，正确答案是 `Y`。\n- 用 `or` 把条件放宽，比如 `a % 4 == 0 or a % 100 != 0`：输入 `2999` 会输出 `Y`，正确答案是 `N`。`or` 只要一边成立就为真，`a % 100 != 0` 几乎对所有年份都成立。\n- 被提示里的 3200 带偏，写成 `a % 3200 == 0 or a % 400 != 0 or ...`：`and` 比 `or` 先算，条件一长意思就不是你想的了。\n- 输出写成 `Yes` / `No` 或小写 `y`：本题只认大写 `Y` 和 `N`。",
+      "pitfalls": [
+        "`1900` 要输出 `N`：整百年必须单独判断，光有 `a % 4 == 0` 不够。",
+        "`2000` 要输出 `Y`：1900 被 100 挡掉，2000 得靠 `a % 400 == 0` 放回来。",
+        "`2999` 要输出 `N`：写成 `a % 4 == 0 or a % 100 != 0` 会输出 `Y`，`or` 把条件放得太松。",
+        "提示里的 3200 不用管：输入范围是 0 < a < 3000，加 `a % 3200` 只会引入优先级的新 bug。",
+        "只认大写 `Y` / `N`：写成 `Yes`、`No`、小写 `y` 都会 WA。"
+      ],
+      "solution_code": "a = int(input())\nif (a % 4 == 0 and a % 100 != 0) or a % 400 == 0:\n    print('Y')\nelse:\n    print('N')",
+      "points": [
+        "ch03-s07-p10",
+        "ch03-s04-p06"
+      ],
+      "stats": {
+        "submitted": 168,
+        "tried": 87,
+        "passed": 84
+      },
+      "verified": {
+        "sample": "pass",
+        "extra_passed": 6,
+        "extra_total": 6
+      }
+    },
+    {
+      "no": 2,
+      "title": "鸡兔同笼",
+      "oj_url": "http://xzmdsa.openjudge.cn/2026ci13hw1/2/",
+      "global_id": "1752",
+      "limits": {
+        "time": "1000ms",
+        "memory": "65536kB"
+      },
+      "statement_md": "## 描述\n\n一个笼子里面关了鸡和兔子（鸡有2只脚，兔子有4只脚，没有例外）。已经知道了笼子里面脚的总数a，问笼子里面至少有多少只动物，至多有多少只动物。\n\n## 输入\n\n一行，一个正整数a (a < 32768)。\n\n## 输出\n\n一行，包含两个正整数，第一个是最少的动物数，第二个是最多的动物数，两个正整数用一个空格分开。\n\n如果没有满足要求的答案，则输出两个0，中间用一个空格分开。",
+      "sample_in": "20\n",
+      "sample_out": "5 10\n",
+      "extra_cases": [
+        {
+          "in": "2\n",
+          "out": "1 1\n",
+          "why": "最小的偶数脚数，只能是 1 只鸡"
+        },
+        {
+          "in": "6\n",
+          "out": "2 3\n",
+          "why": "检验「最少」的向上取整：1 兔 1 鸡 = 2 只，3 只鸡 = 3 只"
+        },
+        {
+          "in": "1\n",
+          "out": "0 0\n",
+          "why": "最小输入且是奇数，无解"
+        },
+        {
+          "in": "16384\n",
+          "out": "4096 8192\n",
+          "why": "大偶数，最少是 4096 只兔子"
+        },
+        {
+          "in": "32766\n",
+          "out": "8192 16383\n",
+          "why": "范围内最大偶数"
+        },
+        {
+          "in": "32767\n",
+          "out": "0 0\n",
+          "why": "范围内最大输入，奇数无解"
+        }
+      ],
+      "analysis_md": "### 一句话\n知道笼子里脚的总数是 `a`，求动物总数最少、最多各是多少；一只都凑不出来就输出 `0 0`。\n\n### 思路\n设鸡 `c` 只、兔 `r` 只，那么 `2c + 4r = a`，两边除以 2 得 `c + 2r = a/2`。这个式子直接给出两件事：\n\n1. **`a` 必须是偶数**。脚数是 2 的倍数，`a` 是奇数时方程无解，输出 `0 0` 就完事——这是本题唯一的分支，必须先判掉。\n2. 动物总数 `c + r = a/2 - r`。**兔子越多总数越少，兔子越少总数越多**（兔子 4 条腿顶两只鸡）。所以：\n   - 最多：`r = 0`，全是鸡，`a // 2` 只；\n   - 最少：`r` 尽量大，`r = a // 4`，再拿剩下的 2 条腿凑一只鸡，合起来是 `(a + 3) // 4`（也就是 ceil(a/4)）。\n\n也可以不推公式：从小到大枚举兔子数，第一个满足 `(a - 4r) >= 0` 且是偶数就是最少，`r = 0` 就是最多。`a` 最大 32767，循环几万次完全跑得动。公式法更快也不容易写错，推荐。\n\n### 常见坑\n- **`a` 为奇数忘了输出 `0 0`**：输入 `21`，不少同学继续往下算，输出 `5 10` 之类的假答案。奇数必须单独一个分支。\n- `if` 漏了 `else`，写成两段独立的 `if`：奇数时先打印 `0 0`，又被后面的公式覆盖，`32767` 的输出就错了。\n- 最少写成 `a // 4`：那是「全是兔子」的腿数上限，不是答案。输入 `6` 的正确答案是 `2 3`，写 `6 // 4` 会得到 1。\n- 两个数写反了：输出顺序是**先最少、后最多**，`20` 的答案是 `5 10`。\n- 用了 `input('请输入')`：提示文字会被当成输出，直接 WA。",
+      "pitfalls": [
+        "`a` 是奇数就无解：输入 `21`，一只动物都凑不出来，要输出 `0 0`。",
+        "`if a % 2` 这个分支必须和后面的计算互斥（要有 `else`），否则输入 `32767` 会先打 `0 0` 再被打公式覆盖。",
+        "最少动物数是 `(a + 3) // 4` 而不是 `a // 4`：输入 `6` 的答案是 `2 3`。",
+        "输出顺序是先最少、后最多：`20` 是 `5 10`，别写反。",
+        "别写 `input('请输入')`：提示文字会被当成输出，本题输入只有一行。"
+      ],
+      "solution_code": "a = int(input())\nif a % 2 != 0:\n    print(0, 0)\nelse:\n    print((a + 3) // 4, a // 2)",
+      "points": [
+        "ch03-s07-p02",
+        "ch03-s05-p01"
+      ],
+      "stats": {
+        "submitted": 184,
+        "tried": 82,
+        "passed": 81
+      },
+      "verified": {
+        "sample": "pass",
+        "extra_passed": 6,
+        "extra_total": 6
+      }
+    },
+    {
+      "no": 3,
+      "title": "餐厅订单页面设计",
+      "oj_url": "http://xzmdsa.openjudge.cn/2026ci13hw1/3/",
+      "global_id": "28404",
+      "limits": {
+        "time": "2000ms",
+        "memory": "65536kB"
+      },
+      "statement_md": "## 描述\n\n你是餐厅订单系统的设计师，你需要设计一个页面展示客户的点菜订单。\n\n给你一个数组orders，表示客户在餐厅中完成的订单（订单编号记为i），orders[i]=[customerName[i], tableNumber[i], foodItem[i]]，其中customerName[i]是客户的姓名，tableNumber[i]是客户所在餐桌的桌号，而foodItem[i]是客户点的餐品名称。\n\n请你设计该餐厅的订单页面，用一张表表示。在这张表中，第一行为标题，其第一列为餐桌桌号\"Table\",后面每一列都是按字母顺序排列的餐品名称。接下来的每一行中的项则表示每张餐桌订购的相应餐品数量，第一列应当填对应的桌号，后面依次填写下单的餐品数量。\n\n注意：客户姓名不是点菜展示表的一部分。此外，表中的数据行应按照餐桌桌号升序排列。\n\n## 输入\n\n第1行是orders的个数N 第1至N+1行是多行orders，每行orders由三个元素组成：customerName[i], tableNumber[i], foodItem[i]，其中customerName[i]是客户的姓名，tableNumber[i]是客户所在餐桌的桌号，而foodItem[i]是客户点的餐品名称。每个元素由','分隔。\n\n## 输出\n\n一张订单展示表。在这张表中，第一行为标题，其第一列为餐桌桌号\"Table\",后面每一列都是按字母顺序排列的餐品名称。\n\n接下来的每一行中的项则表示每张餐桌订购的相应餐品数量，第一列应当填对应的桌号，后面依次填写下单的餐品数量。\n\n注意:为了订单展示表的美观，每行数据有空行分隔，每行数据中的每个元素由制表符分割('\\t')\n\n## 提示\n\n1.1<=orders.length<=5*10^4;\n\n2.orders[i].length==3;\n\n3.1<=customerName[i].length,foodItem[i].length<=20;\n\n4.customerName[i]和foodItem[i]有大小写英文字母，连字符'-'及空格' '组成；\n\n5.tableNumber[i]是1到500范围内的整数。",
+      "sample_in": "6\nDavid,3,Ceviche\nCorina,10,Beef-Burrito\nDavid,3,Fried-Chicken\nCarla,5,Water\nCarla,5,Ceviche\nRous,3,Ceviche\n",
+      "sample_out": "Table   Beef-Burrito    Ceviche Fried-Chicken   Water\n\n3       0       2       1       0\n\n5       0       1       0       1\n\n10      1       0       0       0\n",
+      "extra_cases": [
+        {
+          "in": "1\nAlice,1,Pizza\n",
+          "out": "Table\tPizza\n\n1\t1\n",
+          "why": "只有一张桌子、一个餐品的最小情形"
+        },
+        {
+          "in": "3\nBob,10,Water\nAnn,2,Water\nCid,10,Water\n",
+          "out": "Table\tWater\n\n2\t1\n\n10\t2\n",
+          "why": "同一餐品按桌号汇总，且桌号要按数值升序：2 在 10 前面"
+        },
+        {
+          "in": "3\nA,100,X\nB,2,X\nC,10,X\n",
+          "out": "Table\tX\n\n2\t1\n\n10\t1\n\n100\t1\n",
+          "why": "字符串排序会把 10、100 排到 2 前面，这里检验数值排序"
+        },
+        {
+          "in": "2\nJohn Smith,7,Fried Chicken\nAmy,7,Fried Chicken\n",
+          "out": "Table\tFried Chicken\n\n7\t2\n",
+          "why": "姓名和餐品里都有空格，只能按逗号切分"
+        },
+        {
+          "in": "4\nA,500,Water\nB,1,Ceviche\nA,500,Ceviche\nB,1,Ceviche\n",
+          "out": "Table\tCeviche\tWater\n\n1\t2\t0\n\n500\t1\t1\n",
+          "why": "没点的餐品要补 0，桌号 500 是上界"
+        },
+        {
+          "in": "4\nA,1,X\nA,1,X\nA,1,Y\nB,1,X\n",
+          "out": "Table\tX\tY\n\n1\t3\t1\n",
+          "why": "同一桌重复点同一道菜要累加；列按字母序 X 在 Y 前"
+        }
+      ],
+      "analysis_md": "### 一句话\n把订单列表汇总成一张表：行是桌号（按数值升序），列是餐品名（按字母升序），格子里是数量，列之间用制表符分隔。\n\n### 思路\n这题本质是「分组计数 + 排版」，拆成三步就清楚了。\n\n1. **收集所有餐品名**：扫一遍订单，用集合去重，再 `sorted()` 得到列顺序。题目说「按字母顺序」，Python 对字符串默认按字符编码比较，正好就是题目要的顺序。\n2. **收集所有桌号**，同样去重后排序。桌号是整数，要按**数值**升序（样例里 3、5、10 就是这个意思），千万别按字符串排——字符串序会把 `10` 排到 `5` 前面。\n3. **计数**：用字典，键是 `(桌号, 餐品)` 这个二元组，值是数量。输出时对每张桌子把**所有列**都过一遍，字典里查不到的就写 0。\n\n读入是本题真正的陷阱。每行是 `姓名,桌号,餐品`，而姓名和餐品里**允许有空格和连字符**（比如 `Fried Chicken`、`Cha-Cha`）。所以只能按逗号切分；对整个行用 `split()` 按空白切的话，`John Smith,7,Pizza` 会被切成 4 段，行就散架了。姓名对答案完全没用，切出来丢掉即可。\n\n输出格式：第一行是 `Table` 加各餐品名；**每行数据之间空一行**；最后一行数据后面不要再补空行。样例输出在网页上看起来是空格对齐的，那只是因为制表符被按 8 列宽度展开显示了，真要提交必须输出 `\\t`。\n\n### 常见坑\n- 桌号按字符串排序：输入桌号 `100`、`2`、`10`，字符串序会输出 10、100、2，正确顺序是 2、10、100。\n- 对整行用 `split()` 或 `split(', ')`：姓名或餐品里有空格就会切多段，试试 `John Smith,7,Fried Chicken`。\n- 漏掉数量为 0 的格子：只有 `1` 号桌点了 `Water`、`2` 号桌点了 `Ceviche` 时，两张桌子都要把两列写全，缺的补 0。\n- 用空格而不是制表符分隔列：题目明确要求 `\\t`。",
+      "pitfalls": [
+        "桌号要按数值排序：输入桌号 2、10、100，字符串排序会得到 10、100、2。",
+        "姓名和餐品里有空格（`John Smith,7,Fried Chicken`），只能按逗号切分，不能对整行用 `split()`。",
+        "每张桌子都要把所有餐品列写全，没点的写 0，不能空着。",
+        "列之间用制表符 `\\t` 而不是空格；样例在网页上显示成空格，是制表符被按 8 列展开了。",
+        "数据行之间要空一行，但最后一行后面不要再补空行。"
+      ],
+      "solution_code": "import sys\n\ndata = sys.stdin.read().split('\\n')\nn = int(data[0])\n\nrecords = []\nfoods = set()\ntables = set()\nfor i in range(1, n + 1):\n    name, table, food = data[i].rstrip('\\r').split(',')\n    t = int(table)\n    records.append((t, food))\n    foods.add(food)\n    tables.add(t)\n\ncount = {}\nfor t, food in records:\n    count[(t, food)] = count.get((t, food), 0) + 1\n\nrows = ['\\t'.join(['Table'] + sorted(foods))]\nfor t in sorted(tables):\n    rows.append('\\t'.join([str(t)] + [str(count.get((t, f), 0)) for f in sorted(foods)]))\n\nprint('\\n\\n'.join(rows))",
+      "points": [
+        "ch03-s06-p09",
+        "ch03-s06-p08",
+        "ch03-s07-p09"
+      ],
+      "stats": {
+        "submitted": 220,
+        "tried": 52,
+        "passed": 43
+      },
+      "verified": {
+        "sample": "pass",
+        "extra_passed": 6,
+        "extra_total": 6
+      }
+    },
+    {
+      "no": 4,
+      "title": "Say hello to new friends",
+      "oj_url": "http://xzmdsa.openjudge.cn/2026ci13hw1/4/",
+      "global_id": "29870",
+      "limits": {
+        "time": "1000ms",
+        "memory": "1000kB"
+      },
+      "statement_md": "## 描述\n\n新学期来了很多新同学，老师要和每位同学打招呼。\n\n一共有N位同学。每个同学依次介绍自己的名字，老师向每一位同学Say Hello!\n\n## 输入\n\n第一行N，为新来的同学数。\n\n后面的N行，为每一位同学介绍自己的话。\n\n## 输出\n\n老师向每一位同学say hello!\n\n## 来源\n\nxzm",
+      "sample_in": "4\nMy name is Chicky!\nMy name is Cha-Cha!\nMy name is Boom-Boom!\nMy name is Lya-Lya!\n",
+      "sample_out": "Hello, Chicky!\nHello, Cha-Cha!\nHello, Boom-Boom!\nHello, Lya-Lya!\n",
+      "extra_cases": [
+        {
+          "in": "1\nMy name is A!\n",
+          "out": "Hello, A!\n",
+          "why": "N = 1 的最小情形"
+        },
+        {
+          "in": "2\nMy name is Cha-Cha!\nMy name is Boom-Boom!\n",
+          "out": "Hello, Cha-Cha!\nHello, Boom-Boom!\n",
+          "why": "名字里有连字符"
+        },
+        {
+          "in": "1\nMy name is Li Ming!\n",
+          "out": "Hello, Li Ming!\n",
+          "why": "名字里有空格：按固定前缀切才拿得到全名，用 split()[-1] 会变成 Ming"
+        },
+        {
+          "in": "3\nMy name is Chicky!\nMy name is Cha-Cha!\nMy name is Lya-Lya!\n",
+          "out": "Hello, Chicky!\nHello, Cha-Cha!\nHello, Lya-Lya!\n",
+          "why": "三行输出，别多别少"
+        },
+        {
+          "in": "2\nMy name is R2-D2!\nMy name is Li Ming!\n",
+          "out": "Hello, R2-D2!\nHello, Li Ming!\n",
+          "why": "名字里有数字、连字符和空格，整段照抄，别自己裁剪"
+        }
+      ],
+      "analysis_md": "### 一句话\n读入 N 句自我介绍，每句都长成 `My name is XXX!`，把名字抠出来，输出 `Hello, XXX!`。\n\n### 思路\n第一行是 N，后面 N 行是自我介绍。名字就是固定前缀 `My name is ` 之后、结尾 `!` 之前的那一段。\n\n抠法有两种：\n- **按固定前缀切**：`line[len('My name is '):]` 拿到后半段，再去掉末尾的 `!`。这样名字里带空格（`My name is Li Ming!`）也能整段保留。\n- 按空白切再取最后一个词 `line.split()[-1]`：样例能过，但名字带空格就只剩最后一段，不推荐。\n\n循环次数由第一行的 N 决定，所以读 N 行就停，别用 `while True` 读到文件尾。两种写法这题都能过，但按 N 读最直接，也方便以后处理「N 后面还有别的内容」的题。\n\n输出用字符串拼接或 f-string，注意 `print` 逗号分隔会自动加空格。\n\n### 常见坑\n- 题面的「输出」一栏只写了「老师向每一位同学say hello!」，没写格式——**真正的格式在样例里**：`Hello, 名字!`，逗号后面有空格，感叹号是英文 `!`。\n- 忘了去掉结尾的 `!`：输出变成 `Hello, Chicky!!`。\n- 用 `print('Hello, ', name, '!')`：逗号会自带一个空格，输出 `Hello,  Chicky !`，多两个空格。\n- 名字带空格时用 `split()[-1]`：`My name is Li Ming!` 会变成 `Hello, Ming!`。\n- 行尾的 `\\r` 没处理：用 `sys.stdin.read().split('\\n')` 时，Windows 换行会让最后一列带上 `\\r`，输出里混进回车。用 `strip()` 清一下最稳。\n- 读了 N-1 行或 N+1 行：输出行数就错了，核对一下题目给的 N 是「同学数」还是「总行数」。",
+      "pitfalls": [
+        "结尾的 `!` 要去掉，否则输出 `Hello, Chicky!!`。",
+        "`print('Hello, ', name, '!')` 会多出空格（逗号自带空格），得到 `Hello,  Chicky !`。",
+        "名字可能带空格，用 `split()[-1]` 会把 `Li Ming` 砍成 `Ming`，要按固定前缀 `My name is ` 切。",
+        "`sys.stdin.read().split('\\n')` 在 Windows 换行下会留下行尾 `\\r`，输出里会混进回车。",
+        "按第一行的 N 决定读几行，多读或少读都会错位。"
+      ],
+      "solution_code": "import sys\n\ndata = sys.stdin.read().split('\\n')\nn = int(data[0])\n\nout = []\nfor i in range(1, n + 1):\n    line = data[i].strip()\n    name = line[len('My name is '):]\n    if name.endswith('!'):\n        name = name[:-1]\n    out.append('Hello, ' + name + '!')\n\nprint('\\n'.join(out))",
+      "points": [
+        "ch03-s04-p08",
+        "ch03-s07-p09"
+      ],
+      "stats": {
+        "submitted": 137,
+        "tried": 65,
+        "passed": 64
+      },
+      "verified": {
+        "sample": "pass",
+        "extra_passed": 5,
+        "extra_total": 5
+      }
+    },
+    {
+      "no": 5,
+      "title": "整数的个数",
+      "oj_url": "http://xzmdsa.openjudge.cn/2026ci13hw1/5/",
+      "global_id": "1678",
+      "limits": {
+        "time": "1000ms",
+        "memory": "65536kB"
+      },
+      "statement_md": "## 描述\n\n给定k（1 < k < 100）个正整数，其中每个数都是大于等于1，小于等于10的数。写程序计算给定的k个正整数中，1，5和10出现的次数。\n\n## 输入\n\n输入有两行：第一行包含一个正整数k，第二行包含k个正整数，每两个正整数用一个空格分开。\n\n## 输出\n\n输出有三行，第一行为1出现的次数，，第二行为5出现的次数，第三行为10出现的次数。\n\n## 来源\n\n计算概论05－模拟考试1",
+      "sample_in": "5\n1 5 8 10 5 \n",
+      "sample_out": "1\n2\n1\n",
+      "extra_cases": [
+        {
+          "in": "2\n1 1\n",
+          "out": "2\n0\n0\n",
+          "why": "某个数出现 0 次也要输出 0"
+        },
+        {
+          "in": "2\n10 10\n",
+          "out": "0\n0\n2\n",
+          "why": "`10` 不能算进 `1` 的次数里"
+        },
+        {
+          "in": "2\n1 10\n",
+          "out": "1\n0\n1\n",
+          "why": "`1` 和 `10` 是两个不同的数，各自算一次"
+        },
+        {
+          "in": "3\n5 5 5\n",
+          "out": "0\n3\n0\n",
+          "why": "只统计 5 的情形"
+        },
+        {
+          "in": "3\n1 5 10\n",
+          "out": "1\n1\n1\n",
+          "why": "三个目标数各一个"
+        },
+        {
+          "in": "99\n10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 ",
+          "out": "0\n0\n99\n",
+          "why": "k 的上界 99，且每行末尾带空格"
+        }
+      ],
+      "analysis_md": "### 一句话\n读入 k 个 1 到 10 之间的正整数，分别数出 `1`、`5`、`10` 各出现了几次，输出三行。\n\n### 思路\n数据量不到 100 个数，怎么写都能过，重点是把「数数」做干净、别在读入上翻车。\n\n最省事的一种：`sys.stdin.read().split()` 把所有 token 都读成字符串，`data[0]` 是 k，后面就是那 k 个数，然后直接 `nums.count('1')`、`nums.count('5')`、`nums.count('10')`。字符串比较在这里恰好是对的——`'10'` 和 `'1'` 是两个不同的 token，不会互相干扰。用 `split()` 还有个好处：行尾多余的空格（样例第二行末尾就有一个）自动被吃掉。\n\n喜欢整数也行：转成 `int` 之后 `nums.count(1)`、`nums.count(5)`、`nums.count(10)`，结果一样。\n\n再多想一步，这类「取值只有 1~10」的统计可以用桶计数：开一个长度 11 的数组，读一个数就 `cnt[x] += 1`，最后直接输出 `cnt[1]`、`cnt[5]`、`cnt[10]`。这是统计题的通用套路，遇到取值范围大的时候换成 `collections.Counter` 就行。\n\n### 常见坑\n- 用 `input().count('1')` 去数字符：`10` 里面也含一个 `1`，会被多算。输入 `10 10` 应该输出 `0 0 2`。\n- 用 `if '1' in token` 之类的判断：`10` 同样会命中 `'1'`。\n- 没按 k 截断：多读或者读串了行，答案就偏了。稳妥做法是只取前 k 个 token。\n- 少输出行：题目要求**三行**，次数是 0 也要老老实实输出 `0`。\n- 用 `input('请输入 k:')`：提示文字会被当成输出，直接 WA。\n\n顺便记住 k 的范围是 1 < k < 100，也就是至少 2 个、最多 99 个数。",
+      "pitfalls": [
+        "`10` 里也含字符 `1`，用 `count('1')` 数字符会把 `10` 多算一次：输入 `10 10` 应输出 `0 0 2`。",
+        "要按第一行的 k 只取前 k 个数，多读或少读都会算错。",
+        "次数为 0 也要输出，题目要的是固定三行。",
+        "样例第二行末尾有一个多余空格，用 `split()` 读就不用管这些。",
+        "别写 `input('请输入 k:')`：提示文字会被当成输出。"
+      ],
+      "solution_code": "import sys\n\ndata = sys.stdin.read().split()\nk = int(data[0])\nnums = data[1:1 + k]\n\nprint(nums.count('1'))\nprint(nums.count('5'))\nprint(nums.count('10'))",
+      "points": [
+        "ch03-s05-p02",
+        "ch03-s07-p04"
+      ],
+      "stats": {
+        "submitted": 93,
+        "tried": 65,
+        "passed": 62
+      },
+      "verified": {
+        "sample": "pass",
+        "extra_passed": 6,
+        "extra_total": 6
+      }
+    },
+    {
+      "no": 6,
+      "title": "方便记忆的电话号码",
+      "oj_url": "http://xzmdsa.openjudge.cn/2026ci13hw1/6/",
+      "global_id": "4",
+      "limits": {
+        "time": "2000ms",
+        "memory": "65536kB"
+      },
+      "statement_md": "## 描述\n\n英文字母（除Q和Z外）和电话号码存在着对应关系，如下所示：\n\n```\nA,B,C -> 2\nD,E,F -> 3\nG,H,I -> 4\nJ,K,L -> 5\nM,N,O -> 6\nP,R,S -> 7\nT,U,V -> 8\nW,X,Y -> 9\n```\n\n标准的电话号码格式是xxx-xxxx，其中x表示0-9中的一个数字。有时为了方便记忆电话号码，我们会将电话号码的数字转变为英文字母，如把263-7422记成America。有时，我们还加上“-”作为分隔符，如把449-6753记成Hi-World。当然，我们未必要将所有的数字都转变为字母，比如474-6635可以记成iPhone-5。\n\n总之，一个方便记忆的电话号码由数字和除Q、Z外的英文字母组成，并且可以在任意位置插入任意多的“-”符号。\n\n现在 ，我们有一个列表，记录着许多方便记忆的电话号码。不同的方便记忆的电话号码可能对应相同的标准号码，你的任务就是找出它们。\n\n## 输入\n\n第一行是一个正整数n（n <= 100000），表示列表中的电话号码数。\n\n其后n行，每行是一个方便记忆的电话号码，它由数字和除Q、Z外的英文字母、“-”符号组成，其中数字和字母的总数一定为7，字符串总长度不超过200。\n\n## 输出\n\n输出包括若干行，每行包括一个标准电话号码（xxx-xxxx）以及它重复出现的次数k（k >= 2），中间用空格分隔。输出的标准电话号码需按照升序排序。\n\n如果没有重复出现的标准电话号码，则输出一行“No duplicates.”。",
+      "sample_in": "12\n4873279\nITS-EASY\n888-4567\n3-10-10-10\n888-GLOP\nTUT-GLOP\n967-11-11\n310-GINO\nF101010\n888-1200\n-4-8-7-3-2-7-9-\n487-3279\n",
+      "sample_out": "310-1010 2\n487-3279 4\n888-4567 3 \n",
+      "extra_cases": [
+        {
+          "in": "2\n0000000\n000-0000\n",
+          "out": "000-0000 2\n",
+          "why": "全 0 号码 + 两种写法（不写分隔符 / 写了分隔符）"
+        },
+        {
+          "in": "1\n4873279\n",
+          "out": "No duplicates.\n",
+          "why": "只有一条，必然没有重复"
+        },
+        {
+          "in": "4\nWXY2345\n9992345\n9999999\n0000000\n",
+          "out": "999-2345 2\n",
+          "why": "W/X/Y 都映射成 9，和数字 9 等价；只出现 1 次的两个号码不输出"
+        },
+        {
+          "in": "4\n2222222\n1111111\n1111111\n2222222\n",
+          "out": "111-1111 2\n222-2222 2\n",
+          "why": "多个重复号码要按号码升序输出"
+        },
+        {
+          "in": "2\nADGJMPT\n2345678\n",
+          "out": "234-5678 2\n",
+          "why": "字母逐组验证：A→2 D→3 G→4 J→5 M→6 P→7 T→8"
+        },
+        {
+          "in": "5\n4873279\n4873279\n4873279\n3101010\n3101010\n",
+          "out": "310-1010 2\n487-3279 3\n",
+          "why": "两个号码各重复，次数不同也要正确"
+        }
+      ],
+      "analysis_md": "### 一句话\n把一堆「方便记忆的电话号码」都翻译成标准格式 `xxx-xxxx`，找出出现次数 ≥ 2 的，按升序输出号码和次数；一个都没有就输出 `No duplicates.`。\n\n### 思路\n三步：**翻译 → 计数 → 排序输出**。\n\n**翻译**：字母按对应表换成数字、去掉所有 `-`、剩下的 7 位数字在第 4 位前插一个 `-`。对应表是 `ABC→2`、`DEF→3`、`GHI→4`、`JKL→5`、`MNO→6`、`PRS→7`、`TUV→8`、`WXY→9`——注意**没有 Q 和 Z**。\n\n建表有个经典写法是「一组字母当一个键」：\n\n```python\nl2n = {'ABC': '2', 'DEF': '3', 'GHI': '4'}\n```\n\n写成这样，查表时必须拿**单个字母**去查，不能写 `if ch in l2n`——`'I' in l2n` 永远是 `False`，因为键是 `'ABC'`、`'DEF'` 这种整串，单个字母不在里面。要么把每个字母都展开成键，要么干脆用 `str.maketrans` 一次建好转换表，`'ABCDEFG'.translate(table)` 直接出结果，又快又不容易写错。\n\n还有一点：**映射出来的必须是字符串**。写 `'ABC': 2`（整数）的话，`'4' + 2` 会直接 `TypeError`，得处处 `str()`。\n\n**计数**：字典 `count[号码] = count.get(号码, 0) + 1`。\n\n**排序输出**：号码格式固定 7 位数字加一个 `-`，位宽一样，所以按字符串排序和按数值排序结果相同，`sorted(count)` 就够。只输出次数 ≥ 2 的；如果一行都没有，输出一行 `No duplicates.`（结尾有句点）。\n\n### 常见坑\n- 映射表用整组字母当键：`'I' in l2n` 恒为 `False`，`888-GLOP` 直接翻译不出来。\n- 映射值写成整数 `2`：和数字字符拼接时 `TypeError`。\n- `-` 没全部丢掉：`-4-8-7-3-2-7-9-` 首尾都有 `-`，翻译后必须正好 7 位。\n- 没有重复号码时忘了输出 `No duplicates.`（少个句点也是 WA），或者干脆什么都不输出。\n- 次数为 1 的号码也输出了：题目只要重复出现的。",
+      "pitfalls": [
+        "映射表若写成 `{'ABC': '2'}`，查表要用单个字母，`'I' in l2n` 恒为 False。",
+        "映射值要用字符串 `'2'`，用整数 `2` 和数字字符拼会 TypeError。",
+        "`-` 必须全部丢掉，包括首尾：`-4-8-7-3-2-7-9-` 翻译后也是 487-3279。",
+        "没有重复号码时输出一行 `No duplicates.`（带句点），次数为 1 的号码不输出。",
+        "第一行的 n 就是记录条数，后面正好 n 行；再多读一行会把第一条记录吃掉。"
+      ],
+      "solution_code": "import sys\n\nTABLE = str.maketrans('ABCDEFGHIJKLMNOPRSTUVWXY', '222333444555666777888999')\n\ndata = sys.stdin.read().split()\nn = int(data[0])\n\ncount = {}\nfor token in data[1:1 + n]:\n    digits = token.upper().replace('-', '').translate(TABLE)\n    number = digits[:3] + '-' + digits[3:]\n    count[number] = count.get(number, 0) + 1\n\nout = []\nfor number in sorted(count):\n    if count[number] >= 2:\n        out.append(number + ' ' + str(count[number]))\n\nif out:\n    print('\\n'.join(out))\nelse:\n    print('No duplicates.')",
+      "points": [
+        "ch03-s06-p09",
+        "ch03-s04-p08",
+        "ch03-s06-p03"
+      ],
+      "stats": {
+        "submitted": 206,
+        "tried": 54,
+        "passed": 49
+      },
+      "verified": {
+        "sample": "pass",
+        "extra_passed": 6,
+        "extra_total": 6
+      }
+    }
+  ]
+}

@@ -1,0 +1,1431 @@
+{
+ "16color.png": {
+  "bytes": 300743,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "08e0bc3dba7d5cfc6e455abff69de89faaaa1ec51f2bac7366dc39562560b47c",
+  "url": "https://csintro2026.zhengmao.ltd/images/16color.png"
+ },
+ "3controlflow.png": {
+  "bytes": 46437,
+  "chapters": [
+   "ch03"
+  ],
+  "content_type": "image/png",
+  "sha256": "53a327f114adfad9b7298970dfec5b88718500753344982c75577b86f9317f39",
+  "url": "https://csintro2026.zhengmao.ltd/images/3controlflow.png"
+ },
+ "H200.png": {
+  "bytes": 1103320,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/png",
+  "sha256": "f40494d403ba8f7dc26ccb272fc67b4cfe3de68f9e7e3f4dbd72e33a8d3f46ee",
+  "url": "https://csintro2026.zhengmao.ltd/images/H200.png"
+ },
+ "HarvardArch.png": {
+  "bytes": 31110,
+  "content_type": "image/png",
+  "sha256": "db1a5acc791e789f64246f2c461ade6ea30cd632ad84e85fec3e062c2cc5a870",
+  "url": "https://csintro2026.zhengmao.ltd/images/HarvardArch.png"
+ },
+ "IBM_1620.jpg": {
+  "bytes": 42142,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/jpeg",
+  "sha256": "a0d0cde2402321b0b112fc5f27a1604a4c90fe1771a1802948043f92b236e9d9",
+  "url": "https://csintro2026.zhengmao.ltd/images/IBM_1620.jpg"
+ },
+ "OJ.png": {
+  "bytes": 91245,
+  "chapters": [
+   "ch03"
+  ],
+  "content_type": "image/png",
+  "sha256": "a8d37bccec19a231b4d7258c0027343d7631e6ef202db7c2b033262046bf6578",
+  "url": "https://csintro2026.zhengmao.ltd/images/OJ.png"
+ },
+ "abacus.webp": {
+  "bytes": 36500,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/webp",
+  "sha256": "73c5b8ae642f51b761821ce5580b8e064d7b3ca1410d69d45ae4b67e37db238f",
+  "url": "https://csintro2026.zhengmao.ltd/images/abacus.webp"
+ },
+ "abclist.png": {
+  "bytes": 37209,
+  "chapters": [
+   "ch03"
+  ],
+  "content_type": "image/png",
+  "sha256": "709c197258948c4eb679e62807a388deffb503c1252d4d2e387a8f560d029611",
+  "url": "https://csintro2026.zhengmao.ltd/images/abclist.png"
+ },
+ "acientMath.png": {
+  "bytes": 420710,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/png",
+  "sha256": "b5a0a6cf037e70b432307bf68cbee7b4ba5e97c7b36dff473a75c10cabf0b4c5",
+  "url": "https://csintro2026.zhengmao.ltd/images/acientMath.png"
+ },
+ "acientPrint.png": {
+  "bytes": 385074,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/png",
+  "sha256": "841ce01aba9721e899c508143e3741558e389660f3541effcd5c12045c2b1425",
+  "url": "https://csintro2026.zhengmao.ltd/images/acientPrint.png"
+ },
+ "adder_from_gates.png": {
+  "bytes": 33797,
+  "content_type": "image/png",
+  "sha256": "f4c2c56c27127054be46af4c17a2150ee55b162e2a0dd018b78a6fba79583e6a",
+  "url": "https://csintro2026.zhengmao.ltd/images/adder_from_gates.png"
+ },
+ "addminus.png": {
+  "bytes": 463264,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "a2cb5bcd864e265c8dc08ad8c683fb2584b29d54526d070377d8d73a9e3490c2",
+  "url": "https://csintro2026.zhengmao.ltd/images/addminus.png"
+ },
+ "advprg.png": {
+  "bytes": 380835,
+  "chapters": [
+   "ch03"
+  ],
+  "content_type": "image/png",
+  "sha256": "888116a084fe499c86d6565767c65fec32f24947726c4941b39ee5dd7e93a9bc",
+  "url": "https://csintro2026.zhengmao.ltd/images/advprg.png"
+ },
+ "alan50pounds.webp": {
+  "bytes": 59080,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/webp",
+  "sha256": "e8b9dac4f4306ec6e413c7f7f28722279d4a5fd12288f8ab88dcdecd1970aa3d",
+  "url": "https://csintro2026.zhengmao.ltd/images/alan50pounds.webp"
+ },
+ "and_gate.png": {
+  "bytes": 34574,
+  "content_type": "image/png",
+  "sha256": "ea8513e6b5ff82de38b92bdd179be7f019c3ee55c1bd993db8e9f13f3dd9d34c",
+  "url": "https://csintro2026.zhengmao.ltd/images/and_gate.png"
+ },
+ "app_soft.png": {
+  "bytes": 145723,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/png",
+  "sha256": "ba57fe73836a97e8622478e2678e22d17c323cbfb36f6ffb0934a080aaf3227c",
+  "url": "https://csintro2026.zhengmao.ltd/images/app_soft.png"
+ },
+ "appleM1.png": {
+  "bytes": 619293,
+  "content_type": "image/png",
+  "sha256": "08670ef2062e978c79560299e355f475c8a211cd3db89eee97ae04176f3fd191",
+  "url": "https://csintro2026.zhengmao.ltd/images/appleM1.png"
+ },
+ "arcode.png": {
+  "bytes": 139481,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "8e2211294b57f1add6b36ef3aa95644c09402b163d1abe29e94402906d6fc31b",
+  "url": "https://csintro2026.zhengmao.ltd/images/arcode.png"
+ },
+ "ascend910D.png": {
+  "bytes": 830463,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/png",
+  "sha256": "60649b488c63064e72770a51dbc8c4ec26d3091b0a694d997440599c192feb5a",
+  "url": "https://csintro2026.zhengmao.ltd/images/ascend910D.png"
+ },
+ "aschar.png": {
+  "bytes": 505594,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "9deb039a7bf0f6302ebcef234d72c7117583be7dd05167794efef9a3d21d133a",
+  "url": "https://csintro2026.zhengmao.ltd/images/aschar.png"
+ },
+ "ascii_hex_message.png": {
+  "bytes": 68938,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "6e32827f56676a03810bcc25fb5a101b48d99b27f8e56c5608f96743ac8272dd",
+  "url": "https://csintro2026.zhengmao.ltd/images/ascii_hex_message.png"
+ },
+ "ascii_hex_welcome.png": {
+  "bytes": 113627,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "a8998969ea2f288cabc9faeabc072d91ee69230aba84cbafd174a85ef9a5efea",
+  "url": "https://csintro2026.zhengmao.ltd/images/ascii_hex_welcome.png"
+ },
+ "ascpy.png": {
+  "bytes": 945299,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "bb3e018c76481b948e67fc355d8abc598b4aebbd5402c1e21605109221fbacf5",
+  "url": "https://csintro2026.zhengmao.ltd/images/ascpy.png"
+ },
+ "asmlan.png": {
+  "bytes": 42587,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/png",
+  "sha256": "f4f29e645d8a1a47f78e829f67984a4fb52f6bb8e0e92990e0333cfd747cecdb",
+  "url": "https://csintro2026.zhengmao.ltd/images/asmlan.png"
+ },
+ "assign.png": {
+  "bytes": 226134,
+  "chapters": [
+   "ch03"
+  ],
+  "content_type": "image/png",
+  "sha256": "6e346ea26c19ed79fe7e80428e912895e9090a2c2b0b08127f0029a4c254fa8b",
+  "url": "https://csintro2026.zhengmao.ltd/images/assign.png"
+ },
+ "astronaut.png": {
+  "bytes": 791555,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "88431cd9653ccd539741b555fb0a46b61558b301d4110412b5bc28b5e3ea6cb5",
+  "url": "https://csintro2026.zhengmao.ltd/images/astronaut.png"
+ },
+ "bcminer.jpg": {
+  "bytes": 319677,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/jpeg",
+  "sha256": "c08ad0ca356c246b5fafee1577a76e19a4f1d3799ad7c6e4346f3edfdd156113",
+  "url": "https://csintro2026.zhengmao.ltd/images/bcminer.jpg"
+ },
+ "bhtrans.png": {
+  "bytes": 365351,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "0b90673565ff3926baa0028cef82a793aec0dfd79794f239a8fb9445c6bd7501",
+  "url": "https://csintro2026.zhengmao.ltd/images/bhtrans.png"
+ },
+ "binlen.png": {
+  "bytes": 188947,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "ab43bfb88f1c4e8de7fce537d2cda44d2e052b948cad32d7c3f957de2147f6d8",
+  "url": "https://csintro2026.zhengmao.ltd/images/binlen.png"
+ },
+ "bios.png": {
+  "bytes": 416984,
+  "content_type": "image/png",
+  "sha256": "b19d06f2ae653571f5a81d218b9c28ee54dd7534b38cf809c6cd5d5e04387767",
+  "url": "https://csintro2026.zhengmao.ltd/images/bios.png"
+ },
+ "botrans.png": {
+  "bytes": 440974,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "be0041584d58a69cea82da319ab5fee12cf4ccb288211493e8fade16bf044c53",
+  "url": "https://csintro2026.zhengmao.ltd/images/botrans.png"
+ },
+ "bre_cont.png": {
+  "bytes": 76103,
+  "chapters": [
+   "ch03"
+  ],
+  "content_type": "image/png",
+  "sha256": "a236ea3990b7686e4dc200082add33ba98c8ccc584c8a37b57a8399324e77b00",
+  "url": "https://csintro2026.zhengmao.ltd/images/bre_cont.png"
+ },
+ "bus1.png": {
+  "bytes": 78246,
+  "content_type": "image/png",
+  "sha256": "715f6861adef475fa6fefd2568094e509323d9d228d21841ce81757e7039adf1",
+  "url": "https://csintro2026.zhengmao.ltd/images/bus1.png"
+ },
+ "cache.png": {
+  "bytes": 35068,
+  "content_type": "image/png",
+  "sha256": "a87bf554992bd6e68c1bdd8493141cd88686925529c91ede18a036505cdfef23",
+  "url": "https://csintro2026.zhengmao.ltd/images/cache.png"
+ },
+ "cache1.png": {
+  "bytes": 219004,
+  "content_type": "image/png",
+  "sha256": "33dae28800f5e5682512f96da7c5aa7751783daad8bb48666b4d271caeb368c7",
+  "url": "https://csintro2026.zhengmao.ltd/images/cache1.png"
+ },
+ "cache2.png": {
+  "bytes": 120230,
+  "content_type": "image/png",
+  "sha256": "2b2fe5dbb09a3ddab0d847c8c3adf7dcb48092172fc52380864563d9c4f9221a",
+  "url": "https://csintro2026.zhengmao.ltd/images/cache2.png"
+ },
+ "cambricon.png": {
+  "bytes": 1359360,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/png",
+  "sha256": "532fd369846780d0ab3aa65d462623c3c746d4852dd0f6506d4e3191988de253",
+  "url": "https://csintro2026.zhengmao.ltd/images/cambricon.png"
+ },
+ "charfont.png": {
+  "bytes": 322241,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "26282d605ec0f9448d77880386bbacdb2d21ec9e373096eb60b6ce300d1d18dd",
+  "url": "https://csintro2026.zhengmao.ltd/images/charfont.png"
+ },
+ "chipset.png": {
+  "bytes": 52196,
+  "content_type": "image/png",
+  "sha256": "896320fbdf8cf216ad1a00e528adb9421686cc0139e5bb7ed19a8c19c349cdd0",
+  "url": "https://csintro2026.zhengmao.ltd/images/chipset.png"
+ },
+ "cmos.png": {
+  "bytes": 383853,
+  "content_type": "image/png",
+  "sha256": "355331a3ae7011b613fd387b473c0d2ec36e2f5e99ab6ed962304ba9139d92ad",
+  "url": "https://csintro2026.zhengmao.ltd/images/cmos.png"
+ },
+ "cmos1.png": {
+  "bytes": 109596,
+  "content_type": "image/png",
+  "sha256": "a1a23382b806c9800a1328cfdb94088bbcde4044230dd4f131236fd635fa4262",
+  "url": "https://csintro2026.zhengmao.ltd/images/cmos1.png"
+ },
+ "cmos2.png": {
+  "bytes": 175979,
+  "content_type": "image/png",
+  "sha256": "b64d578ae98b2ad08c5ac7ebd7640a70141527f0c3642c1741fb9c500f7918a3",
+  "url": "https://csintro2026.zhengmao.ltd/images/cmos2.png"
+ },
+ "codema.png": {
+  "bytes": 18944,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "261985eb20dcb9d468df385fc5fddb73851e615706387c8ce0df940234de1127",
+  "url": "https://csintro2026.zhengmao.ltd/images/codema.png"
+ },
+ "colossus.jpg": {
+  "bytes": 137551,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/jpeg",
+  "sha256": "b5967944d4b9239001ef82a344d8859ad725b9ab529c1112cac29f040fbc5d75",
+  "url": "https://csintro2026.zhengmao.ltd/images/colossus.jpg"
+ },
+ "concurr.png": {
+  "bytes": 103722,
+  "content_type": "image/png",
+  "sha256": "8f7d7ec36fdbecf3c4c481007ebb7652ab20f59fb0dde75bd8de5d1f4b991c53",
+  "url": "https://csintro2026.zhengmao.ltd/images/concurr.png"
+ },
+ "cunei.jpg": {
+  "bytes": 68250,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/jpeg",
+  "sha256": "d88d5e6967aae1f52caa53eb663e4bb9742a64dc18da37c924777167bb347690",
+  "url": "https://csintro2026.zhengmao.ltd/images/cunei.jpg"
+ },
+ "dataio.png": {
+  "bytes": 1023108,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "bf775a1a56349bdcfb6af6749428643c59a03d9d9b14b7e4abbe9de9cd9c392b",
+  "url": "https://csintro2026.zhengmao.ltd/images/dataio.png"
+ },
+ "dell-precision-7875.jpg": {
+  "bytes": 257513,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/jpeg",
+  "sha256": "dec6b4c614eb81ddcb9ce14912a52408b28fe69d14c8eaa4ce7fa3caa0871cd0",
+  "url": "https://csintro2026.zhengmao.ltd/images/dell-precision-7875.jpg"
+ },
+ "desktop.png": {
+  "bytes": 1454470,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/png",
+  "sha256": "65cabbb100230ad7afb1eba45355d8f575110aa6acea6c455daf5d9d86930653",
+  "url": "https://csintro2026.zhengmao.ltd/images/desktop.png"
+ },
+ "desktop1.png": {
+  "bytes": 99420,
+  "content_type": "image/png",
+  "sha256": "b230f0bba1379df2e9704062defbe075e86e5b0a2e8339f594f82ba899cb12ed",
+  "url": "https://csintro2026.zhengmao.ltd/images/desktop1.png"
+ },
+ "devfile.png": {
+  "bytes": 83029,
+  "content_type": "image/png",
+  "sha256": "992f15987d004e6556cbb2161a2005bcd28f840d08d762f07dae89fe4a42910e",
+  "url": "https://csintro2026.zhengmao.ltd/images/devfile.png"
+ },
+ "digitable.png": {
+  "bytes": 274114,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "e62875998ff2008c17abc76cc9884c406fa884fa443c890d64e69de68eb9a4b6",
+  "url": "https://csintro2026.zhengmao.ltd/images/digitable.png"
+ },
+ "digitalworld.jpg": {
+  "bytes": 499712,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/jpeg",
+  "sha256": "1f5a83ba926255715c784e554379f9ab5a54fc457d32fa760857d323aa86b315",
+  "url": "https://csintro2026.zhengmao.ltd/images/digitalworld.jpg"
+ },
+ "digitrans.png": {
+  "bytes": 106197,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "05d442b8ee6299daaf19a5012247498aab31c73d2f1806e8b4b37e269b3ec355",
+  "url": "https://csintro2026.zhengmao.ltd/images/digitrans.png"
+ },
+ "disk.png": {
+  "bytes": 200431,
+  "content_type": "image/png",
+  "sha256": "c768f710d3e9b35d0d4d47cd702f507610ece6417f47b5f4af13c34b183e3799",
+  "url": "https://csintro2026.zhengmao.ltd/images/disk.png"
+ },
+ "display.png": {
+  "bytes": 554471,
+  "content_type": "image/png",
+  "sha256": "167dc9a52f1d7753ba7c4c1f4b5ce5fdde13cab84d67157f38416099439e1d9a",
+  "url": "https://csintro2026.zhengmao.ltd/images/display.png"
+ },
+ "dspquad.png": {
+  "bytes": 567069,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/png",
+  "sha256": "e7995b4a8cba0e42090a098a0f9c02fa60dd3e7d2b2d5ce8a6f3e99eb2d0297a",
+  "url": "https://csintro2026.zhengmao.ltd/images/dspquad.png"
+ },
+ "enigma.jpg": {
+  "bytes": 87325,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/jpeg",
+  "sha256": "e60cdc9343fcdb74ed45b02e0eb8df3fff029f705ab2fac00206ad47bd94bd4b",
+  "url": "https://csintro2026.zhengmao.ltd/images/enigma.jpg"
+ },
+ "f2b.png": {
+  "bytes": 260456,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "580ef1ecc7a03e3a87fe35d8ea0d0e02633c08c9f2c6dd91100838e4bb6f0703",
+  "url": "https://csintro2026.zhengmao.ltd/images/f2b.png"
+ },
+ "fb2d.png": {
+  "bytes": 601709,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "19a8c80322b45ebe03592fb530f494a990c98178edce087f362d663ba6418455",
+  "url": "https://csintro2026.zhengmao.ltd/images/fb2d.png"
+ },
+ "fileInfo.png": {
+  "bytes": 294850,
+  "content_type": "image/png",
+  "sha256": "13659aa24588dcdcdac99c3b106d860cd8380ea2cfb30d6242edd4b545451b79",
+  "url": "https://csintro2026.zhengmao.ltd/images/fileInfo.png"
+ },
+ "fileMgr.png": {
+  "bytes": 199463,
+  "content_type": "image/png",
+  "sha256": "5499e795708bff0a66b26a6e723252268c558579e84060b2cc7a451a0e6329c7",
+  "url": "https://csintro2026.zhengmao.ltd/images/fileMgr.png"
+ },
+ "filedir.png": {
+  "bytes": 188604,
+  "content_type": "image/png",
+  "sha256": "1f2c52646866b68aae111341308ad1f5aa62bdfb2ceeebc1dec439a6a0c1731b",
+  "url": "https://csintro2026.zhengmao.ltd/images/filedir.png"
+ },
+ "filesize.png": {
+  "bytes": 263077,
+  "content_type": "image/png",
+  "sha256": "c8b7ecd3cc41d17e0d6fbe5c97304c2f53054ba9033d18fd03175cb01d54456d",
+  "url": "https://csintro2026.zhengmao.ltd/images/filesize.png"
+ },
+ "filetype.png": {
+  "bytes": 50588,
+  "content_type": "image/png",
+  "sha256": "eb4fed0410154f8889ddd14a9eb2802d734469623599dd8b859b56d94f1364d9",
+  "url": "https://csintro2026.zhengmao.ltd/images/filetype.png"
+ },
+ "funcall.png": {
+  "bytes": 518595,
+  "chapters": [
+   "ch03"
+  ],
+  "content_type": "image/png",
+  "sha256": "63b1209ea7378b91d219cc003f3dbfe566b619e89e49eb297d06549ebaeff275",
+  "url": "https://csintro2026.zhengmao.ltd/images/funcall.png"
+ },
+ "gcode.png": {
+  "bytes": 636359,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "e59a731c445470325963c15aec84793b26a5066f08fe70f3dba6028e1152faad",
+  "url": "https://csintro2026.zhengmao.ltd/images/gcode.png"
+ },
+ "gpu.png": {
+  "bytes": 334346,
+  "content_type": "image/png",
+  "sha256": "f80748adaccfb085f44ada045dec4540fdaf64169fd2f5969ad8994916a854fe",
+  "url": "https://csintro2026.zhengmao.ltd/images/gpu.png"
+ },
+ "gpu1.png": {
+  "bytes": 26434,
+  "content_type": "image/png",
+  "sha256": "34d387047bcf110ffc74e5c80d9904972e201bf6d7eab9f7b2aa5a195a8e2f87",
+  "url": "https://csintro2026.zhengmao.ltd/images/gpu1.png"
+ },
+ "greygraph_astronaut.png": {
+  "bytes": 197407,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "e040ec476d502184ccd373abde9797c3c04dd32acc503de76aa1062843436301",
+  "url": "https://csintro2026.zhengmao.ltd/images/greygraph_astronaut.png"
+ },
+ "gui.png": {
+  "bytes": 354866,
+  "content_type": "image/png",
+  "sha256": "fdd0269aeca8a71f87c4864c3be27f95fec171618fbf077c1bec4f48be3db7bc",
+  "url": "https://csintro2026.zhengmao.ltd/images/gui.png"
+ },
+ "hl_lan.png": {
+  "bytes": 65975,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/png",
+  "sha256": "ee9c172a6884d5e8fc4675c0565133bacbd9fc643bf03748844e08efb21e56ad",
+  "url": "https://csintro2026.zhengmao.ltd/images/hl_lan.png"
+ },
+ "i2b.png": {
+  "bytes": 274036,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "9661f17d18f272da387a2fde773a13c4209feaa8b4633cddcb59021cc2cbdd7c",
+  "url": "https://csintro2026.zhengmao.ltd/images/i2b.png"
+ },
+ "ibmZ.webp": {
+  "bytes": 14128,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/webp",
+  "sha256": "86732d7a22a4f8d15ce87861e1737da38af69205b771080da49ec37beb938fe2",
+  "url": "https://csintro2026.zhengmao.ltd/images/ibmZ.webp"
+ },
+ "ibmpc.jpg": {
+  "bytes": 407294,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/jpeg",
+  "sha256": "030e4e88fe66f44a5315c726c36633ae586bed149322ff4dc7b29c106cf21511",
+  "url": "https://csintro2026.zhengmao.ltd/images/ibmpc.jpg"
+ },
+ "ibookg4.jpg": {
+  "bytes": 33873,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/jpeg",
+  "sha256": "a2b940e681bc06589a88e49764a4e5f1fff90da3ef2ebbf1348d5cdf26403891",
+  "url": "https://csintro2026.zhengmao.ltd/images/ibookg4.jpg"
+ },
+ "ic.jpg": {
+  "bytes": 60945,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/jpeg",
+  "sha256": "8427ba0280d829a310a7c08d44615e7ae6b348ff599800ab4d1093d863df9a54",
+  "url": "https://csintro2026.zhengmao.ltd/images/ic.jpg"
+ },
+ "ic_150.webp": {
+  "bytes": 39594,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/webp",
+  "sha256": "af6e3191e804fddb723c4af64c706835ac13d1d5fa6813aa833571a2965d6a51",
+  "url": "https://csintro2026.zhengmao.ltd/images/ic_150.webp"
+ },
+ "ieee754.png": {
+  "bytes": 171825,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "5278b9d7112209a018ae7648b8dc2691284e719f41bca5eba7e78cac8f2d0300",
+  "url": "https://csintro2026.zhengmao.ltd/images/ieee754.png"
+ },
+ "ifstate.png": {
+  "bytes": 45336,
+  "chapters": [
+   "ch03"
+  ],
+  "content_type": "image/png",
+  "sha256": "74f50239aee49355e324bd3f073b3c9b75ffd0e23871aab0289f3ece7644e152",
+  "url": "https://csintro2026.zhengmao.ltd/images/ifstate.png"
+ },
+ "input.png": {
+  "bytes": 281907,
+  "content_type": "image/png",
+  "sha256": "f41a2652533ef1720ad29522512ddfd79f8555187e917969d91fb9a14d4c0033",
+  "url": "https://csintro2026.zhengmao.ltd/images/input.png"
+ },
+ "interconn.png": {
+  "bytes": 109638,
+  "content_type": "image/png",
+  "sha256": "7d93907594854ad397ba3859e2cdfd7d73eadb9e01468f32e9ed4320592f9cee",
+  "url": "https://csintro2026.zhengmao.ltd/images/interconn.png"
+ },
+ "interconn1.png": {
+  "bytes": 118799,
+  "content_type": "image/png",
+  "sha256": "4e84dbf610ddc3a3006f918a6e6e32a0c6cfab93f735b27b30003fc189895a03",
+  "url": "https://csintro2026.zhengmao.ltd/images/interconn1.png"
+ },
+ "interconn2.png": {
+  "bytes": 118624,
+  "content_type": "image/png",
+  "sha256": "62f58404cb540f689a0ee263f42f9b716ad454081718a0690aa2ba872b3da402",
+  "url": "https://csintro2026.zhengmao.ltd/images/interconn2.png"
+ },
+ "libf.png": {
+  "bytes": 99941,
+  "content_type": "image/png",
+  "sha256": "755f76fb4acdf8d0833b7d7d219636af55fcf02b8fc44e78ba5b8ea05550c18a",
+  "url": "https://csintro2026.zhengmao.ltd/images/libf.png"
+ },
+ "listop.png": {
+  "bytes": 631640,
+  "chapters": [
+   "ch03"
+  ],
+  "content_type": "image/png",
+  "sha256": "85a5ea77db4fdd173a2467c775798e81ce4fadcf0104f1392629bcb8878399cc",
+  "url": "https://csintro2026.zhengmao.ltd/images/listop.png"
+ },
+ "listuple.png": {
+  "bytes": 151589,
+  "chapters": [
+   "ch03"
+  ],
+  "content_type": "image/png",
+  "sha256": "0f121925caa7f0da4b47815c4151d92c9633bbe83b1bd0423fb93980c5644c20",
+  "url": "https://csintro2026.zhengmao.ltd/images/listuple.png"
+ },
+ "listuple1.png": {
+  "bytes": 388485,
+  "chapters": [
+   "ch03"
+  ],
+  "content_type": "image/png",
+  "sha256": "355909b4b69602e1b10b304de10e916d4f9145dea2fb39a0eaa57eb7449b1ded",
+  "url": "https://csintro2026.zhengmao.ltd/images/listuple1.png"
+ },
+ "logop.png": {
+  "bytes": 323118,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "d03c0ce9bfd09893cf7dce7bbdba6cc821eda0e5f507d1485fd813f5d43f078b",
+  "url": "https://csintro2026.zhengmao.ltd/images/logop.png"
+ },
+ "loop.png": {
+  "bytes": 132182,
+  "chapters": [
+   "ch03"
+  ],
+  "content_type": "image/png",
+  "sha256": "193a24ef8c5feee92af63c0c5e7cf2c353587ffd54eaadd4eaeaf5f7443032be",
+  "url": "https://csintro2026.zhengmao.ltd/images/loop.png"
+ },
+ "loop_else.png": {
+  "bytes": 75159,
+  "chapters": [
+   "ch03"
+  ],
+  "content_type": "image/png",
+  "sha256": "1be1600d072385abff1a698ec4357d0189d4cd0a0cb7b097cb07b5ac1b04da83",
+  "url": "https://csintro2026.zhengmao.ltd/images/loop_else.png"
+ },
+ "m1_spec_chip.png": {
+  "bytes": 23285,
+  "content_type": "image/png",
+  "sha256": "aae894b99a37fe5864c627495ca2db06b1cab4812ee18b4d151ecf66c582b331",
+  "url": "https://csintro2026.zhengmao.ltd/images/m1_spec_chip.png"
+ },
+ "mainboard.png": {
+  "bytes": 86406,
+  "content_type": "image/png",
+  "sha256": "62ea497c9814f9c29cf2a0d548d7fa9be1372f3c5e684a87205257a190b7552a",
+  "url": "https://csintro2026.zhengmao.ltd/images/mainboard.png"
+ },
+ "mainboard1.jpeg": {
+  "bytes": 74871,
+  "content_type": "image/jpeg",
+  "sha256": "b1a2721a7cadf5e1e8e87bc9efa6b267f7e6ed7cad055c360a70e89795c26847",
+  "url": "https://csintro2026.zhengmao.ltd/images/mainboard1.jpeg"
+ },
+ "mainboard2.png": {
+  "bytes": 157205,
+  "content_type": "image/png",
+  "sha256": "0966f24ade6bcc8274f78afd8b96be94378fd46364327abdc4b3062280ebe2f3",
+  "url": "https://csintro2026.zhengmao.ltd/images/mainboard2.png"
+ },
+ "matext.png": {
+  "bytes": 855008,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/png",
+  "sha256": "66495afb344bfeb0c094fc4fd9a96b04af2dfac75ce86f520144704cb79ac3b3",
+  "url": "https://csintro2026.zhengmao.ltd/images/matext.png"
+ },
+ "memMng.png": {
+  "bytes": 68128,
+  "content_type": "image/png",
+  "sha256": "b547fb6ade06a9aa8e64c113729c1cef5f1b4935e41831b53f063a7206eb4e70",
+  "url": "https://csintro2026.zhengmao.ltd/images/memMng.png"
+ },
+ "memory.png": {
+  "bytes": 90272,
+  "content_type": "image/png",
+  "sha256": "b79ee02c011521e2a8445c6cc67c55637278862d6f9592fd0c31fead31dbd38e",
+  "url": "https://csintro2026.zhengmao.ltd/images/memory.png"
+ },
+ "memwall.png": {
+  "bytes": 130949,
+  "content_type": "image/png",
+  "sha256": "462f8e079e08e8c5abc51a5688ec00cdd2e573c7fdf2744f5108edae8d487431",
+  "url": "https://csintro2026.zhengmao.ltd/images/memwall.png"
+ },
+ "minusAba.png": {
+  "bytes": 536005,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/png",
+  "sha256": "d25309385d7e81e5af149f9efd7d6a833a3018598dc63634d14039468a2d4ec9",
+  "url": "https://csintro2026.zhengmao.ltd/images/minusAba.png"
+ },
+ "modnotfound.png": {
+  "bytes": 54666,
+  "chapters": [
+   "ch03"
+  ],
+  "content_type": "image/png",
+  "sha256": "69b4f7457f05e67a04dc664d278ae54e2716180249a1f99890390d783f3f27b9",
+  "url": "https://csintro2026.zhengmao.ltd/images/modnotfound.png"
+ },
+ "mri_machine.jpg": {
+  "bytes": 127385,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/jpeg",
+  "sha256": "c4df6d94a9dd9b39ce64015ac33583b190dbf2a94637a494a0e3a58e71cad6dc",
+  "url": "https://csintro2026.zhengmao.ltd/images/mri_machine.jpg"
+ },
+ "mri_slice.jpg": {
+  "bytes": 87845,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/jpeg",
+  "sha256": "52a51cf7567d3f88f1d919240122dd9b2598b66e02b6ebe69661baf23386d8b5",
+  "url": "https://csintro2026.zhengmao.ltd/images/mri_slice.jpg"
+ },
+ "muldiv.png": {
+  "bytes": 495781,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "169a086c60e9db03915bb7bd9da6fdd89fc06734c54024faa52121027d1405dc",
+  "url": "https://csintro2026.zhengmao.ltd/images/muldiv.png"
+ },
+ "ndigi.png": {
+  "bytes": 97667,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "1a3fd398e34b63e4be794d996561ef8cfebcd1a5fac10b2db4df0e1a77992491",
+  "url": "https://csintro2026.zhengmao.ltd/images/ndigi.png"
+ },
+ "num.png": {
+  "bytes": 346425,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "f4e6e5eeab226bf9bf7a5ac87b9dbb0ef75013477b111f48ac833ffa4a744a50",
+  "url": "https://csintro2026.zhengmao.ltd/images/num.png"
+ },
+ "num2.png": {
+  "bytes": 939698,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "5c7e83a570d39fe9bab1c4e8dd9f7ab347f5778dce22085cbf1fdaf3f9bdee41",
+  "url": "https://csintro2026.zhengmao.ltd/images/num2.png"
+ },
+ "oldprg.png": {
+  "bytes": 1699740,
+  "chapters": [
+   "ch03"
+  ],
+  "content_type": "image/png",
+  "sha256": "54734029ab2ecd6b034c95a1194d09094cf94e7208e22de441c14cc559a1f5f8",
+  "url": "https://csintro2026.zhengmao.ltd/images/oldprg.png"
+ },
+ "onion_model.png": {
+  "bytes": 374318,
+  "chapters": [
+   "ch01",
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "89320a676828692152dad4629ff95890f01d21d91bd308b6b3683f1a98e8e799",
+  "url": "https://csintro2026.zhengmao.ltd/images/onion_model.png"
+ },
+ "oracle.jpeg": {
+  "bytes": 49380,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/jpeg",
+  "sha256": "932ac1635b6c9d9fcb76057b2fc2573ea0d88e0b125c8124229b7705310c920a",
+  "url": "https://csintro2026.zhengmao.ltd/images/oracle.jpeg"
+ },
+ "os.png": {
+  "bytes": 126166,
+  "content_type": "image/png",
+  "sha256": "e66170771f1237f667bc2c150323b173639d46c006795d5164ec7982e7552dba",
+  "url": "https://csintro2026.zhengmao.ltd/images/os.png"
+ },
+ "os1.png": {
+  "bytes": 153647,
+  "content_type": "image/png",
+  "sha256": "0c81837ed4d4ef521525ca20048aa7706523d63c4b2858bacae9d34096d75cd8",
+  "url": "https://csintro2026.zhengmao.ltd/images/os1.png"
+ },
+ "osArch.png": {
+  "bytes": 99729,
+  "content_type": "image/png",
+  "sha256": "e5c4b5fbe595839a2c86896b55f66da82c64cc2a0bd59f4e5b730a3c1cb77615",
+  "url": "https://csintro2026.zhengmao.ltd/images/osArch.png"
+ },
+ "outdevice.png": {
+  "bytes": 116521,
+  "content_type": "image/png",
+  "sha256": "417f204219ea2562e7a4b640bd413b18669584269b833476b5b02dc7344e5c05",
+  "url": "https://csintro2026.zhengmao.ltd/images/outdevice.png"
+ },
+ "pascaladder.png": {
+  "bytes": 731654,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/png",
+  "sha256": "ceab40a190bb61d7b84abc6d4c44c4566e9fc3a28cac59156caed25fac086fdf",
+  "url": "https://csintro2026.zhengmao.ltd/images/pascaladder.png"
+ },
+ "pentium4.jpeg": {
+  "bytes": 123161,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/jpeg",
+  "sha256": "1d221a22b77cb347cffc1cdac176ccabfb1cecc2383d15c86b6a022707e4f98a",
+  "url": "https://csintro2026.zhengmao.ltd/images/pentium4.jpeg"
+ },
+ "picqua.png": {
+  "bytes": 1218494,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "0f24101e99c6032a611677504eb269b328a511415bee436fad0ec3bb3294ede7",
+  "url": "https://csintro2026.zhengmao.ltd/images/picqua.png"
+ },
+ "pointmat.png": {
+  "bytes": 1008715,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "79f280e9bc3e227bec58b21783c83e4b7f21ab74d17c00de8a713ed507cd7038",
+  "url": "https://csintro2026.zhengmao.ltd/images/pointmat.png"
+ },
+ "pointmat1.png": {
+  "bytes": 1058756,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "13630308eff270222f1b4cc42914a4c86c629e2a44dfc6468f3e0fef7e97de78",
+  "url": "https://csintro2026.zhengmao.ltd/images/pointmat1.png"
+ },
+ "ppi_grid.png": {
+  "bytes": 332557,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "96654874a81b4f6c87bc0ccc58d25f3ac0a2191912ef818921dcefb275a0c8a6",
+  "url": "https://csintro2026.zhengmao.ltd/images/ppi_grid.png"
+ },
+ "ppi_mosaic.png": {
+  "bytes": 156343,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "fb4298f715f39fa50f1f4ea34b401950044f9b846407ab914e9ebcecd7db6023",
+  "url": "https://csintro2026.zhengmao.ltd/images/ppi_mosaic.png"
+ },
+ "prgming.png": {
+  "bytes": 200180,
+  "chapters": [
+   "ch03"
+  ],
+  "content_type": "image/png",
+  "sha256": "33f3dd9e6be141438db73b7490f0fbfb0ddbb1c3947b5b67344839343bbbaec4",
+  "url": "https://csintro2026.zhengmao.ltd/images/prgming.png"
+ },
+ "pydigitrans.png": {
+  "bytes": 336969,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "dff8df818aaa5c3115f3d31dc4df3594489d98306ff38b5c3699fb8e5534fce0",
+  "url": "https://csintro2026.zhengmao.ltd/images/pydigitrans.png"
+ },
+ "pythoncalc.png": {
+  "bytes": 209663,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "579407dee529fe0316816b668343a28dc5cb696613fcef1414cb38adb252c421",
+  "url": "https://csintro2026.zhengmao.ltd/images/pythoncalc.png"
+ },
+ "pythondt_ch03.png": {
+  "bytes": 47197,
+  "chapters": [
+   "ch03"
+  ],
+  "content_type": "image/png",
+  "sha256": "30468b55e6aa2e0c09215ffd9837a22db14409f180ee5ae66214a9a5ff129032",
+  "url": "https://csintro2026.zhengmao.ltd/images/pythondt_ch03.png"
+ },
+ "qumei.jpg": {
+  "bytes": 86776,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/jpeg",
+  "sha256": "9e5510bf8d01a3e8aa5eb3b1fbd4631aa4c55c16385bc58f878ca6085161ed0a",
+  "url": "https://csintro2026.zhengmao.ltd/images/qumei.jpg"
+ },
+ "resized_CPU.png": {
+  "bytes": 534514,
+  "content_type": "image/png",
+  "sha256": "4d36e4af1dff1ed8310663140e1ecaca7fb764259916d61f5b258de99fb0c431",
+  "url": "https://csintro2026.zhengmao.ltd/images/resized_CPU.png"
+ },
+ "resized_binKM.png": {
+  "bytes": 41821,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "4fab949ce848db46732fe01d01fc43c4709e0495d247cbf4911506d25419d976",
+  "url": "https://csintro2026.zhengmao.ltd/images/resized_binKM.png"
+ },
+ "resized_dataMeas.png": {
+  "bytes": 123645,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "4440d922847b3ba61cde5dc5fa75c67ea65cbdfcaa557f5265ece8017d8a243c",
+  "url": "https://csintro2026.zhengmao.ltd/images/resized_dataMeas.png"
+ },
+ "resized_idcode.png": {
+  "bytes": 47729,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "1b47dace78122456a939f85c21b498f741cebc8ae489a37de654b6b51bbf80c7",
+  "url": "https://csintro2026.zhengmao.ltd/images/resized_idcode.png"
+ },
+ "resized_soundcalc.png": {
+  "bytes": 53300,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "2881b19d82ae341e16a88bfc03f1c229900000a7320914c9f047198db66a2be5",
+  "url": "https://csintro2026.zhengmao.ltd/images/resized_soundcalc.png"
+ },
+ "resized_status.png": {
+  "bytes": 141800,
+  "content_type": "image/png",
+  "sha256": "8f5c81322cb1b0253d8e5fae4b7da33e4fe7a8dcc454d8f275a08fefd2fdd5c6",
+  "url": "https://csintro2026.zhengmao.ltd/images/resized_status.png"
+ },
+ "rgb2hsv.png": {
+  "bytes": 511532,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "e2ecc9ea13e398cc60e651c4357f831d6bccdd9c8b1c53ca476d01ce2189ae28",
+  "url": "https://csintro2026.zhengmao.ltd/images/rgb2hsv.png"
+ },
+ "roman-numerals-from-1-to-100.png": {
+  "bytes": 13490,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "71d67e64efeb31359ed118bfd09b0e16081ae1304caad330e98ed061822dabeb",
+  "url": "https://csintro2026.zhengmao.ltd/images/roman-numerals-from-1-to-100.png"
+ },
+ "rossum.png": {
+  "bytes": 610351,
+  "chapters": [
+   "ch03"
+  ],
+  "content_type": "image/png",
+  "sha256": "f29e3c23321fcd32ea5607e35ffa19c1b34776bca2c9a1580c148e3ba975bc42",
+  "url": "https://csintro2026.zhengmao.ltd/images/rossum.png"
+ },
+ "roundrobin.png": {
+  "bytes": 160560,
+  "content_type": "image/png",
+  "sha256": "b895303767e8254d8a5f4aa3c749ac8dc26641833a464ed7d3360091320794f4",
+  "url": "https://csintro2026.zhengmao.ltd/images/roundrobin.png"
+ },
+ "rtx4090.png": {
+  "bytes": 2785269,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/png",
+  "sha256": "dcf27e5ed12fc9043f062dc40d1ed461fd8223949763851156c10ebb5c9a57d5",
+  "url": "https://csintro2026.zhengmao.ltd/images/rtx4090.png"
+ },
+ "shellCmd.png": {
+  "bytes": 459158,
+  "chapters": [
+   "ch03"
+  ],
+  "content_type": "image/png",
+  "sha256": "c53f38833361e6605025fe10f1b3c6fc6a17a5e7cfceb627c055f8c32ab4ce6c",
+  "url": "https://csintro2026.zhengmao.ltd/images/shellCmd.png"
+ },
+ "shiftop.png": {
+  "bytes": 182341,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "d440195052fa639ce831fc4620a5dfed83be992a6f91b6273d8cc54e42be88da",
+  "url": "https://csintro2026.zhengmao.ltd/images/shiftop.png"
+ },
+ "slot.png": {
+  "bytes": 231890,
+  "content_type": "image/png",
+  "sha256": "2b224ea8962eb5d1eac2108464f0cb02344ff250c222d1f65d3233e66886a238",
+  "url": "https://csintro2026.zhengmao.ltd/images/slot.png"
+ },
+ "slot1.png": {
+  "bytes": 159422,
+  "content_type": "image/png",
+  "sha256": "9ffb949fecedfb9598aea1f4d4b72e2801861b7935c3f616ee3a8a77d8929522",
+  "url": "https://csintro2026.zhengmao.ltd/images/slot1.png"
+ },
+ "soft.png": {
+  "bytes": 178225,
+  "content_type": "image/png",
+  "sha256": "ac84240eb89646e2bccdec942960ef891095fff9ca91bc2f62d511b4f31fec49",
+  "url": "https://csintro2026.zhengmao.ltd/images/soft.png"
+ },
+ "soft1.png": {
+  "bytes": 137705,
+  "content_type": "image/png",
+  "sha256": "fb2e4f727538ade6ac4b1401c281f2c8227a8232bc433865a43c117881329acc",
+  "url": "https://csintro2026.zhengmao.ltd/images/soft1.png"
+ },
+ "soft_abs.png": {
+  "bytes": 763369,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/png",
+  "sha256": "27af7b98dd2fe36e8f7198908e2bbfe7835552c615af5d4eaeab9d784d2537b0",
+  "url": "https://csintro2026.zhengmao.ltd/images/soft_abs.png"
+ },
+ "soundcode.png": {
+  "bytes": 618714,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "f85fa479f6d739f0bda466bd77a8f3ae268aa5ccdb14a71d43eb4b656a543224",
+  "url": "https://csintro2026.zhengmao.ltd/images/soundcode.png"
+ },
+ "soundout.png": {
+  "bytes": 527287,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "28813bd05c3060e9aec5f19881f6163866c62ceca48f6c42c816d9fa9dbafa33",
+  "url": "https://csintro2026.zhengmao.ltd/images/soundout.png"
+ },
+ "statements.png": {
+  "bytes": 97833,
+  "chapters": [
+   "ch03"
+  ],
+  "content_type": "image/png",
+  "sha256": "6de1371adae9eb9dfb57ebbfb83c55eb4f0e11fc8ba2683998c35c305d8e8521",
+  "url": "https://csintro2026.zhengmao.ltd/images/statements.png"
+ },
+ "storage.png": {
+  "bytes": 170594,
+  "content_type": "image/png",
+  "sha256": "49f382e8a3a9e92d6f93b8e663f3d908fbae6af867b75ab7c052384dbd652dee",
+  "url": "https://csintro2026.zhengmao.ltd/images/storage.png"
+ },
+ "superComputer.png": {
+  "bytes": 701749,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/png",
+  "sha256": "d03385495cc8ad52e9846a94d3238eaa263bcadad985fe794348cfd0b3599fdb",
+  "url": "https://csintro2026.zhengmao.ltd/images/superComputer.png"
+ },
+ "syscall.png": {
+  "bytes": 121328,
+  "content_type": "image/png",
+  "sha256": "cb52e8680db934b481babcea2540e9539cd99d27169a49fd75df1b1065a2effe",
+  "url": "https://csintro2026.zhengmao.ltd/images/syscall.png"
+ },
+ "syscall1.png": {
+  "bytes": 54836,
+  "content_type": "image/png",
+  "sha256": "70278a5bb06bb0766fabe4114e602dd89139af3feb41b3dc5f84896c2a2ea0b1",
+  "url": "https://csintro2026.zhengmao.ltd/images/syscall1.png"
+ },
+ "tpu.png": {
+  "bytes": 648339,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/png",
+  "sha256": "e4349539d9e9c9e8d0328a501fffcb73f0f72dbeaecc5e5c681bfb5834e890df",
+  "url": "https://csintro2026.zhengmao.ltd/images/tpu.png"
+ },
+ "transistor.jpg": {
+  "bytes": 42745,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/jpeg",
+  "sha256": "74549d8e078eb18c337f624e44ac93666158defee308a6d54658402f3c672b83",
+  "url": "https://csintro2026.zhengmao.ltd/images/transistor.jpg"
+ },
+ "transistorModel.jpg": {
+  "bytes": 53252,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/jpeg",
+  "sha256": "622129bc2db4a333a60ec59c9baa1345950d4942dba1a50aafa31c31d65634b3",
+  "url": "https://csintro2026.zhengmao.ltd/images/transistorModel.jpg"
+ },
+ "unicode1.png": {
+  "bytes": 217874,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "2f056a344e80664d803f59d5526bbe2d7b073ab13c51e27ec0b6c36ddbec05dd",
+  "url": "https://csintro2026.zhengmao.ltd/images/unicode1.png"
+ },
+ "unicodechar.png": {
+  "bytes": 48916,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "91e48240702d67f64b8ec7a9a2fda5949ae3707c141416db184c8066bf680952",
+  "url": "https://csintro2026.zhengmao.ltd/images/unicodechar.png"
+ },
+ "unigo2.png": {
+  "bytes": 2921518,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/png",
+  "sha256": "f8b4a914f1f690edb3f1fd4ae7050030f5ef00192a6f9521bfa80cef016b7768",
+  "url": "https://csintro2026.zhengmao.ltd/images/unigo2.png"
+ },
+ "varobj.png": {
+  "bytes": 275421,
+  "chapters": [
+   "ch03"
+  ],
+  "content_type": "image/png",
+  "sha256": "b296c8adfba95c10a31c22e6a4f7319ac857b2a1a3600bd415e0da140853b693",
+  "url": "https://csintro2026.zhengmao.ltd/images/varobj.png"
+ },
+ "varobj1.png": {
+  "bytes": 315136,
+  "chapters": [
+   "ch03"
+  ],
+  "content_type": "image/png",
+  "sha256": "9806ceb71dde8b863aed73d92ac43cb0b12119af1f52dc8229b592d170202295",
+  "url": "https://csintro2026.zhengmao.ltd/images/varobj1.png"
+ },
+ "varobj2.png": {
+  "bytes": 312873,
+  "chapters": [
+   "ch03"
+  ],
+  "content_type": "image/png",
+  "sha256": "270597b5ee801ef6114b58adb915aab88ac66479963d7e220add418c16afb924",
+  "url": "https://csintro2026.zhengmao.ltd/images/varobj2.png"
+ },
+ "vecpic.png": {
+  "bytes": 94974,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "80cf5c25c40563ca9fd92cdbb62b1cba7a747daf86142e459e59e8e92a0322f9",
+  "url": "https://csintro2026.zhengmao.ltd/images/vecpic.png"
+ },
+ "vecpic1.png": {
+  "bytes": 315792,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "fb929e050ce0f061c36c083d34bea1c608c9533da3779a3d531f3dd64823333a",
+  "url": "https://csintro2026.zhengmao.ltd/images/vecpic1.png"
+ },
+ "vibe_gufa.jpg": {
+  "bytes": 772798,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/jpeg",
+  "sha256": "a89f2b3d767196d7b0b6aba1dff64d7d48fe05e31ce82e7a3713ca15595d71eb",
+  "url": "https://csintro2026.zhengmao.ltd/images/vibe_gufa.jpg"
+ },
+ "video_boot.jpg": {
+  "bytes": 48030,
+  "content_type": "image/jpeg",
+  "sha256": "219d7951927dc8586f8fd84dade4439197a353ab43210fcbdac9b8cb2b509a2a",
+  "url": "https://csintro2026.zhengmao.ltd/images/video_boot.jpg"
+ },
+ "video_virmem.jpg": {
+  "bytes": 38418,
+  "content_type": "image/jpeg",
+  "sha256": "2dd12436cfca77e3040a6c5a84c4722e5d295f6ff059968813e944f95dda7431",
+  "url": "https://csintro2026.zhengmao.ltd/images/video_virmem.jpg"
+ },
+ "virmem.png": {
+  "bytes": 100651,
+  "content_type": "image/png",
+  "sha256": "a1900431093df98e653f45867305cf9373de18b406125b3a63897611d9cc715b",
+  "url": "https://csintro2026.zhengmao.ltd/images/virmem.png"
+ },
+ "virmem1.png": {
+  "bytes": 69990,
+  "content_type": "image/png",
+  "sha256": "c56f9e27a946f61bc996dceb3a621e4382223202e52f31a85db4b95b1f23ed20",
+  "url": "https://csintro2026.zhengmao.ltd/images/virmem1.png"
+ },
+ "vlsiDie.png": {
+  "bytes": 1016646,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/png",
+  "sha256": "7ba0de067fbf31d6b9554e525465489937c69e2a7bc026dd66fafbf87a4204ef",
+  "url": "https://csintro2026.zhengmao.ltd/images/vlsiDie.png"
+ },
+ "vonNeu.png": {
+  "bytes": 11366,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/png",
+  "sha256": "e89d11d11c6833ff59fd2f3b123e106bbbf21bf4897844a331796228be228eec",
+  "url": "https://csintro2026.zhengmao.ltd/images/vonNeu.png"
+ },
+ "vonNeu1.png": {
+  "bytes": 47789,
+  "content_type": "image/png",
+  "sha256": "e4faba4fe596f274de2790f0d3ffab6832a696c01e4f04a6b75f15e69e1b1404",
+  "url": "https://csintro2026.zhengmao.ltd/images/vonNeu1.png"
+ },
+ "vtube.png": {
+  "bytes": 891580,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/png",
+  "sha256": "30b1db61dd80ac712c71ded00ffab8d772b2b77a970150bca4ef2a681ef1e80d",
+  "url": "https://csintro2026.zhengmao.ltd/images/vtube.png"
+ },
+ "vui.png": {
+  "bytes": 176830,
+  "content_type": "image/png",
+  "sha256": "e4035b3eb46084bc548571ecffbc089fb76311ff27dec4766603f7f059d62042",
+  "url": "https://csintro2026.zhengmao.ltd/images/vui.png"
+ },
+ "waterInte.png": {
+  "bytes": 414381,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/png",
+  "sha256": "d7a75c289cbc7db31628e54d2ca737e536bd52d63ff308d1d145211604c0eb33",
+  "url": "https://csintro2026.zhengmao.ltd/images/waterInte.png"
+ },
+ "win3264.png": {
+  "bytes": 40507,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "41f56d370b1f8a1b90be1284aedbe831a4c78b4a59ea97738b876460f6190f71",
+  "url": "https://csintro2026.zhengmao.ltd/images/win3264.png"
+ },
+ "winCmd.png": {
+  "bytes": 406655,
+  "chapters": [
+   "ch03"
+  ],
+  "content_type": "image/png",
+  "sha256": "acb055f2cafd29dab53b1bf135510efb9d94675274d2e71478aa5ad3cfd1db84",
+  "url": "https://csintro2026.zhengmao.ltd/images/winCmd.png"
+ },
+ "ww2.png": {
+  "bytes": 13225,
+  "chapters": [
+   "ch01"
+  ],
+  "content_type": "image/png",
+  "sha256": "432356bf7eaeb6c815ecca917ec24d24a98797fe9a90f87b62767290432ab655",
+  "url": "https://csintro2026.zhengmao.ltd/images/ww2.png"
+ },
+ "x86code2inst.png": {
+  "bytes": 286091,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "76535f05a32091071f7ac45be18ae4fb4264ad1b4411c82a0d274e902a3271d6",
+  "url": "https://csintro2026.zhengmao.ltd/images/x86code2inst.png"
+ },
+ "x86inst.png": {
+  "bytes": 372389,
+  "chapters": [
+   "ch02"
+  ],
+  "content_type": "image/png",
+  "sha256": "e3016fbb6dca7b1666ab5372a66eb2cac111dce6ce4ff8f1445b937eeb82c3a6",
+  "url": "https://csintro2026.zhengmao.ltd/images/x86inst.png"
+ }
+}

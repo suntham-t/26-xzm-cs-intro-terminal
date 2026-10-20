@@ -3488,6 +3488,10 @@ function jumpChapter(ci, pos){
 var INLINE_KINDS = { days: 1, hw: 1, videos: 1, reader: 1, problem: 1 };
 var INLINE_MIN_W = 900;      /* 比这窄就退回弹层（内嵌面板在窄屏里读起来会很难受） */
 var SURF_KIND = "";          /* 内嵌模式下当前面板的种类（弹层模式下由 #modal 的 data-kind 承载） */
+/* 盖在内嵌面板上的小弹层（自动提交的说明 / OJ 登录框）。
+   ★ 它不能用常规 openModal：那条路会 surfaceInlineOff()，把「测一测」整页关掉、
+     退回作业列表 —— 用户报的「一点自动提交就被推出作业界面」就是它。 */
+var OVERLAY_MODAL = false;
 var SURF_BACK = "";          /* 内嵌的"上一层 kind"：关掉当前面板时复原它（空 = 回到卡片） */
 
 function surfaceInlineOk(kind){
@@ -3499,7 +3503,10 @@ function surfaceIsInline(){ return !!SURF_KIND; }
    不能直接写 $("modalBody") —— 内嵌时那会写进隐藏的弹层里（肉眼看就是"点了没反应"）。
    ★ 注意这里不能出现 $("modalBody") 之外的写法：有一次批量替换把本行也换成了
      modalBodyEl()，结果变成无限递归。改这一行时眼睛盯住"弹层分支"。 */
-function modalBodyEl(){ return surfaceIsInline() ? $("inlineBody") : $("modalBody"); }
+function modalBodyEl(){
+  if (OVERLAY_MODAL) return $("modalBody");
+  return surfaceIsInline() ? $("inlineBody") : $("modalBody");
+}
 /* 当前"最前面那个面板"的根元素。
    用途：验收脚本 / 读屏要在面板范围里查东西时，不该关心落点是弹层还是内嵌 ——
    直接查 #modalBody 会在内嵌模式下查到一个隐藏的旧容器（表现为"元素找不到"）。 */
@@ -3561,9 +3568,11 @@ function sbHover(e){
   SB_TIP_T = setTimeout(function(){ sbHoverShow(button); }, 90);   /* 90ms：够快，又不会扫过时乱闪 */
 }
 
-function openModal(kind, title, bodyHtml){
+function openModal(kind, title, bodyHtml, opts){
   kind = kind || "";
-  if (surfaceInlineOk(kind)){
+  var keep = !!(opts && opts.keepSurface);
+  OVERLAY_MODAL = false;          /* 每次开面板先复位，别把上一次的状态带进来 */
+  if (!keep && surfaceInlineOk(kind)){
     /* ---- 内嵌到卡片区 ---- */
     /* 记"上一层"：从列表点进内容时（days→reader、hw→problem），关掉内容要能回列表。
        ★ 刻意**不记同层重复**（days→days 重画、hw→hw 换页签都算同层），
@@ -3600,11 +3609,13 @@ function openModal(kind, title, bodyHtml){
     return;
   }
   /* ---- 普通弹层 ---- */
-  if (surfaceIsInline()) surfaceInlineOff();
+  OVERLAY_MODAL = keep;
+  if (!keep && surfaceIsInline()) surfaceInlineOff();
   $("modal").hidden = false;
   $("modal").setAttribute("data-kind", kind);
   $("modalTitle").innerHTML = escapeHtml(title || "");
-  modalBodyEl().innerHTML = bodyHtml || "";
+  if (keep) $("modalBody").innerHTML = bodyHtml || "";
+  else modalBodyEl().innerHTML = bodyHtml || "";
   if ($("scrim")) $("scrim").hidden = false;
 }
 /* 收起内嵌面板、把卡片放回来（关掉/切到弹层/翻卡时都要走这里）
@@ -3647,7 +3658,11 @@ function closeModal(){
      · 当前是弹层、内嵌只是顺带清掉 → **不要** restore。否则"看着某一天时点目录"
        会莫名其妙退回 100 Days 列表（那是两件不相干的事）。
      还要注意别先清空内嵌正文再 restore：reader 的复原靠重画，但清理顺序错了会闪一下。 */
-  if (surfaceIsInline()){
+  if (OVERLAY_MODAL){
+    /* 盖在内嵌面板上的小弹层：只收自己，底下的「测一测」原样留着 */
+    OVERLAY_MODAL = false;
+    $("modalBody").innerHTML = "";
+  } else if (surfaceIsInline()){
     surfaceInlineOff(true);
   } else {
     $("modalBody").innerHTML = "";
@@ -6921,7 +6936,8 @@ function openOjConsent(){
       "<p>· 每次提交前不会再问，直到你在 AI 设置里退出登录。</p>" +
     "</div>" +
     '<div class="hwActions"><button class="primary" data-act="ojconsent">同意，开始提交</button>' +
-    '<button data-act="closemodal">算了，手动交</button></div>');
+    '<button data-act="closemodal">算了，手动交</button></div>',
+    { keepSurface: true });
 }
 function hwDoAutoSubmit(code){
   var t = testState();
@@ -6963,7 +6979,8 @@ function openOjLogin(){
     '<div class="aiErr" id="ojErr" hidden style="margin-top:10px"></div>' +
     '<div class="hwActions" style="margin-top:12px">' +
       '<button class="primary" data-act="ojdologin">登录并提交</button>' +
-      '<button data-act="closemodal">取消</button></div>');
+      '<button data-act="closemodal">取消</button></div>',
+    { keepSurface: true });
   setTimeout(function(){ var e = document.getElementById("ojEmail"); if (e && e.focus) e.focus(); }, 0);
 }
 function ojLoginError(msg){

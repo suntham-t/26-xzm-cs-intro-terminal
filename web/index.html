@@ -6926,7 +6926,7 @@ function hwSubmit(){
 function hwSubmitCode(){
   var t = testState();
   var mine = String(t.code || "");
-  var ai = String(aiBlockCode(0) || "");
+  var ai = String(aiFinalCode() || "");
   if (HW.tab === "analysis" && ai.trim()) return { code: ai, from: "ai" };
   if (mine.trim()) return { code: mine, from: "mine" };
   if (ai.trim()) return { code: ai, from: "ai" };
@@ -6934,7 +6934,9 @@ function hwSubmitCode(){
 }
 function hwSubmitHint(){
   var pick = hwSubmitCode();
-  if (pick.from === "ai") return "提交「解析」里 AI 写的那份代码";
+  if (pick.from === "ai"){
+    return aiFinalCodeIndex() > 0 ? "提交「解析」里 AI 修正后的代码" : "提交「解析」里 AI 写的那份代码";
+  }
   if (pick.from === "mine") return "提交「测一测」里你自己的代码";
   return "用你自己的 OJ 账号直接提交这道题，并读回评测结果";
 }
@@ -6953,7 +6955,9 @@ function hwAutoSubmit(){
   hwDoAutoSubmit(pick.code, pick.from);
 }
 function openOjConsent(from){
-  var which = (from === "ai") ? "「解析」里 AI 写的代码" : "「测一测」里你自己的代码";
+  var which = (from === "ai")
+    ? (aiFinalCodeIndex() > 0 ? "「解析」里 AI 修正后的代码" : "「解析」里 AI 写的代码")
+    : "「测一测」里你自己的代码";
   openModal("ojconsent", "🚀 自动提交说明",
     '<div class="body" style="font-size:14px;line-height:1.9">' +
       "<p>点「同意」之后，这个终端会用<b>你自己的 OpenJudge 账号</b>，把" + which + "直接提交到这道题，并读回评测结果。</p>" +
@@ -7114,6 +7118,44 @@ function aiBlockCode(idx){
   if (v && v.detail && typeof v.detail.code === "string" && v.detail.code.trim()) return v.detail.code;
   var b = a.blocks ? a.blocks[idx] : null;
   return b ? b.code : "";
+}
+/* 解析里"最终代码"是第几块：
+   AI 第一版没过样例时，服务端会重试，把修正版追加在最后（## 修正后的代码），
+   verify 里同时留着第一版（fail）和修正版（pass）两条记录。
+   ★ 原来直接取第 0 块 + verify[0].detail.code —— 那是**第一版**，
+     用户报的"交的是第一版 ai 代码"就是它。 */
+function aiFinalCodeIndex(){
+  var a = aiEnsure();
+  if (!a) return -1;
+  var idxs = [];
+  if (a.verify) Object.keys(a.verify).forEach(function(k){
+    var i = Number(k), v = a.verify[k];
+    if (isFinite(i) && v && v.detail && String(v.detail.code || "").trim()) idxs.push(i);
+  });
+  if (idxs.length){
+    /* 服务端 status 的取值是 ok / fail / skipped（不是 "pass"） */
+    var passed = idxs.filter(function(i){
+      var st = a.verify[i] && a.verify[i].status;
+      return st === "ok" || st === "pass";
+    });
+    return passed.length ? Math.max.apply(null, passed) : Math.max.apply(null, idxs);
+  }
+  return a.blocks && a.blocks.length ? 0 : -1;
+}
+function aiFinalCode(){
+  var a = aiEnsure();
+  if (!a) return "";
+  var i = aiFinalCodeIndex();
+  var v = (i >= 0 && a.verify) ? a.verify[i] : null;
+  if (v && v.detail && typeof v.detail.code === "string" && v.detail.code.trim()) return v.detail.code;
+  var b = (i >= 0 && a.blocks) ? a.blocks[i] : null;
+  if (b && b.code) return b.code;
+  /* 还没渲染过（blocks 是渲染时重建的）：直接从正文里抠最后一个 python 块 */
+  if (a.text){
+    var re = /\x60{3}(?:python3?|py)[^\n]*\n([\s\S]*?)\x60{3}/i, mm = re.exec(a.text);
+    if (mm && String(mm[1]).trim()) return String(mm[1]).replace(/\s+$/, "") + "\n";
+  }
+  return "";
 }
 function codeViz(code){
   if (!code){ toast("这段代码找不到了"); return; }

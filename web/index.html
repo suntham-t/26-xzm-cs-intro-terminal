@@ -6113,20 +6113,52 @@ function hwStatementHtml(){
 /* 样例/用例的值 + 一个「📋 复制」。
    样例是**数据**不是代码 —— 所以只给复制，不给「▶ 可视化」。
    按钮常驻可见（不做悬停才显形）：触屏和键盘用户也得能看见、能 Tab 到。 */
-function preCopyHtml(text, act, key, label){
+function preCopyHtml(text, act, key, label, idx){
   return '<div class="preRow"><pre>' + escapeHtml(text === undefined || text === null ? "" : text) + "</pre>" +
     '<button class="copyMini" data-act="' + attr(act) + '" data-key="' + attr(key) + '"' +
+    (idx === undefined ? "" : ' data-i="' + attr(idx) + '"') +
     ' title="' + attr("复制" + (label || "")) + '" aria-label="' + attr("复制" + (label || "")) + '">📋 复制</button></div>';
+}
+/* 多组样例拆开：OJ 有些题一屏放好几组，抓下来时「样例输入1」这种标签也进了正文。
+   不拆的话，样例测试会把标签当数据读进去（hw3 第 7 题）。 */
+function samplePairs(p){
+  var si = String((p && p.sample_in) || ""), so = String((p && p.sample_out) || "");
+  function blocks(text, kind){
+    var re = new RegExp("^[ \\t]*样例" + kind + "[ \\t]*\\d*[ \\t]*$", "m");
+    var parts = String(text).replace(/\r\n?/g, "\n").split(re);
+    if (parts.length <= 1) return null;
+    var out = [];
+    parts.forEach(function(x){
+      var t = x.replace(/^\n+/, "").replace(/\n+$/, "");
+      if (t.trim()) out.push(t);
+    });
+    return out.length ? out : null;
+  }
+  var ins = blocks(si, "输入"), outs = blocks(so, "输出");
+  if (ins && outs && ins.length === outs.length){
+    var pairs = [];
+    for (var i = 0; i < ins.length; i++) pairs.push({ in: ins[i], out: outs[i] });
+    return pairs;
+  }
+  return [{ in: si, out: so }];
 }
 /* 样例：放最显眼的位置（它是唯一权威），带规范化说明和特殊情况提示 */
 function hwSampleHtml(p){
-  if (!p.sample_in && !p.sample_out) return "";
-  return '<div class="resBox" style="margin:0 0 16px"><div class="resHead">📋 样例' +
-    (tabExpandedSample(p) ? '<span class="vfy skip">对齐空格＝制表符</span>' : "") + "</div>" +
-    '<div class="resGrid">' +
-    '<div class="k">输入</div>' + preCopyHtml(p.sample_in, "copysample", "in", "样例输入") +
-    '<div class="k">输出</div>' + preCopyHtml(p.sample_out, "copysample", "out", "样例输出") +
-    "</div>" + sampleHintHtml(p) + "</div>";
+  var pairs = samplePairs(p);
+  if (!pairs.length) return "";
+  var multi = pairs.length > 1;
+  var out = ['<div class="resBox" style="margin:0 0 16px"><div class="resHead">📋 样例' +
+    (multi ? '<span class="vfy skip">共 ' + pairs.length + " 组</span>" : "") +
+    (tabExpandedSample(p) ? '<span class="vfy skip">对齐空格＝制表符</span>' : "") + "</div>"];
+  pairs.forEach(function(pr, i){
+    if (multi) out.push('<div class="setHint" style="padding:7px 12px 0">样例 ' + (i + 1) + "</div>");
+    out.push('<div class="resGrid">' +
+      '<div class="k">输入</div>' + preCopyHtml(pr.in, "copysample", "in", "样例输入", i) +
+      '<div class="k">输出</div>' + preCopyHtml(pr.out, "copysample", "out", "样例输出", i) +
+      "</div>");
+  });
+  out.push(sampleHintHtml(p) + "</div>");
+  return out.join("");
 }
 function hwPointChips(p){
   if (!Array.isArray(p.points) || !p.points.length) return "";
@@ -6463,7 +6495,8 @@ function testState(){
     var p = HW.prob || {};
     /* ★ 代码框**不再预填参考解**：打开「测一测」就看见答案，练习变看答案。
        参考解挪到下面的折叠块里了（见 hwTestHtml 的 .refSol）。 */
-    var t = { code: "", stdin: p.sample_in || "", expected: p.sample_out || "",
+    var sp0 = samplePairs(p)[0] || { in: "", out: "" };
+    var t = { code: "", stdin: sp0.in || "", expected: sp0.out || "",
               why: "题目样例", caseIdx: 0, out: null, err: null, ran: false, busy: false,
               all: null };
     /* 恢复草稿：代码 + 上次选中的用例。用例优先按"输入内容"对回去 ——
@@ -6522,8 +6555,8 @@ function sameOutput(actual, expected, p){
 /* 样例输出是不是「制表符被展开成空格」的样子（第 3 题就是） */
 function tabExpandedSample(p){
   if (!p) return false;
-  var texts = [p.sample_out].concat((Array.isArray(p.extra_cases) ? p.extra_cases : []).map(function(c){
-    return c && c.out; }));
+  var texts = samplePairs(p).map(function(x){ return x.out; })
+    .concat((Array.isArray(p.extra_cases) ? p.extra_cases : []).map(function(c){ return c && c.out; }));
   return texts.some(function(t){
     var lines = String(t === undefined || t === null ? "" : t).split("\n"), n = 0;
     lines.forEach(function(l){ if (/\S {2,}\S/.test(l)) n++; });
@@ -6567,7 +6600,12 @@ function verifiedBadgeHtml(p){
   return '<span class="vfy ok" style="margin-left:8px">' + escapeHtml(txt) + "</span>";
 }
 function caseList(p){
-  var out = [{ label: "样例", in: p.sample_in || "", out: p.sample_out || "", why: "题目样例" }];
+  var out = [];
+  var sampleList = samplePairs(p);
+  var multiSample = sampleList.length > 1;
+  sampleList.forEach(function(pr, i){
+    out.push({ label: multiSample ? "样例" + (i + 1) : "样例", in: pr.in, out: pr.out, why: "题目样例" });
+  });
   (Array.isArray(p.extra_cases) ? p.extra_cases : []).forEach(function(c){
     if (!c || c.in === undefined) return;
     var first = String(c.in).replace(/\r\n?/g, "\n").split("\n")[0];
@@ -6766,7 +6804,8 @@ function hwGenCases(refresh){
       cs.loaded = true;
       var tt = HW.test[hwKey()];
       if (tt && tt.caseIdx > 0 && tt.caseIdx >= caseList(HW.prob).length){
-        tt.caseIdx = 0; tt.stdin = HW.prob.sample_in || ""; tt.expected = HW.prob.sample_out || "";
+        var sp2 = samplePairs(HW.prob)[0] || { in: "", out: "" };
+        tt.caseIdx = 0; tt.stdin = sp2.in || ""; tt.expected = sp2.out || "";
         tt.why = "题目样例"; tt.out = null; tt.err = null; tt.ran = false;
       }
       toast("出了 " + cs.cases.length + " 组边界用例" +
@@ -6996,7 +7035,8 @@ function codeTestFromAnalysis(idx){
   HW.tab = "test";
   var t = testState();
   t.code = code; t.caseIdx = 0;
-  t.stdin = p.sample_in || ""; t.expected = p.sample_out || ""; t.why = "题目样例";
+  var sp1 = samplePairs(p)[0] || { in: "", out: "" };
+  t.stdin = sp1.in || ""; t.expected = sp1.out || ""; t.why = "题目样例";
   t.out = null; t.err = null; t.ran = false;
   saveHwPos();
   renderProblem();
@@ -8274,8 +8314,10 @@ function onDocClick(e){
   else if (act === "copysample"){
     var pk = btn.getAttribute("data-key"), pp = HW.prob;
     if (!pp) return;
-    if (pk === "in") copyText(pp.sample_in || "", "样例输入");
-    else copyText(pp.sample_out || "", "样例输出");
+    var si = Number(btn.getAttribute("data-i") || 0) || 0;
+    var pr = samplePairs(pp)[si] || { in: pp.sample_in || "", out: pp.sample_out || "" };
+    if (pk === "in") copyText(pr.in || "", "样例输入");
+    else copyText(pr.out || "", "样例输出");
   }
   else if (act === "copycase"){
     var ck = btn.getAttribute("data-key"), ct = testState();

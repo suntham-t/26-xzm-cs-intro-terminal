@@ -1893,7 +1893,12 @@ def run_code_direct(code, stdin_text=""):
         old_out, old_err, old_in = sys.stdout, sys.stderr, sys.stdin
         sys.stdout = out_buf
         sys.stderr = err_buf
-        sys.stdin = io.StringIO(stdin_text.replace("\r\n", "\n").replace("\r", "\n"))
+        # ★ 用 TextIOWrapper 而不是 StringIO：OJ 上不少写法是 sys.stdin.buffer.read()，
+        #   StringIO 没有 .buffer，会报 AttributeError —— 那是**我们的运行环境**缺东西，
+        #   不是学生的代码写错了。
+        _norm_in = stdin_text.replace("\r\n", "\n").replace("\r", "\n")
+        sys.stdin = io.TextIOWrapper(io.BytesIO(_norm_in.encode("utf-8")),
+                                     encoding="utf-8", newline="\n")
         try:
             g = {"__name__": "__main__", "__builtins__": __builtins__}
             try:
@@ -2841,6 +2846,33 @@ def run_code_for_verify(code, stdin_text, limit=20000):
             "error": res.get("error"), "kind": res.get("kind")}
 
 
+_SAMPLE_LABEL_RE = re.compile(r"^[ \t]*样例(输入|输出)[ \t]*\d*[ \t]*$", re.M)
+
+
+def sample_pairs(problem):
+    """把「样例输入1 … 样例输出1 …」这种多组样例拆成 [{"in":…, "out":…}]。
+
+    OJ 有些题一屏放好几组样例，抓下来时标签也进了正文（hw3 第 7 题就是这样），
+    不拆的话参考解会把 "样例输入1" 当数据读，验证永远过不去。
+    只拆得开一边时退回整段 —— 错配比不拆更糟。
+    """
+    si = str(problem.get("sample_in") or "")
+    so = str(problem.get("sample_out") or "")
+
+    def blocks(text, kind):
+        parts = re.split(r"^[ \t]*样例" + kind + r"[ \t]*\d*[ \t]*$", text, flags=re.M)
+        if len(parts) <= 1:
+            return None
+        out = [x.strip("\n") for x in parts if x.strip()]
+        return out or None
+
+    ins = blocks(si, "输入")
+    outs = blocks(so, "输出")
+    if ins and outs and len(ins) == len(outs):
+        return [{"in": a, "out": b} for a, b in zip(ins, outs)]
+    return [{"in": si, "out": so}]
+
+
 def verify_code(code, problem, phase="sample", code_index=0):
     """语法检查 → 样例 → 边界用例。返回契约里的 verify 事件。
 
@@ -2859,17 +2891,21 @@ def verify_code(code, problem, phase="sample", code_index=0):
                            "text": (exc.text or "").rstrip()}
         return event
 
-    sample_in = problem.get("sample_in") or ""
-    sample_out = problem.get("sample_out") or ""
-    if not sample_out.strip():
+    pairs = [x for x in sample_pairs(problem) if str(x.get("out") or "").strip()]
+    if not pairs:
         event["status"] = "skipped"
         event["detail"] = {"stage": "sample", "reason": "这题没有样例输出，没法自动验证"}
         return event
 
-    run = run_code_for_verify(code, sample_in)
-    exp = normalize_out(sample_out)
-    got = normalize_out(run["stdout"])
-    passed = bool(run["ok"]) and exp == got
+    sample_in, sample_out = pairs[0]["in"], pairs[0]["out"]
+    run = None
+    passed = True
+    for pair in pairs:
+        run = run_code_for_verify(code, pair.get("in") or "")
+        if not (run["ok"] and normalize_out(pair.get("out") or "") == normalize_out(run["stdout"])):
+            sample_in, sample_out = pair.get("in") or "", pair.get("out") or ""
+            passed = False
+            break
     event["detail"] = {
         "stage": "sample",
         "case": sample_in, "expected": sample_out, "actual": run["stdout"],
@@ -2916,6 +2952,9 @@ CASE_MAX = 6                 # 最多保留几组（跑一遍要起 6 次本机�
 CASE_MAX_INPUT = 4000
 CASE_MAX_SOLUTION = 20000
 CASE_MAX_OUTPUT = 20000
+# 生成器版本：提示词/校验逻辑一改就 +1 —— 旧缓存里的 why 可能是错的，
+# 不失效的话用户会一直看到「下标 7」这种和期望输出打架的说明。
+CASE_GEN_VERSION = 2
 
 CASES_SYSTEM_PROMPT = (
     "你是 OpenJudge 的出题人，正在给一道编程题准备测试数据。\n"
@@ -2927,7 +2966,10 @@ CASES_SYSTEM_PROMPT = (
     "2. cases 给 %d 组输入，覆盖：最小/最大、边界值、题面特别提醒的坑、最容易写错的情况。\n"
     "3. 每组 in 是完整的输入内容（可能多行），不要带任何说明文字，不要重复样例输入。\n"
     "4. 题面没写清的约束按样例和常识取合理值，别超出限制。\n"
-    "5. solution 里**不要有任何注释或 docstring** —— 它会直接被当参考解跑。\n"
+    "5. 每组 in 必须落在题面给的范围内（长度 / 取值 / 大小写 / 多组数据的个数）；\n"
+    "   范围没写就按样例合理取，**不要造范围外的数据**。\n"
+    "6. why 只写这一组在考什么（一句话），**不要写答案、下标或具体数值** —— 写错会误导学生。\n"
+    "7. solution 里**不要有任何注释或 docstring** —— 它会直接被当参考解跑。\n"
 ) % CASE_MAX
 
 
@@ -3090,7 +3132,7 @@ def homework_cases(payload):
     except (OSError, ValueError):
         cached = None
     if (isinstance(cached, dict) and cached.get("statement_hash") == digest
-            and not refresh):
+            and cached.get("gen") == CASE_GEN_VERSION and not refresh):
         return {"ok": True, "cached": True,
                 "cases": cached.get("cases") or [],
                 "solution": cached.get("solution") or "",
@@ -3102,17 +3144,20 @@ def homework_cases(payload):
     cfg = load_ai_config()
     if not cfg.get("key"):
         raise AiError("还没配置 API Key —— 在 AI 设置里填一个")
-    sample_in = problem.get("sample_in") or ""
-    sample_out = problem.get("sample_out") or ""
-    if not str(sample_out).strip():
+    pairs = [x for x in sample_pairs(problem) if str(x.get("out") or "").strip()]
+    if not pairs:
         return {"ok": False, "cases": [], "error": "这题没有样例输出，没法用它校准参考解"}
+    sample_in, sample_out = pairs[0]["in"], pairs[0]["out"]
 
     feedback = None
     solution = ""
     data = None
-    for _attempt in range(2):
+    for attempt in range(2):
+        # 第一次用当前设置；第二次**升到思考模式** —— 有些题（螺旋加密、打印月历）
+        # 不思考就是写不对，同一档位重试纯属浪费。
         try:
-            data, _raw = _ask_for_cases(cfg, problem, feedback)
+            data, _raw = _ask_for_cases(cfg if attempt == 0 else dict(cfg, thinking="high"),
+                                        problem, feedback)
         except AiError as exc:
             raise AiError(_redact(str(exc)))
         if not data:
@@ -3125,15 +3170,25 @@ def homework_cases(payload):
         if len(sol) > CASE_MAX_SOLUTION:
             feedback = "solution 太长了（超过 %d 字符），请精简。" % CASE_MAX_SOLUTION
             continue
-        run = _run_reference(sol, sample_in)
-        if run["ok"] and _loose_out(run["out"]) == _loose_out(sample_out):
+        bad = None
+        for pair in pairs:
+            run = _run_reference(sol, pair.get("in") or "")
+            if run["ok"] and _loose_out(run["out"]) == _loose_out(pair.get("out") or ""):
+                continue
+            bad = (pair, run)
+            break
+        if bad is None:
             solution = sol
             break
+        pair, run = bad
         feedback = ("样例输入：\n%s\n期望输出：\n%s\n你给的 solution 实际输出：\n%s\n错误：%s"
-                    % (sample_in, sample_out, run["out"][:2000], run["error"] or "（无）"))
+                    % (pair.get("in") or "", pair.get("out") or "",
+                       run["out"][:2000], run["error"] or "（无）"))
     if not solution:
         return {"ok": False, "cases": [],
-                "error": "AI 给的参考解没过样例（重试一次仍失败）", "detail": feedback}
+                "error": "AI 给的参考解没过样例（重试一次仍失败）—— 这类题（多组样例 / 输出对格式极敏感）"
+                         "暂时出不了用例，先用「🧪 跑这个用例」手动测样例",
+                "detail": feedback}
 
     cases = []
     dropped = 0
@@ -3163,6 +3218,7 @@ def homework_cases(payload):
                 "detail": feedback, "dropped": dropped}
 
     doc = {"hw": hw_id, "no": int(no), "statement_hash": digest,
+           "gen": CASE_GEN_VERSION,
            "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
            "model": cfg.get("model"), "solution": solution, "cases": cases}
     try:

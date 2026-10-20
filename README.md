@@ -94,7 +94,7 @@ powershell -ExecutionPolicy Bypass -File app\build.ps1
 - 产物：`app\dist\计算概论学习终端.exe`（PyInstaller onefile，约 **147 MB**，内含 web/content/引擎）+ 桌面快捷方式
 - `build.ps1` 必须保持 **UTF-8 with BOM**：Windows PowerShell 5.1 读无 BOM 的 `.ps1` 会按 GBK 解码，中文直接解析失败
 - **exe 不进仓库**（超过 GitHub 单文件 100 MB 硬限制），发布在 Release 里
-- 已构建版本：[Releases · v1.1.0](https://github.com/suntham-t/26-xzm-cs-intro-terminal/releases/tag/v1.1.0) —— `计算概论学习终端.exe`（154.7 MB，内含 web/content/引擎）
+- 已构建版本：[Releases · v1.1.0](https://github.com/suntham-t/26-xzm-cs-intro-terminal/releases/tag/v1.1.0) —— `course-terminal-1.1.0-win64.exe`（154.7 MB，内含 web/content/引擎；双击即用）
 - 上一版：[v1.0.0](https://github.com/suntham-t/26-xzm-cs-intro-terminal/releases/tag/v1.0.0)（附 `course-terminal-manual-1.0.0.pdf` 使用说明书）
 
 ---

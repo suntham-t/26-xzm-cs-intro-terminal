@@ -140,28 +140,38 @@
      左侧图标栏(#sideBar)，所以这里不需要按钮样式、响应式折行、也不要弹出菜单了。
      ★ 原来那套 .hrow.bottom + #headMenu + .mi + @media 折行规则已随改动删除；
        如果以后又往顶栏塞按钮，先想清楚"为什么不是放图标栏"。 */
-  header{flex:none; padding:8px 22px 6px; border-bottom:1px solid var(--hair); background:#fff}
-  .hrow{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
-  .brand{font-weight:600; color:var(--accent); font-size:14px}
-  .chapterTitle{font-size:13px; color:var(--dim)}
+  header{flex:none; padding:7px 22px 6px; border-bottom:1px solid var(--hair); background:#fff}
+  /* 面包屑：品牌 › 章 › 节。分隔符由 ::before 生成，HTML 里不用多塞字符。
+     字号收到 12/12.5，靠字距和颜色分层，别用四种粗体互相打架。 */
+  .hrow{display:flex; align-items:center; gap:0; flex-wrap:wrap}
+  .brand{font:600 12px/1 var(--font-ui); letter-spacing:.14em; color:var(--accent)}
+  .chapterTitle{font-size:12.5px; color:#5f6a76}
+  .brand+.chapterTitle::before,.chapterTitle+.secLabel::before{
+    content:"›"; margin:0 9px; color:#c6ccd5; font-weight:400; font-size:12px}
   .sp{flex:1}
-  .streak{font-size:13px; color:var(--dim); white-space:nowrap}
-  .streak b{color:var(--fg); font-weight:600}
+  .streak{font-size:12.5px; color:#7d8794; white-space:nowrap}
+  .streak b{color:var(--accent); font-weight:600}
   @media (max-width:1000px){
     header{padding-left:14px; padding-right:14px}
   }
-  .secLabel{font-size:13px; color:var(--fg); font-weight:600; white-space:nowrap}
-  .secTitleInl{font-weight:400; color:var(--dim); font-size:12.5px}
+  /* 层级反了会更难读：'第 2 节' 是坐标，压暗；节名才是"我在看什么"，加粗 */
+  .secLabel{font-size:12.5px; color:#6a737d; font-weight:400; white-space:nowrap}
+  .secTitleInl{font-weight:600; color:var(--fg); font-size:12.5px}
   /* 进度点阵：本节全部知识点，学一个点亮一个 */
-  .dots{display:flex; align-items:center; gap:4px; flex-wrap:wrap}
+  .dots{display:flex; align-items:center; gap:5px; flex-wrap:wrap}
   .dot{
-    width:10px; height:10px; border-radius:3px; padding:0; border:1px solid #c4cad6;
+    width:9px; height:9px; border-radius:50%; padding:0; border:1px solid #cdd3dc;
     background:#fff; cursor:pointer; display:inline-block;
+    transition:transform .12s ease, border-color .12s ease;
   }
+  .dot:hover{transform:scale(1.18)}
   .dot:hover{border-color:var(--accent)}
   .dot.on{background:var(--accent); border-color:var(--accent)}
-  .dot.cur{box-shadow:0 0 0 3px rgba(31,78,156,.18)}
-  .dotCount{font-size:12.5px; color:var(--dim); font-variant-numeric:tabular-nums}
+  /* 当前位置填实 + 一圈浅环：空心的环和"没学"看不出差别 */
+  .dot.cur{background:var(--accent); border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(31,78,156,.16)}
+  .dotCount{font:400 11.5px/1 var(--font-ui); color:#9aa3ae;
+    font-variant-numeric:tabular-nums; letter-spacing:.02em}
 
   /* 「继续上次」条 */
   #resume{flex:none; padding:6px 22px; border-bottom:1px solid var(--hair); background:var(--soft)}
@@ -178,7 +188,7 @@
     width:100%; max-width:760px; min-width:0;
     background:#fff; border:1px solid rgba(0,0,0,.045); border-radius:12px;
     padding:28px 32px 30px;
-    box-shadow:0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
+    box-shadow:0 1px 2px rgba(31,35,40,.04), 0 10px 30px rgba(31,35,40,.05);
   }
   /* 内嵌面板通常比卡片高（视频目录 164 行、100 Days 22 天），给底部留点余量 */
   #inlinePanel{padding-bottom:40px}
@@ -222,14 +232,18 @@
   /* ---- 提示条 ---- */
   .warnbar{border-radius:7px; padding:8px 12px; font-size:13px; line-height:1.65;
     background:var(--warnbg); border:1px solid var(--warnline); color:var(--warntx)}
-  .warnbar.novideo{margin:0 0 22px}
+  /* 「黑马这套没讲这块」是**信息**，不是**警告**：104 张卡里 76 张都有它，
+     黄底会让它变成页面上最响的东西。改成一条淡竖线 + 灰字：还在，但不抢正文。 */
+  .warnbar.novideo{margin:0 0 20px; padding:2px 0 2px 11px; border:0;
+    border-left:2px solid #e2e6ec; background:none; color:#8a94a0;
+    font-size:12.5px; line-height:1.6; border-radius:0}
   .warnbar.pitfall{margin:20px 0 0}
   .warnbar.pitfall b{display:block; margin-bottom:2px; color:#8a6d00}
   .warnbar.info{background:#f4f8ff; border-color:#d8e4f7; color:#2c4a75}
   .warnbar.err{background:var(--errbg); border-color:#f0bcbc; color:#7d1f1f}
 
   /* ---- 标题 ---- */
-  .kicker{font-size:12.5px; color:var(--dim); letter-spacing:.02em}
+  .kicker{font-size:12px; color:#98a1ae; letter-spacing:.04em}
   .kicker b{color:var(--accent); font-weight:600}
   h2.cardTitle{margin:4px 0 18px; font-size:24px; line-height:1.42}
 
@@ -266,6 +280,13 @@
   .body img,.md img{max-width:100%; height:auto; border-radius:6px; margin:8px 0; display:block}
   /* 讲义自带的复习题：<details> 默认折叠，展开才看答案；<mark> 高亮答案 */
   .body mark,.md mark{background:#fdf6c9; color:inherit; border-radius:3px; padding:0 3px}
+  /* 搜索结果跳转后的定位高亮（highlightInCard 生成，随卡片重绘自动消失）。
+     ★ 必须写 .body mark.findmark 这一档：上面那条 `.body mark` 是 (0,1,1)，
+       只写 .findmark(0,1,0) 会被它压住 —— 命中词就变成讲义自带的淡黄，看不见。 */
+  .findmark, .body mark.findmark, .md mark.findmark{background:#ffe58a; color:inherit;
+    border-radius:3px; padding:0 2px; box-shadow:0 0 0 2px rgba(240,180,0,.22)}
+  .findmark.here, .body mark.findmark.here, .md mark.findmark.here{background:#ffd24d;
+    box-shadow:0 0 0 3px rgba(240,180,0,.42)}
   .body details,.md details{margin:14px 0; border:1px solid var(--hair); border-radius:8px;
     background:#fcfcfd; padding:8px 14px 10px}
   .body details>summary,.md details>summary{cursor:pointer; font-weight:600; color:#33404f;
@@ -303,11 +324,15 @@
   .slides{margin:20px 0 0}
   .secHead{font-size:12.5px; color:var(--dim); margin-bottom:7px}
   .thumbRow{display:flex; gap:12px; flex-wrap:wrap}
-  button.thumbBtn{padding:0; border:1px solid var(--hair); border-radius:7px;
+  button.thumbBtn{position:relative; padding:0; border:1px solid var(--hair); border-radius:7px;
     background:#fff; overflow:hidden; display:flex; flex-direction:column; align-items:stretch}
-  button.thumbBtn:hover{border-color:var(--accent)}
+  button.thumbBtn:hover{border-color:var(--accent); box-shadow:0 4px 14px rgba(31,35,40,.10)}
   button.thumbBtn img.thumb{width:150px; height:auto; display:block; background:var(--soft)}
-  button.thumbBtn .thumbCap{font-size:11.5px; color:var(--dim); padding:3px 0; text-align:center}
+  /* 页码压在图上当一枚小标签；原来是一条占高度的灰条，读起来像图片的一部分 */
+  button.thumbBtn .thumbCap{position:absolute; left:6px; bottom:6px; padding:0 5px;
+    max-width:calc(100% - 12px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    border-radius:4px; background:rgba(255,255,255,.92); color:#5f6a76;
+    font:600 10.5px/1.65 var(--font-ui); box-shadow:0 1px 3px rgba(31,35,40,.14)}
   button.thumbBtn.missing{opacity:.5; cursor:default}
   button.thumbBtn.missing:hover{border-color:var(--hair)}
   /* 「展开全部（共 N 页）」：低调，就是一个文字按钮 */
@@ -328,13 +353,18 @@
   .errList code{background:rgba(31,35,40,.06); border-radius:3px; padding:0 4px}
 
   /* ============================ 底栏 ============================ */
-  footer{flex:none; border-top:1px solid var(--hair); padding:11px 22px; background:#fff;
-    display:flex; align-items:center; gap:10px; justify-content:center; position:relative}
-  footer button{padding:6px 16px}
+  footer{flex:none; border-top:1px solid var(--hair); padding:10px 22px; background:#fff;
+    display:flex; align-items:center; gap:9px; justify-content:center; position:relative}
+  /* 翻卡按钮是导航不是主操作：边框降到发丝级，悬停才出强调色 */
+  footer button{padding:5px 15px; font-size:12.5px; color:#4a5461; border-color:var(--hair);
+    background:#fff}
+  footer button:hover:not(:disabled){color:var(--accent); border-color:#c3d3ec; background:#fff}
   /* 底部的点阵/计数：跟翻卡按钮同一排（navhint 是绝对定位在右边的，不参与流） */
-  footer .dots{gap:5px; margin-left:4px}
-  footer .dotCount{margin-left:2px}
-  footer .navhint{position:absolute; right:22px; font-size:12px; color:var(--dim)}
+  footer .dots{gap:6px; margin-left:6px}
+  footer .dotCount{margin-left:6px}
+  /* ★ 右边要给角上的 🤖 圆钮让位：原来 right:22px，提示的最后两个字被圆钮压住 */
+  footer .navhint{position:absolute; right:88px; font-size:11.5px; color:#a2aab4;
+    letter-spacing:.01em}
   @media (max-width:1000px){ footer .navhint{display:none} }
 
   /* ============ 关闭按钮：统一的 ✕ 图标按钮 ============
@@ -387,7 +417,16 @@
   #railBody{flex:1; overflow:auto; padding:12px 14px 24px}
   .railHint{font-size:12.5px; color:var(--dim); line-height:1.7; padding:6px 2px}
   #railBody .refs{margin:0; padding-top:0; border-top:0; flex-direction:column; align-items:stretch}
-  #railBody .refs button.chip,#railBody .refs span.chip{width:100%; text-align:left; border-radius:7px}
+  /* 右栏参考项做成"列表行"，不是"输入框"：原来整圈边框 + 全宽圆角，
+     看起来像可编辑的输入框，反而不像能点的链接。 */
+  #railBody .refs{gap:2px}
+  #railBody .refs button.chip,#railBody .refs span.chip{width:100%; text-align:left;
+    border-radius:6px; border-color:transparent; background:transparent;
+    display:flex; align-items:center; gap:7px; padding:5px 8px; color:#33404f}
+  #railBody .refs button.chip::after{content:"›"; margin-left:auto; color:#c3cad3; font-size:13px}
+  #railBody .refs button.chip:hover:not(:disabled){background:var(--soft);
+    border-color:transparent; color:var(--accent)}
+  #railBody .refs button.chip:hover::after{color:var(--accent)}
   #railBody .slides{margin-top:2px}
   #railBody .thumbRow{flex-direction:column}
   #railBody button.thumbBtn img.thumb{width:100%}
@@ -453,16 +492,30 @@
   /* ============================ 抽屉 / 弹层 ============================ */
   #scrim{position:fixed; inset:0; background:rgba(31,35,40,.30); z-index:40}
   #tocBody{flex:1; overflow:auto; padding:8px 10px 24px}
-  .tocCh{margin:14px 6px 4px; font-size:12.5px; color:var(--dim); font-weight:600}
-  .tocSec{display:flex; align-items:baseline; gap:8px; margin:8px 6px 3px;
-    font-size:13px; font-weight:600}
-  .tocCnt{margin-left:auto; font-size:11.5px; color:var(--dim); font-weight:400}
-  button.tocPt{display:block; width:100%; text-align:left; border:0; background:none;
-    padding:3px 8px; border-radius:5px; font-size:13px; color:#33404f}
-  button.tocPt:hover:not(:disabled){background:var(--soft); border:0}
+  /* 章 → 节 → 知识点三级：章标题独占一行并压一条章线，节标题加粗，
+     知识点缩进 + 竖引导线 —— 之前三级同起一列，108 行读起来是一整块。 */
+  .tocCh{margin:18px 6px 6px; padding-top:14px; border-top:1px solid var(--hair);
+    font-size:13px; color:#33404f; font-weight:600; letter-spacing:.02em}
+  .tocCh:first-child{margin-top:2px; padding-top:0; border-top:0}
+  .tocSec{display:flex; align-items:baseline; gap:8px; margin:10px 6px 4px;
+    font-size:13px; font-weight:600; color:#28313b}
+  .tocCnt{margin-left:auto; font:400 10.5px/1.7 var(--font-ui); color:#aab2bd;
+    font-variant-numeric:tabular-nums}
+  .tocChId{font:600 10.5px/1 var(--font-mono); color:#aab2bd; margin-right:7px;
+    letter-spacing:.02em}
+  .tocNo{font:400 11.5px/1.5 var(--font-ui); color:#9aa3ae}
+  .tocTitle{font-weight:600}
+  /* ★ width 必须显式算：button 的 width:auto 是"贴合内容"，不是"填满"，
+     不写的话当前项那个蓝底只包住文字（实测 88px），看着像贴纸 */
+  button.tocPt{display:block; width:calc(100% - 8px); text-align:left; border:0; background:none;
+    margin-left:8px; padding:3px 8px 3px 12px; border-left:1px solid #e2e6ec;
+    border-radius:0 5px 5px 0; font-size:13px; color:#33404f}
+  button.tocPt:hover:not(:disabled){background:var(--soft); border:0;
+    border-left:1px solid #c9d0da; border-radius:0 5px 5px 0}
   button.tocPt.done{color:var(--ok)}
   button.tocPt.tocMat{color:var(--accent); font-weight:600}
-  button.tocPt.here{background:#eef4fb; color:var(--accent); font-weight:600}
+  button.tocPt.here{background:#eef4fb; color:var(--accent); font-weight:600;
+    box-shadow:inset 2px 0 0 var(--accent)}
 
   #modal{position:fixed; inset:0; z-index:60; display:flex; align-items:center;
     justify-content:center; padding:34px 20px}
@@ -483,6 +536,9 @@
     border-bottom:1px solid var(--hair); border-radius:0; padding:9px 4px}
   .searchHit:hover:not(:disabled){background:var(--soft); border:0; border-bottom:1px solid var(--hair)}
   .searchHit .sh{font-size:13.5px; font-weight:600; color:var(--fg)}
+  /* 命中行开头的章号：搜索跨章，不标章号就分不清"第 5 节"是哪一章的 */
+  .searchHit .shch{display:inline-block; font:600 11.5px/1.6 var(--font-ui);
+    color:var(--accent); background:#eef4fb; border-radius:4px; padding:0 5px; margin-right:1px}
   .searchHit .sn{font-size:12.5px; color:var(--dim); margin-top:2px;
     overflow-wrap:anywhere; line-height:1.6}
   .searchHit .sn b{color:var(--accent); background:#eef4fb; border-radius:2px}
@@ -664,6 +720,42 @@
   .caseLbl{font-size:12.5px; color:var(--dim); margin-right:2px}
   button.caseChip{font-size:12px; padding:3px 11px; border-radius:13px}
   button.caseChip.on{background:#eef4fb; border-color:#c9d8f0; color:var(--accent); font-weight:600}
+  /* AI 生成的用例：虚线边框，和"题目自带的样例/边界用例"区分开（它们只是参考） */
+  button.caseChip.ai{border-style:dashed; color:#5f6a76}
+  button.caseChip.ai.on{border-style:dashed; color:var(--accent)}
+  .caseOps{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px}
+  .caseHint{font-size:11.5px; color:#a2aab4}
+  /* 参考代码：折叠、灰底，不进代码框（打开看答案 = 练习变抄） */
+  details.refSol{margin:10px 0 0; border:1px solid var(--hair); border-radius:8px; background:var(--soft)}
+  details.refSol>summary{cursor:pointer; padding:7px 12px; font-size:12.5px; color:var(--dim); outline:none}
+  details.refSol>summary:hover{color:var(--accent)}
+  details.refSol .refCode{margin:0; padding:2px 12px 10px; font:13px/1.7 var(--font-mono);
+    white-space:pre; overflow:auto; color:#33404f}
+  details.refSol .refActions{display:flex; gap:8px; padding:0 12px 10px}
+  /* 自己的 AC/WA 标记 */
+  .markDot{width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:-4px; flex:none}
+  .markDot.ac{background:var(--ok)}
+  .markDot.wa{background:var(--err)}
+  button.markBtn.on.ac{border-color:#bfe3c9; background:var(--okbg); color:var(--ok); font-weight:600}
+  button.markBtn.on.wa{border-color:#f0bcbc; background:var(--errbg); color:var(--err); font-weight:600}
+  /* 全跑一遍的失败明细 */
+  .allCase{border-top:1px solid var(--hair); padding:9px 12px 3px}
+  .allHead{font-size:12.5px; font-weight:600; color:var(--err); display:flex; gap:8px; align-items:baseline}
+  .allHead .why{font-weight:400; color:var(--dim); font-size:11.5px}
+  .miniPre{margin:2px 0 7px; padding:4px 8px; border-radius:5px; background:var(--codebg);
+    border:1px solid var(--hair); font:12px/1.6 var(--font-mono); white-space:pre-wrap;
+    overflow-wrap:anywhere; max-height:170px; overflow:auto}
+  .miniPre.bad{background:var(--errbg); border-color:#f0bcbc}
+  .allOk{font-size:12.5px; color:var(--ok); padding:2px 12px 9px}
+  button.confirming{border-color:var(--accent); color:var(--accent); background:#eef4fb; font-weight:600}
+  /* 题目页头的「自动提交」：primary 但按页头尺寸收小，别比标题还抢眼 */
+  button.subBtn{padding:4px 12px; font-size:12.5px; border-radius:7px}
+  /* 题集头部那行"通过率：12 秒前更新 · 点我刷新" */
+  .hwStatsBar{display:flex; justify-content:flex-end; margin:-6px 2px 6px}
+  button.linkbtn.hwStats{font-size:11.5px; color:#a2aab4; text-decoration:none; padding:0 2px}
+  button.linkbtn.hwStats:hover:not(:disabled){color:var(--accent); text-decoration:underline}
+  /* 登录框里的账号/密码要占满一行（.rowIn 是 flex，不写会缩成一小截） */
+  #ojEmail,#ojPass{width:100%; min-width:0}
   .resBox{margin-top:14px; border:1px solid var(--hair); border-radius:9px; overflow:hidden}
   .resBox .resHead{padding:6px 12px; font-size:12.5px; font-weight:600; background:var(--soft);
     border-bottom:1px solid var(--hair); display:flex; align-items:center; gap:8px}
@@ -2270,12 +2362,35 @@ function buildChapterCardHtml(st){
   return '<div class="endCard chapterCard">' + out.join("") + "</div>";
 }
 
+/* 章节表的权威来源是 content/notes/_chapters.json 的 order[]（安装/重建一章时由
+   内容管道写进来）。以前这里硬编码常量表 CHAPTERS = ch01..ch08 全量试探，没有的章也照发请求，
+   每次启动都在控制台留 5 条红色 404 —— 看起来像"应用加载失败"，其实只是没那几章。
+   现在先读登记表；读不到（老内容层）才退回常量表。 */
+function registryChapterIds(reg){
+  if (!reg || typeof reg !== "object") return null;
+  var ids = [];
+  if (Array.isArray(reg.order)) ids = reg.order.slice();
+  else if (Array.isArray(reg.chapters)){
+    ids = reg.chapters.map(function(c){ return c && (c.id || c.chapter); });
+  }else if (reg.chapters && typeof reg.chapters === "object"){
+    ids = Object.keys(reg.chapters);
+  }
+  ids = ids.filter(function(x){ return typeof x === "string" && /^ch\d{1,3}$/.test(x); });
+  return ids.length ? ids : null;
+}
 function loadData(){
   S.loadErrors = [];
-  return Promise.all(CHAPTERS.map(function(id){
-    return fetchJson("content/" + id + ".json").then(function(j){ return j; },
-      function(e){ S.loadErrors.push(String(e && e.message ? e.message : e)); return null; });
-  })).then(function(list){
+  /* 章首/章末卡的课件页也从这份注册表里的 content_page_list 取（读不到就退化成不显示，不崩） */
+  return fetchJson("content/notes/_chapters.json").then(function(reg){ return reg; },
+    function(){ return null; }
+  ).then(function(reg){
+    S.chapterReg = reg || null;
+    var ids = registryChapterIds(reg) || CHAPTERS;
+    return Promise.all(ids.map(function(id){
+      return fetchJson("content/" + id + ".json").then(function(j){ return j; },
+        function(e){ S.loadErrors.push(String(e && e.message ? e.message : e)); return null; });
+    }));
+  }).then(function(list){
     var chapters = list.filter(function(c){ return c && Array.isArray(c.sections); });
     /* 只保留真的有点的章节，免得空白章把翻卡卡住 */
     chapters = chapters.filter(function(c){
@@ -2284,14 +2399,11 @@ function loadData(){
     S.chapters = chapters;
     return Promise.all([
       fetchJson("content/videos.json").then(function(j){ return j; }, function(){ return null; }),
-      fetchJson("content/100days/index.json").then(function(j){ return j; }, function(){ return null; }),
-      /* 章首/章末卡的课件页要从这份注册表里的 content_page_list 取（读不到就退化成不显示，不崩） */
-      fetchJson("content/notes/_chapters.json").then(function(j){ return j; }, function(){ return null; })
+      fetchJson("content/100days/index.json").then(function(j){ return j; }, function(){ return null; })
     ]);
   }).then(function(extra){
     S.videos = extra[0];
     S.daysIndex = extra[1];
-    S.chapterReg = extra[2];
     mergeVideos(S.chapters, S.videos);
     buildSteps();
     S.tried = true;
@@ -2589,7 +2701,7 @@ function videoAreaHtml(p){
   }
   if (!v || v.status === "unmatched" || v.page === undefined || v.page === null || !v.bvid ||
       !videoList(v).length){
-    return '<div class="warnbar novideo">⚠️ 黑马这套没讲这块 → 看下面文字</div>';
+    return '<div class="warnbar novideo">📄 黑马这套没讲这块 · 直接看下面的讲义原文</div>';
   }
   return '<div class="videoWrap">' + videoInnerHtml(p, currentVideoPage(p)) + "</div>";
 }
@@ -2743,7 +2855,8 @@ function refsHtml(st){
   });
   /* 一个知识点可能覆盖十几页课件：chip 只列前几个，剩下的靠缩略图那行的「共 N 页」说明 */
   slidePages.slice(0, 6).forEach(function(pg){
-    chips.push('<button class="chip" data-act="slide" data-page="' + attr(pg) + '">课件 P' + escapeHtml(pg) + "</button>");
+    /* 图标要跟同一行里的「📄 讲义 / 📖 100Days」对齐，不然只有它没图标，看着像漏了 */
+    chips.push('<button class="chip" data-act="slide" data-page="' + attr(pg) + '">🖼 课件 P' + escapeHtml(pg) + "</button>");
   });
   if (slidePages.length > 6){
     chips.push('<span class="chip more">…共 ' + escapeHtml(slidePages.length) + " 页课件</span>");
@@ -3066,7 +3179,12 @@ function renderTop(){
         attr("知识点 " + p.no + " · " + (p.title || "")) + '"></button>';
     }).join("");
     $("dots").innerHTML = html;
-    if ($("dotCount")) $("dotCount").textContent = pts.length ? ("第 " + pts.length + " 个") : "";
+    /* ★ 这里原来写的是 pts.length，也就是「这一节共 8 个」被显示成「第 8 个」——
+       人在知识点 3 上翻卡时底下写着"第 8 个"，读起来像"你已经到第 8 个了"。
+       有当前指针就报「3 / 8」，没有（章首/章末卡）才报「共 8 个」。 */
+    var curNo = (st && st.kind === "point" && typeof st.pi === "number") ? st.pi + 1 : 0;
+    if ($("dotCount")) $("dotCount").textContent = pts.length
+      ? (curNo ? (curNo + " / " + pts.length) : ("共 " + pts.length + " 个")) : "";
   }
   renderResume();
   renderFooter();
@@ -3166,11 +3284,63 @@ function jumpToSec(secKey){
 }
 /* ★ jumpToFirstMissing / 「回去补没学的」已删（没有"学过没学过"这回事了）。
    jumpToSec 仍然有用：跳到某一节的第一张卡。 */
-function jumpToId(id){
+function jumpToId(id, highlight){
   var i = indexOfPointId(id);
   if (i < 0) return false;
   goto(i);
+  /* 从搜索结果跳过来时把命中的词标出来 —— 知识点动辄一两屏，只跳到卡片顶部
+     等于让用户自己再找一遍（本可以"搜到了就看见"）。 */
+  if (highlight) highlightInCard(highlight);
   return true;
+}
+/* 在卡片正文里高亮关键词（文本节点层面替换，绝不拼 innerHTML）：
+   命中处包一层 <mark class="findmark">，第一个滚到视口中间。
+   卡片重绘（翻卡/跳转）时整段 DOM 被换掉，标记自然消失，不留痕迹。 */
+function highlightInCard(q){
+  var root = $("card");
+  q = String(q === undefined || q === null ? "" : q).trim();
+  if (!root || !q || typeof document.createTreeWalker !== "function") return 0;
+  var needle = q.toLowerCase();
+  var nodes = [], walker, n;
+  try{
+    walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: function(node){
+        var v = node.nodeValue;
+        if (!v || v.toLowerCase().indexOf(needle) < 0) return NodeFilter.FILTER_REJECT;
+        var p = node.parentNode;
+        if (p && p.closest && p.closest("script,style,textarea,mark")) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+  }catch(e){ return 0; }
+  while ((n = walker.nextNode()) && nodes.length < 240) nodes.push(n);
+  if (!nodes.length) return 0;
+  var first = null, marks = 0;
+  nodes.forEach(function(node){
+    var text = node.nodeValue, low = text.toLowerCase();
+    var from = 0, idx, hit = 0, frag = document.createDocumentFragment();
+    while ((idx = low.indexOf(needle, from)) >= 0 && marks < 300){
+      if (idx > from) frag.appendChild(document.createTextNode(text.slice(from, idx)));
+      var m = document.createElement("mark");
+      m.className = "findmark";
+      m.textContent = text.slice(idx, idx + needle.length);
+      frag.appendChild(m);
+      if (!first) first = m;
+      marks++;
+      hit++;
+      from = idx + needle.length;
+    }
+    if (!hit) return;
+    if (from < text.length) frag.appendChild(document.createTextNode(text.slice(from)));
+    if (frag.childNodes.length && node.parentNode) node.parentNode.replaceChild(frag, node);
+  });
+  if (first){
+    if (first.classList && first.classList.add) first.classList.add("here");
+    try{
+      if (first.scrollIntoView) first.scrollIntoView({ block: "center", inline: "nearest" });
+    }catch(e){}
+  }
+  return marks;
 }
 
 /* ★ 「标记学完」的动作 / 「✅ 学完了」按钮 / 已学标记 都已随进度机制删除。
@@ -3195,7 +3365,11 @@ function renderToc(){
   var parts = [];
   S.chapters.forEach(function(ch, ci){
     var intro = chapterMd(ch, "intro_md"), summary = chapterMd(ch, "summary_md");
-    parts.push('<div class="tocCh">' + escapeHtml((ch.chapter || "") + " · " + (ch.title || "")) + "</div>");
+    /* 章号用等宽体压暗、章名加粗：一屏 108 行，章是唯一的"大分隔"，
+       两者同粗同色的时候整列读起来是一块布 */
+    parts.push('<div class="tocCh">' +
+      (ch.chapter ? '<span class="tocChId">' + escapeHtml(ch.chapter) + "</span>" : "") +
+      escapeHtml(ch.title || "") + "</div>");
     if (intro){
       parts.push('<button class="tocPt tocMat' +
         (cur && cur.kind === "intro" && cur.ci === ci ? " here" : "") +
@@ -3205,7 +3379,9 @@ function renderToc(){
       if (!sectionPoints(sec).length) return;
       var pts = sectionPoints(sec);
       /* ★ 原来这里统计「已学 N/M」—— 进度砍了，只报这一节有几个知识点 */
-      parts.push('<div class="tocSec">第 ' + escapeHtml(sec.no) + " 节 " + escapeHtml(sec.title || "") +
+      /* 「第 N 节」是坐标、节名才是标题：拆开才能分别压暗 / 加粗 */
+      parts.push('<div class="tocSec"><span class="tocNo">第 ' + escapeHtml(sec.no) + " 节</span>" +
+        '<span class="tocTitle">' + escapeHtml(sec.title || "") + "</span>" +
         '<span class="tocCnt">' + escapeHtml(pts.length) + " 个</span></div>");
       pts.forEach(function(p){
         var here = hereId && p.id === hereId;
@@ -3685,8 +3861,13 @@ function renderSearchResults(q){
     parts.push('<div class="loading">' + (topics.length ? "知识点里没有直接命中。" : "没找到「" + escapeHtml(key) + "」。") + "</div>");
   }else{
     parts.push(res.map(function(h){
-      return '<button class="searchHit" data-act="jump" data-id="' + attr(h.st.p.id) + '">' +
-        '<div class="sh">' + escapeHtml("第 " + h.st.sec.no + " 节 · 知识点 " + h.st.p.no + " · " + (h.st.p.title || "")) + "</div>" +
+      /* ★ 命中行必须带章号：搜索是跨全部章节的，"第 5 节 · 知识点 3"在 ch02 和 ch03
+         里都存在，不写章号就分不清自己会被带到哪一章去。 */
+      var chTag = (h.st.ch && h.st.ch.chapter) ? String(h.st.ch.chapter) : "";
+      return '<button class="searchHit" data-act="jump" data-id="' + attr(h.st.p.id) + '"' +
+        ' data-q="' + attr(key) + '">' +
+        '<div class="sh">' + (chTag ? '<span class="shch">' + escapeHtml(chTag) + "</span> · " : "") +
+        escapeHtml("第 " + h.st.sec.no + " 节 · 知识点 " + h.st.p.no + " · " + (h.st.p.title || "")) + "</div>" +
         '<div class="sn">' + snippetHtml(h) + "</div></button>";
     }).join(""));
   }
@@ -4781,7 +4962,8 @@ function startReplResize(e){
 
 /* =====================================================================
  * 📝 作业 + AI 解析
- *   数据：content/homework/index.json（拿不到就硬试 hw1.json…），404 一律忽略
+ *   数据：/health.homework.local（内嵌层 + 可写层合并后的真实清单）；老后端没有这个
+ *   字段才回退 content/homework/index.json → hw1..hw9 逐个探测。所有失败都优雅降级
  *   AI：  GET /ai/status · GET /ai/models · POST /ai/config
  *         POST /ai/explain（SSE 流式）· POST /run（跑样例）
  *   模型名一律从 /ai/models 动态取，不写死。
@@ -4800,6 +4982,67 @@ var HW = {
 };
 var HW_PROBE = ["hw1.json","hw2.json","hw3.json","hw4.json","hw5.json","hw6.json","hw7.json","hw8.json","hw9.json"];
 var AI = { status: null, models: [], loaded: false, error: null };
+
+/* ---------------- 本地留痕：代码草稿 / 自己的提交结果 / AI 用例缓存 ----------------
+ * 为什么要有：作业是"用得最多"的功能，但代码只存在 HW.test 里，是**纯内存** ——
+ * 点「▶ 可视化」是整页跳转，回来代码就没了；关掉窗口更没。草稿落 localStorage，
+ * 按 "hwId:no" 存，最多留 80 条（先删最旧的）。 */
+var HW_DRAFT_KEY = "ic.hwdraft.v1";
+var HW_MARK_KEY = "ic.hwmark.v1";
+var hwDraftTimer = null;
+var HW_CASES = {};       /* "hw2:1" -> {cases, busy, err, loaded, source} */
+var HW_ALL = { busy: false, done: 0, total: 0, cancel: false, confirm: false };
+
+function hwStoreGet(key){
+  try{
+    var o = JSON.parse(localStorage.getItem(key) || "{}");
+    return (o && typeof o === "object") ? o : {};
+  }catch(e){ return {}; }
+}
+function hwStoreSet(key, obj){
+  try{ localStorage.setItem(key, JSON.stringify(obj)); return true; }
+  catch(e){ return false; }
+}
+function hwDraftGet(key){
+  var d = hwStoreGet(HW_DRAFT_KEY)[key];
+  return (d && typeof d === "object") ? d : null;
+}
+function hwDraftSaveNow(){
+  if (!HW.prob) return;
+  var t = HW.test[hwKey()];
+  if (!t) return;
+  var map = hwStoreGet(HW_DRAFT_KEY);
+  map[hwKey()] = { code: String(t.code || "").slice(0, 200000),
+                   caseIdx: t.caseIdx, caseIn: String(t.stdin || ""), at: Date.now() };
+  var keys = Object.keys(map);
+  if (keys.length > 80){
+    keys.sort(function(a, b){ return (map[a] && map[a].at || 0) - (map[b] && map[b].at || 0); });
+    for (var i = 0; i < keys.length - 80; i++) delete map[keys[i]];
+  }
+  hwStoreSet(HW_DRAFT_KEY, map);
+}
+function hwDraftTouch(){
+  if (hwDraftTimer) clearTimeout(hwDraftTimer);
+  hwDraftTimer = setTimeout(function(){ hwDraftTimer = null; hwDraftSaveNow(); }, 350);
+}
+/* 自己的提交结果（AC / WA）：只给"我"看，和 OJ 上的通过率不是一回事 */
+function hwMarkOf(hwId, no){
+  var v = hwStoreGet(HW_MARK_KEY)[String(hwId) + ":" + String(no)];
+  return (v === "ac" || v === "wa") ? v : "";
+}
+function hwSetMark(v){
+  if (!HW.hw || !HW.prob) return;
+  var m = hwStoreGet(HW_MARK_KEY);
+  var k = String(HW.hw.id) + ":" + String(HW.prob.no);
+  if (!v || m[k] === v) delete m[k]; else m[k] = v;
+  hwStoreSet(HW_MARK_KEY, m);
+}
+/* AI 生成的边界用例：按题缓存在前端；真正的数据在后端 homework-cases/*.json */
+function hwCasesState(){
+  var k = hwKey();
+  if (!HW_CASES[k]) HW_CASES[k] = { cases: [], busy: false, err: null, loaded: false, source: "" };
+  return HW_CASES[k];
+}
 
 /* ---------------- 数据 ---------------- */
 function hwFilesFrom(idx){
@@ -4852,22 +5095,29 @@ function fetchJsonMeta(url){
 }
 function loadHomework(){
   HW.errors = [];
-  return Promise.all([
-    fetchJson(HWDIR + "index.json").then(function(j){ return j; },
-      function(e){ HW.errors.push(String(e && e.message ? e.message : e)); return null; }),
-    fetchJsonMeta("/health")
-  ]).then(function(r){
-    var idx = r[0];
-    HW.healthLocal = hwIdsFromHealth(r[1] && r[1].json);
-    HW.assetRoot = (r[1] && r[1].assetRoot) || HW.assetRoot || null;
+  /* /health.homework.local 是"内嵌层 + 可写层"合并后的真实清单，最准。
+     有它就别再试 content/homework/index.json —— 内容管道从来不生成那个文件，
+     每个新用户第一次开作业面板都会白吃一个 404（控制台红字）。
+     只有后端不认这个字段（老版本）时才回退到 index.json → hw1..hw9 探测。 */
+  return fetchJsonMeta("/health").then(function(h){
+    HW.healthLocal = hwIdsFromHealth(h && h.json);
+    HW.assetRoot = (h && h.assetRoot) || HW.assetRoot || null;
+    if (HW.healthLocal) return { idx: null, files: HW.healthLocal.slice(), probed: false };
+    return fetchJson(HWDIR + "index.json").then(function(j){ return { idx: j, files: [], probed: false }; },
+      function(e){
+        HW.errors.push(String(e && e.message ? e.message : e));
+        return { idx: null, files: HW_PROBE.slice(), probed: true };
+      });
+  }).then(function(r){
+    var idx = r.idx;
     var files = hwFilesFrom(idx);
     var inline = (idx && Array.isArray(idx.problems)) ? idx : null;
     /* 优先 health 给的 id 列表，读不到才逐个探测 hw1…hw9 */
-    if (!files.length && !inline && HW.healthLocal) files = HW.healthLocal.slice();
+    if (!files.length && !inline && r.files.length) files = r.files.slice();
     if (!files.length && !inline){
       files = HW_PROBE.slice();
       HW.probed = true;
-    }else HW.probed = false;
+    }else HW.probed = !!r.probed;
     return Promise.all(files.map(function(f){
       var p = /^content\//.test(f) ? f : HWDIR + (/\.[a-z]+$/i.test(f) ? f : (f + ".json"));
       return fetchJson(p).then(function(j){ return j; },
@@ -5531,6 +5781,108 @@ function rateOf(p){
   if (!tried) return null;
   return Math.round(passed * 100 / tried);
 }
+function rateHtml(p){
+  var r = rateOf(p);
+  if (r === null) return "—";
+  return '通过率 <b' + (r < 60 ? ' class="low"' : "") + ">" + r + "%</b>";
+}
+/* ---------------- 通过率实时化 ----------------
+ * 通过率存在每道题的 OJ 页面上，抓题时抄进 json 的只是一份快照。
+ * 这里按需重抓（后端 15 秒缓存、并发 4 个），面板打开期间每 30 秒自己刷一次。 */
+var HW_STATS_INTERVAL = 30000;
+var hwStatsTimer = null;
+function hwStatsNote(){
+  if (HW.statsBusy) return "通过率更新中…";
+  if (HW.statsErr) return "通过率获取失败 · 点我重试";
+  if (!HW.statsAt) return "通过率：实时";
+  var s = Math.round((Date.now() - HW.statsAt) / 1000);
+  var when = s < 5 ? "刚刚更新" : (s < 60 ? s + " 秒前更新" : Math.round(s / 60) + " 分钟前更新");
+  return "通过率：" + when + " · 点我刷新";
+}
+function hwUpdateStatsNote(){
+  var el = document.querySelector ? document.querySelector("[data-stats-at]") : null;
+  if (el) el.textContent = hwStatsNote();
+}
+function hwUpdateRateCells(){
+  var nodes = document.querySelectorAll ? document.querySelectorAll(".hwRate[data-rate]") : [];
+  Array.prototype.forEach.call(nodes, function(el){
+    var key = String(el.getAttribute("data-rate") || "");
+    var cut = key.lastIndexOf(":");
+    if (cut < 0) return;
+    var hwId = key.slice(0, cut), no = key.slice(cut + 1);
+    var hw = null;
+    (HW.list || []).forEach(function(x){ if (x.id === hwId) hw = x; });
+    if (!hw) return;
+    var p = (hw.problems || []).filter(function(x){ return String(x.no) === no; })[0];
+    if (p) el.innerHTML = rateHtml(p);
+  });
+  hwUpdateStatsNote();
+}
+/* 把服务端返回的 {hwId: {stats:{no:{...}}, at}} 合并进 HW.list，并原地更新那几格 */
+function hwApplyStats(sets){
+  if (!sets || typeof sets !== "object") return 0;
+  var n = 0;
+  (HW.list || []).forEach(function(hw){
+    var one = sets[hw.id];
+    if (!one || !one.stats) return;
+    (hw.problems || []).forEach(function(p){
+      var st = one.stats[String(p.no)];
+      if (!st) return;
+      p.stats = { submitted: st.submitted, tried: st.tried, passed: st.passed };
+      n++;
+    });
+    if (HW.hw && HW.hw.id === hw.id && one.at){
+      var t = Date.parse(one.at);
+      if (!isNaN(t)) HW.statsAt = t;     /* 用服务端的抓取时间，别用"收到响应的时间" */
+    }
+  });
+  hwUpdateRateCells();
+  return n;
+}
+function hwRefreshStats(force, all){
+  if (HW.statsBusy) return Promise.resolve(false);
+  var hw = HW.hw;
+  if (!all && !hw) return Promise.resolve(false);
+  if (!force && !all && HW.statsAt && (Date.now() - HW.statsAt) < 15000) return Promise.resolve(false);
+  HW.statsBusy = true;
+  hwUpdateStatsNote();
+  var url = "/homework/stats?hw=" + encodeURIComponent(all ? "all" : hw.id) + (force ? "&force=1" : "");
+  return fetchJson(url).then(function(d){
+    HW.statsBusy = false;
+    if (!d || d.ok === false){
+      HW.statsErr = String((d && d.error) || "获取失败");
+      hwUpdateStatsNote();
+      return false;
+    }
+    HW.statsErr = null;
+    HW.legacyStats = false;
+    hwApplyStats(d.sets || {});
+    hwUpdateStatsNote();
+    return true;
+  }, function(e){
+    HW.statsBusy = false;
+    var msg = String(e && e.message ? e.message : e);
+    var m = /HTTP (\d{3})/.exec(msg);
+    if (m && m[1] === "404"){
+      /* 老壳子（9 月打的 exe）没有这个路由：继续显示快照，别把面板变成一片红 */
+      HW.legacyStats = true;
+      HW.statsErr = "";
+    }else{
+      HW.legacyStats = false;
+      HW.statsErr = msg;
+    }
+    hwUpdateStatsNote();
+    return false;
+  });
+}
+function hwStatsTick(){
+  if (modalKind() !== "hw"){
+    if (hwStatsTimer){ clearInterval(hwStatsTimer); hwStatsTimer = null; }
+    return;
+  }
+  if (!HW.statsAt || (Date.now() - HW.statsAt) > HW_STATS_INTERVAL) hwRefreshStats(false, false);
+  else hwUpdateStatsNote();
+}
 function openHomework(opts){
   opts = opts || {};
   var L = { kind: "hw" };
@@ -5538,9 +5890,12 @@ function openHomework(opts){
   if (opts.push !== false) pushLayer(L);
   openModal("hw", "📝 作业 / 🧪 小测", hwPanelHtml());
   if (!AI.loaded) loadAiStatus().then(function(){ if (modalOpen()) openModal("hw", "📝 作业 / 🧪 小测", hwPanelHtml()); });
+  hwRefreshStats(false, true);          /* 面板一开就把所有题集的通过率刷成实时的 */
+  if (!hwStatsTimer) hwStatsTimer = setInterval(hwStatsTick, 5000);
   if (!HW.loaded){
     loadHomework().then(function(){
       if (modalOpen()) openModal("hw", "📝 作业 / 🧪 小测", hwPanelHtml());
+      hwRefreshStats(false, true);
       /* 作业数据到了 → 把这一层的 URL 换成更准的 /?hw=hw1（仍是同一条记录） */
       if (HW.hw && modalKind() === "hw") replaceLayerUrl({ kind: "hw", hw: HW.hw.id });
     });
@@ -5567,6 +5922,10 @@ function hwPanelHtml(){
       "</div></div>");
     return out.join("");
   }
+  /* 顶部一行：所有题集的通过率是一起刷的，所以状态只标一次 */
+  out.push('<div class="hwStatsBar"><button class="linkbtn hwStats" data-act="hwstats" data-stats-at="1"' +
+    ' title="通过率来自每道题的 OJ 统计页面（提交次数 / 尝试人数 / 通过人数）">' +
+    escapeHtml(hwStatsNote()) + "</button></div>");
   /* 一份题集一整块 —— 作业和小测**共用这段**，它们的 JSON schema 完全一样。 */
   function blockHtml(hw){
     var cur = HW.hw && HW.hw.id === hw.id;
@@ -5579,10 +5938,12 @@ function hwPanelHtml(){
     out.push('<div class="hwList">');
     hw.problems.forEach(function(p){
       var r = rateOf(p);
+      var mk = hwMarkOf(hw.id, p.no);
       out.push('<button class="hwRow" data-act="hwopen" data-hw="' + attr(hw.id) + '" data-no="' + attr(p.no) + '">' +
         '<span class="hwNo">' + escapeHtml(p.no) + "</span>" +
+        (mk ? '<span class="markDot ' + mk + '" title="' + attr(mk === "ac" ? "我 AC 了" : "我 WA 了") + '"></span>' : "") +
         '<span class="t">' + escapeHtml(p.title || "") + "</span>" +
-        '<span class="hwRate">' + (r === null ? "—" : "通过率 <b" + (r < 60 ? ' class="low"' : "") + ">" + r + "%</b>") + "</span>" +
+        '<span class="hwRate" data-rate="' + attr(hw.id + ":" + p.no) + '">' + rateHtml(p) + "</span>" +
         '<span class="hwGo">打开 ›</span></button>');
     });
     out.push("</div>");
@@ -5712,7 +6073,9 @@ function renderProblem(){
     (lim.time || lim.memory ? '<span class="lim">' + escapeHtml([lim.time, lim.memory].filter(Boolean).join(" · ")) + "</span>" : "") +
     (p.global_id ? '<span class="lim">OJ #' + escapeHtml(p.global_id) + "</span>" : "") +
     '<span class="sp"></span>' +
-    (p.oj_url ? '<button class="tb" data-act="ojopen" data-url="' + attr(p.oj_url) + '">🔗 去 OJ 提交</button>' : "") +
+    (HW_ALL.busy ? '<button class="tb" data-act="hwallcancel">⏹ 停止（' + HW_ALL.done + " / " + HW_ALL.total + "）</button>" : "") +
+    (p.oj_url ? '<button class="primary subBtn" data-act="hwautosubmit" title="用你自己的 OJ 账号直接提交这道题，并读回评测结果">🚀 自动提交</button>' : "") +
+    (p.oj_url ? '<button class="tb" data-act="hwsubmit" title="复制代码并打开提交页（手动交）">📤 复制并去提交</button>' : "") +
     '<button class="tb" data-act="hwback">‹ 回作业列表</button>' +
     "</div>";
   var tabs = [["statement", "题面"], ["analysis", "解析"], ["test", "测一测"]];
@@ -5726,7 +6089,7 @@ function renderProblem(){
   openModal("problem", title, head + bar + body);
   /* ★ 代码框必须紧跟渲染马上填上：stashProbCode() 是无条件把 textarea 的值抄回 state 的，
      要是渲染完 textarea 是空的，用户存的代码就被空串覆盖了。 */
-  if (HW.tab === "test") fillProbCode();
+  if (HW.tab === "test"){ fillProbCode(); hwLoadCases(); }
 }
 function renderProblemBody(){
   if (!HW.prob || !modalOpen()) return;
@@ -6097,10 +6460,30 @@ function reviewContext(){
 function testState(){
   var key = hwKey();
   if (!HW.test[key]){
-    HW.test[key] = { code: (HW.prob && HW.prob.solution_code) || "",
-                     stdin: (HW.prob && HW.prob.sample_in) || "",
-                     expected: (HW.prob && HW.prob.sample_out) || "",
-                     why: "题目样例", caseIdx: 0, out: null, err: null, ran: false, busy: false };
+    var p = HW.prob || {};
+    /* ★ 代码框**不再预填参考解**：打开「测一测」就看见答案，练习变看答案。
+       参考解挪到下面的折叠块里了（见 hwTestHtml 的 .refSol）。 */
+    var t = { code: "", stdin: p.sample_in || "", expected: p.sample_out || "",
+              why: "题目样例", caseIdx: 0, out: null, err: null, ran: false, busy: false,
+              all: null };
+    /* 恢复草稿：代码 + 上次选中的用例。用例优先按"输入内容"对回去 ——
+       AI 用例重新生成后顺序可能变，按下标会指到别的题上。 */
+    var d = hwDraftGet(key);
+    if (d){
+      if (typeof d.code === "string") t.code = d.code;
+      var cs = caseList(p), idx = -1, i;
+      if (typeof d.caseIn === "string" && d.caseIn){
+        for (i = 0; i < cs.length; i++){ if (cs[i].in === d.caseIn){ idx = i; break; } }
+      }
+      if (idx < 0 && typeof d.caseIdx === "number" && d.caseIdx > 0 && d.caseIdx < cs.length){
+        idx = d.caseIdx;
+      }
+      if (idx > 0){
+        t.caseIdx = idx; t.stdin = cs[idx].in; t.expected = cs[idx].out;
+        t.why = cs[idx].why || cs[idx].label;
+      }
+    }
+    HW.test[key] = t;
   }
   return HW.test[key];
 }
@@ -6190,22 +6573,55 @@ function caseList(p){
     var first = String(c.in).replace(/\r\n?/g, "\n").split("\n")[0];
     out.push({ label: first.length > 10 ? first.slice(0, 10) + "…" : first, in: c.in, out: c.out || "", why: c.why || "" });
   });
+  /* AI 生成的边界用例接在后面：输入是模型出的，期望输出是**本机跑参考解算出来的** */
+  var st = (HW.prob && HW.hw) ? HW_CASES[hwKey()] : null;
+  if (st && Array.isArray(st.cases)){
+    st.cases.forEach(function(c, i){
+      if (!c || typeof c.in !== "string") return;
+      out.push({ label: "AI-" + (i + 1), in: c.in, out: c.out || "",
+                 why: c.why || "AI 生成的边界用例", ai: true });
+    });
+  }
   return out;
 }
 function hwTestHtml(){
-  var p = HW.prob, t = testState(), out = [];
+  var p = HW.prob, t = testState(), cs = hwCasesState(), out = [];
   out.push('<div class="setLabel" style="width:auto;margin-bottom:6px">你的代码：</div>');
   out.push('<textarea class="probCode" id="probCode" spellcheck="false"></textarea>');
+  /* 参考解只放在折叠块里：★ 绝不预填进代码框 —— 打开「测一测」就看见答案，练习变抄 */
+  if (String(p.solution_code || "").trim()){
+    out.push('<details class="refSol"><summary>📖 参考代码（先自己做，卡住再看）</summary>' +
+      '<pre class="refCode">' + escapeHtml(p.solution_code) + "</pre>" +
+      '<div class="refActions">' +
+        '<button class="tb" data-act="hwrefcopy">📋 复制</button>' +
+        '<button class="tb" data-act="hwrefviz">▶ 可视化</button>' +
+      "</div></details>");
+  }
   var cases = caseList(p);
   out.push('<div class="caseRow"><span class="caseLbl">用例</span>' + cases.map(function(c, i){
-    return '<button class="caseChip' + (t.caseIdx === i ? " on" : "") + '" data-act="hwcase" data-i="' + i +
-      '" title="' + attr(c.why || "") + '">' + escapeHtml(c.label) + "</button>";
+    return '<button class="caseChip' + (t.caseIdx === i ? " on" : "") + (c.ai ? " ai" : "") +
+      '" data-act="hwcase" data-i="' + i + '" title="' + attr(c.why || "") + '">' +
+      escapeHtml(c.label) + "</button>";
   }).join("") + "</div>");
-  out.push('<div class="hwActions" style="margin-top:0;border-top:0;padding-top:0">' +
+  out.push('<div class="caseOps">' +
+    '<button class="tb" data-act="hwgencases"' + (cs.busy ? " disabled" : "") + ">" +
+      (cs.busy ? "🤖 正在出题…" : (cs.cases.length ? "🤖 重新生成边界用例" : "🤖 生成边界用例")) + "</button>" +
+    (cases.length > 1
+      ? '<button class="tb" data-act="hwrunall"' + (t.all && t.all.busy ? " disabled" : "") + ">🏁 全跑一遍</button>"
+      : "") +
+    '<span class="caseHint">AI 出输入 · 标准答案由本机跑参考解算出</span>' +
+    "</div>");
+  if (cs.err) out.push('<div class="aiErr" style="margin:8px 0 0">' + escapeHtml(cs.err) + "</div>");
+  out.push('<div class="hwActions" style="margin-top:10px;border-top:0;padding-top:0">' +
     '<button class="primary" data-act="hwrun"' + (t.busy ? " disabled" : "") + ">🧪 " +
       (t.busy ? "跑着…" : "跑这个用例") + "</button>" +
     '<button data-act="testviz" title="' + attr(VIZ_TITLE) + '">▶ 可视化</button>' +
     '<button data-act="aireview">📝 让 AI 看看我的代码</button>' +
+    '<span class="sp"></span>' +
+    '<button class="tb markBtn' + (hwMarkOf(HW.hw && HW.hw.id, p.no) === "ac" ? " on ac" : "") +
+      '" data-act="hwmark" data-v="ac" title="我自己在 OJ 上提交过，而且 AC 了">✅ AC</button>' +
+    '<button class="tb markBtn' + (hwMarkOf(HW.hw && HW.hw.id, p.no) === "wa" ? " on wa" : "") +
+      '" data-act="hwmark" data-v="wa" title="我自己提交过，但没过">❌ WA</button>' +
     "</div>");
   if (t.ran){
     var passed = !t.err && sameOutput(t.out, t.expected, p);
@@ -6229,12 +6645,62 @@ function hwTestHtml(){
         (tabHint ? '<div style="margin-top:4px;color:#8a6d00">ⓘ ' + tabHint + "</div>" : "") + "</div>" +
       "</div></div>");
   }
+  if (t.sub) out.push(hwSubmitResultHtml(t.sub));
+  if (t.all && t.all.results && t.all.results.length) out.push(hwAllResultHtml(t.all));
   out.push('<div class="setHint" style="margin-top:12px">比对规则：统一换行、去行尾空格、去末尾空行；' +
     "<b>行内空格保留</b>（和后端一致）。" +
     (p.extra_cases && p.extra_cases.length > 8
       ? "<br>ⓘ 后端自动验证只用前 8 个补充用例（这题有 " + p.extra_cases.length + " 个）。" : "") +
     "</div>");
   out.push(hwPointChips(p));
+  return out.join("");
+}
+/* 自动提交的结果：AC 绿、其它红、"没读到"灰 */
+function hwSubmitResultHtml(s){
+  if (s.busy){
+    return '<div class="resBox" style="margin-top:14px"><div class="resHead">🚀 自动提交' +
+      '<span class="vfy skip">提交中… 等 OJ 评测（最长约 40 秒）</span></div></div>';
+  }
+  if (s.error){
+    return '<div class="aiErr" style="margin-top:14px">提交失败：' + escapeHtml(s.error) + "</div>";
+  }
+  var cls = s.verdict === "AC" ? "pass" : (s.verdict ? "fail" : "skip");
+  var txt = s.verdict ? (s.verdict + (s.verdictCn ? " · " + s.verdictCn : "")) : (s.message || "已提交");
+  var out = ['<div class="resBox" style="margin-top:14px"><div class="resHead">🚀 自动提交' +
+    '<span class="verdict ' + cls + '">' + escapeHtml(txt) + "</span>" +
+    (s.mem ? '<span class="vfy skip">' + escapeHtml(s.mem) + (s.time ? " · " + escapeHtml(s.time) : "") + "</span>" : "") +
+    "</div>"];
+  var note = s.message || "";
+  if (note || s.url){
+    out.push('<div class="setHint" style="padding:8px 12px">' + escapeHtml(note) +
+      (s.url ? ' <button class="linkbtn" data-act="ojopen" data-url="' + attr(s.url) + '">去 OJ 看</button>' : "") +
+      "</div>");
+  }
+  out.push("</div>");
+  return out.join("");
+}
+/* 「全跑一遍」的汇总：只把**没过的**展开，过的折成一行计数 */
+function hwAllResultHtml(all){
+  var total = all.results.length, pass = 0;
+  all.results.forEach(function(r){ if (r.passed) pass++; });
+  var out = ['<div class="resBox" style="margin-top:14px"><div class="resHead">🏁 全跑一遍' +
+    '<span class="verdict ' + (pass === total ? "pass" : "fail") + '">' + pass + " / " + total + " 组一致</span>" +
+    (all.busy ? '<span class="vfy skip">正在跑第 ' + Math.min(all.done + 1, total) + " / " + total + " 组…</span>"
+              : "") + "</div>"];
+  all.results.forEach(function(r){
+    if (r.passed) return;
+    out.push('<div class="allCase"><div class="allHead">❌ ' + escapeHtml(r.label) +
+      (r.why ? '<span class="why">' + escapeHtml(r.why) + "</span>" : "") + "</div>" +
+      '<div class="resGrid">' +
+      '<div class="k">输入</div><pre class="miniPre">' + escapeHtml(r.in) + "</pre>" +
+      '<div class="k">期望</div><pre class="miniPre">' + escapeHtml(r.expected) + "</pre>" +
+      '<div class="k">实际</div><pre class="miniPre bad">' + escapeHtml(r.actual) + "</pre>" +
+      "</div></div>");
+  });
+  if (pass === total && !all.busy){
+    out.push('<div class="allOk">全部一致。AI 用例只是参考，最终仍以 OJ 评测为准。</div>');
+  }
+  out.push("</div>");
   return out.join("");
 }
 /* 代码框内容直接从状态里回填 —— 不往 HTML 里塞数据块
@@ -6247,6 +6713,7 @@ function fillProbCode(){
 function stashProbCode(){
   var ta = $("probCode");
   if (ta) testState().code = ta.value;
+  hwDraftSaveNow();          /* 切页签 / 开跑 / 去可视化 之前先落盘 */
 }
 function hwUseCase(i){
   stashProbCode();
@@ -6254,14 +6721,244 @@ function hwUseCase(i){
   var c = cs[i] || cs[0];
   t.caseIdx = i; t.stdin = c.in; t.expected = c.out; t.why = c.why || c.label;
   t.out = null; t.err = null; t.ran = false;
+  hwDraftSaveNow();
   renderProblemBody(); fillProbCode();
+}
+/* ---------------- 边界用例 / 全跑 / 提交助手 ----------------
+ * 这一组都在「测一测」页签里，目标是回答一个问题：**现在这份代码能不能交**。
+ * 单跑一个样例只能证明"样例过"；AI 用例 + 全跑一遍，才是在提交前把已知陷阱都踩一遍。
+ */
+
+/* 打开「测一测」时读一次后端缓存（peek，不调 AI、不花 token） */
+function hwLoadCases(){
+  var cs = hwCasesState();
+  if (cs.loaded || cs.busy || !HW.prob || !HW.hw) return;
+  cs.busy = true;
+  postJson("/homework/cases", { hw: HW.hw.id, no: HW.prob.no, peek: 1 }).then(function(d){
+    cs.busy = false;
+    cs.loaded = true;
+    if (d && d.ok !== false && Array.isArray(d.cases)) cs.cases = d.cases.slice();
+    if (cs.cases.length){
+      hwRestoreDraftCase();          /* AI 用例是后到的，恢复选中项要等它们 */
+      if (HW.tab === "test" && modalKind() === "problem"){ renderProblemBody(); fillProbCode(); }
+    }
+  }, function(){
+    cs.busy = false;
+    cs.loaded = true;          /* 读不到就当没有，别每次渲染都再打一次 */
+  });
+}
+
+/* AI 出用例：输入是模型给的，**期望输出是后端用本机跑它的参考解算出来的** */
+function hwGenCases(refresh){
+  var cs = hwCasesState();
+  if (cs.busy || !HW.prob || !HW.hw) return;
+  if (!aiConfigured()){ openAiSettings(); toast("先去 AI 设置里填一个 API Key"); return; }
+  stashProbCode();
+  cs.busy = true; cs.err = null;
+  renderProblemBody(); fillProbCode();
+  toast("正在出边界用例：先让 AI 写参考解，再在本机跑它算标准答案…");
+  postJson("/homework/cases", { hw: HW.hw.id, no: HW.prob.no, refresh: refresh ? 1 : 0 }).then(function(d){
+    cs.busy = false;
+    if (!d || d.ok === false){
+      cs.err = String((d && d.error) || "生成失败");
+    }else{
+      cs.cases = (d.cases || []).slice();
+      cs.loaded = true;
+      var tt = HW.test[hwKey()];
+      if (tt && tt.caseIdx > 0 && tt.caseIdx >= caseList(HW.prob).length){
+        tt.caseIdx = 0; tt.stdin = HW.prob.sample_in || ""; tt.expected = HW.prob.sample_out || "";
+        tt.why = "题目样例"; tt.out = null; tt.err = null; tt.ran = false;
+      }
+      toast("出了 " + cs.cases.length + " 组边界用例" +
+            (d.dropped ? "（丢弃 " + d.dropped + " 组：参考解跑不出来）" : ""));
+    }
+    renderProblemBody(); fillProbCode();
+  }, function(e){
+    cs.busy = false;
+    var msg = String(e && e.message ? e.message : e);
+    if (e && e.status === 404) msg = "这个版本的桌面壳还不支持边界用例（接口 /homework/cases 不存在）—— 重新打包后可用";
+    cs.err = msg;
+    renderProblemBody(); fillProbCode();
+  });
+}
+
+/* 全跑一遍：依次把当前代码喂给每一组用例（/run-raw，不追踪、无步数上限） */
+/* 草稿里存了"上次在看哪组用例"。打开题目时 AI 用例还没到（peek 是异步的），
+   所以 testState() 那会儿对不上；等用例到了再补一次。只补"还在样例上"的情况，
+   不覆盖用户已经手动点过的选择。 */
+function hwRestoreDraftCase(){
+  var t = HW.prob ? HW.test[hwKey()] : null;
+  var d = hwDraftGet(hwKey());
+  if (!t || !d || !d.caseIn || t.caseIdx > 0) return false;
+  var cs = caseList(HW.prob);
+  for (var i = 1; i < cs.length; i++){
+    if (cs[i].in === d.caseIn){
+      t.caseIdx = i; t.stdin = cs[i].in; t.expected = cs[i].out;
+      t.why = cs[i].why || cs[i].label;
+      return true;
+    }
+  }
+  return false;
+}
+function hwRunAll(){
+  var p = HW.prob, t = testState();
+  if (!p || (t.all && t.all.busy)) return;
+  var cases = caseList(p);
+  if (!cases.length) return;
+  stashProbCode();
+  if (!String(t.code || "").trim()){ toast("先在上面写代码"); return; }
+  t.all = { busy: true, done: 0, total: cases.length, results: [] };
+  renderProblemBody(); fillProbCode();
+  var i = 0;
+  function finish(){
+    t.all.busy = false;
+    renderProblemBody(); fillProbCode();
+    var pass = 0;
+    t.all.results.forEach(function(r){ if (r.passed) pass++; });
+    toast("全跑完：" + pass + " / " + t.all.results.length + " 组一致");
+  }
+  function step(){
+    if (i >= cases.length){ finish(); return; }
+    var c = cases[i];
+    hwRunOnce(t.code, c.in).then(function(d){
+      var act = runStdout(d), err = runError(d);
+      t.all.results.push({ label: c.label, in: c.in, expected: c.out,
+                           actual: err ? ("[报错] " + err) : act,
+                           passed: !err && sameOutput(act, c.out, p), why: c.why || "" });
+      i++; t.all.done = i;
+      renderProblemBody(); fillProbCode();
+      setTimeout(step, 0);
+    }, function(e){
+      t.all.results.push({ label: c.label, in: c.in, expected: c.out,
+                           actual: "[请求失败] " + String(e && e.message ? e.message : e),
+                           passed: false, why: c.why || "" });
+      i++; t.all.done = i;
+      renderProblemBody(); fillProbCode();
+      setTimeout(step, 0);
+    });
+  }
+  step();
+}
+
+function hwSubmitUrl(p){
+  var u = String((p && p.oj_url) || "");
+  if (!u) return "";
+  if (/\/submit\/?$/.test(u)) return u;
+  return u.replace(/\/?$/, "/") + "submit/";
+}
+/* 复制代码 + 打开**提交页**（系统浏览器）。提交这一步仍然留给人 —— 
+   脚本代交在课程 OJ 上算违规，而且失败是静默的。 */
+function hwSubmit(){
+  var p = HW.prob;
+  if (!p || !p.oj_url) return;
+  stashProbCode();
+  var code = String(testState().code || "");
+  if (!code.trim()){ toast("先把代码写进「测一测」"); return; }
+  copyText(code, "代码");
+  openExternal(hwSubmitUrl(p));
+  toast("代码已复制 — 在提交页粘贴后点 Submit");
+}
+
+/* ---------------- 自动提交（用你自己的 OJ 账号） ----------------
+ * 链路：POST /homework/submit → 后端用登录态 POST 表单 → 轮询公开状态页拿"结果"列。
+ * 密码只随这一次登录发给 OJ，**不落盘**；本机只留 session cookie（已 icacls 收紧）。 */
+function hwAutoSubmit(){
+  var p = HW.prob;
+  if (!p || !p.oj_url) return;
+  stashProbCode();
+  var code = String(testState().code || "");
+  if (!code.trim()){ toast("先把代码写进「测一测」"); return; }
+  var ok = "";
+  try{ ok = localStorage.getItem("ic.oj.consent") || ""; }catch(e){ ok = ""; }
+  if (!ok){ openOjConsent(); return; }
+  hwDoAutoSubmit(code);
+}
+function openOjConsent(){
+  openModal("ojconsent", "🚀 自动提交说明",
+    '<div class="body" style="font-size:14px;line-height:1.9">' +
+      "<p>点「同意」之后，这个终端会用<b>你自己的 OpenJudge 账号</b>，把「测一测」里当前这份代码直接提交到这道题，并读回评测结果。</p>" +
+      "<p>· 密码只在登录时发给 OJ 一次，<b>本机不保存</b>；只保存登录状态（session cookie）。</p>" +
+      "<p>· 提交记录会出现在 OJ 的提交列表里，和你在网页上交一模一样 —— 包括可能的次数限制。</p>" +
+      "<p>· 每次提交前不会再问，直到你在 AI 设置里退出登录。</p>" +
+    "</div>" +
+    '<div class="hwActions"><button class="primary" data-act="ojconsent">同意，开始提交</button>' +
+    '<button data-act="closemodal">算了，手动交</button></div>');
+}
+function hwDoAutoSubmit(code){
+  var t = testState();
+  t.sub = { busy: true, verdict: "", verdictCn: "", error: "", message: "", mem: "", time: "", at: "", url: "" };
+  renderProblem(); fillProbCode();
+  toast("正在提交并等评测…（最长约 40 秒）");
+  postJson("/homework/submit", { hw: HW.hw.id, no: HW.prob.no, code: code }).then(function(d){
+    t.sub.busy = false;
+    if (d && d.need_login){ t.sub = null; renderProblem(); fillProbCode(); openOjLogin(); return; }
+    if (!d || d.ok === false){
+      t.sub.error = String((d && d.error) || "提交失败");
+    }else{
+      t.sub.verdict = String(d.verdict || "");
+      t.sub.verdictCn = String(d.verdict_cn || "");
+      t.sub.message = String(d.message || "已提交");
+      t.sub.mem = String(d.memory || "");
+      t.sub.time = String(d.time || "");
+      t.sub.at = String(d.submitted_at || "");
+      t.sub.url = String(d.status_url || "");
+      if (t.sub.verdict === "AC") hwSetMark("ac");
+      else if (t.sub.verdict) hwSetMark("wa");
+      hwRefreshStats(true, false);   /* 刚交完，通过人数/提交次数都变了 */
+      toast(t.sub.verdict ? ("评测结果：" + (t.sub.verdictCn || t.sub.verdict)) : "已提交");
+    }
+    renderProblem(); fillProbCode();
+  }, function(e){
+    t.sub.busy = false;
+    t.sub.error = String(e && e.message ? e.message : e);
+    renderProblem(); fillProbCode();
+  });
+}
+function openOjLogin(){
+  openModal("ojlogin", "🔑 登录 OpenJudge",
+    '<div class="aiNote" style="margin-bottom:10px;line-height:1.8">' +
+      "自动提交要用你自己的 OJ 账号。密码只随这次登录发给 OpenJudge，<b>本机不保存</b>；" +
+      "只留登录状态（cookie）。</div>" +
+    '<div class="rowIn"><input class="setInput" id="ojEmail" type="text" placeholder="账号（邮箱 / 学号）" autocomplete="username"></div>' +
+    '<div class="rowIn" style="margin-top:8px"><input class="setInput" id="ojPass" type="password" placeholder="密码" autocomplete="current-password"></div>' +
+    '<div class="hwActions" style="margin-top:12px">' +
+      '<button class="primary" data-act="ojdologin">登录并提交</button>' +
+      '<button data-act="closemodal">取消</button></div>');
+  setTimeout(function(){ var e = document.getElementById("ojEmail"); if (e && e.focus) e.focus(); }, 0);
+}
+function ojDoLogin(){
+  var em = document.getElementById("ojEmail"), pw = document.getElementById("ojPass");
+  var email = em ? String(em.value || "").trim() : "";
+  var pass = pw ? String(pw.value || "") : "";
+  if (!email || !pass){ toast("账号和密码都要填"); return; }
+  toast("正在登录…");
+  postJson("/oj/login", { email: email, password: pass }).then(function(d){
+    if (!d || d.ok === false){ toast(String((d && d.error) || "登录失败")); return; }
+    closeModal();
+    stashProbCode();
+    hwDoAutoSubmit(String(testState().code || ""));
+  }, function(e){ toast("登录失败：" + String(e && e.message ? e.message : e)); });
+}
+
+/* 跑一段代码：优先 /run-raw（不追踪、无 5000 步上限）。
+   老版本的桌面壳没有这个路由（404）→ 退回 /run，功能不至于整个坏掉。 */
+function hwRunOnce(code, stdin){
+  return postJson("/run-raw", { code: code, stdin: stdin }).then(function(d){ return d; },
+    function(e){
+      if (e && e.status === 404) return postJson("/run", { code: code, stdin: stdin });
+      throw e;
+    });
 }
 function hwRun(){
   var t = testState();
   stashProbCode();
+  if (!String(t.code || "").trim()){ toast("先在上面写代码"); return; }
   t.busy = true; t.ran = false;
   renderProblemBody(); fillProbCode();
-  postJson("/run", { code: t.code, stdin: t.stdin }).then(function(d){
+  /* ★ 用 /run-raw 而不是 /run：/run 是**追踪模式**，有 5000 步上限，
+     一道 n=1000 的题本机会被"中止"判成跑不出来；测试用例要的是结果不是快照。
+     /run-raw 只受 30 秒墙钟限制，变量也不会留在会话里。 */
+  hwRunOnce(t.code, t.stdin).then(function(d){
     t.busy = false; t.ran = true;
     t.out = runStdout(d);
     t.err = runError(d);
@@ -6274,11 +6971,19 @@ function hwRun(){
 }
 function runStdout(d){
   if (!d) return "";
+  if (d.direct){                       /* /run-raw 的形状 */
+    return String(d.stdout_final === undefined || d.stdout_final === null ? "" : d.stdout_final);
+  }
   if (Array.isArray(d.steps) && d.steps.length) return String(d.steps[d.steps.length - 1].stdout || "");
   return String(d.stdout !== undefined ? d.stdout : (d.out !== undefined ? d.out : ""));
 }
 function runError(d){
   if (!d) return null;
+  if (d.direct){                       /* /run-raw：error 是字符串，另有中文解释 */
+    if (d.kind === "aborted") return d.abort_message || "执行超时，已中止";
+    if (d.error) return d.error_cn || String(d.error);
+    return null;
+  }
   if (d.kind === "syntax" && d.error) return (d.error.message || "语法错误") + "（第 " + (d.error.line || "?") + " 行）";
   if (d.error) return (d.error.type || "错误") + ": " + (d.error.message || "");
   return null;
@@ -6478,23 +7183,58 @@ function onDocChange(e){
 }
 
 /* 「全部生成解析」：挨个过一遍这周作业的题（串行，别把 API 打爆） */
+/* 批量生成解析：**先确认再花 token**。
+ * 原来点一下就从第一题跑到最后一题：没有确认、没有进度、停不下来。
+ * 现在是两段式（第一次点变成"确认：生成 N 题？"），运行中题目页头上有「⏹ 停止」。 */
+function hwAskExplainAll(btn){
+  if (!HW.hw) return;
+  if (HW_ALL.busy) return;
+  var n = (HW.hw.problems || []).length;
+  if (!HW_ALL.confirm){
+    HW_ALL.confirm = true;
+    if (btn){
+      btn.textContent = "确认：生成 " + n + " 题？（再点一次）";
+      btn.classList.add("confirming");
+    }
+    setTimeout(function(){
+      if (!HW_ALL.confirm) return;
+      HW_ALL.confirm = false;
+      if (btn){ btn.textContent = "✨ 全部生成解析"; btn.classList.remove("confirming"); }
+    }, 6000);
+    return;
+  }
+  HW_ALL.confirm = false;
+  aiExplainAll();
+}
 function aiExplainAll(){
   if (!HW.hw) return Promise.resolve(false);
   if (!aiConfigured()){ openAiSettings(); toast("先去 AI 设置里填 API Key"); return Promise.resolve(false); }
   var list = HW.hw.problems.slice();
-  toast("开始逐题生成解析（共 " + list.length + " 题）");
+  var home = HW.prob, homeTab = HW.tab;
+  HW_ALL.busy = true; HW_ALL.cancel = false; HW_ALL.done = 0; HW_ALL.total = list.length;
   var i = 0;
+  function finish(msg){
+    HW_ALL.busy = false;
+    toast(msg);
+    HW.prob = home; HW.tab = homeTab;
+    if (modalKind() === "problem"){ renderProblem(); fillProbCode(); }
+    return Promise.resolve(true);
+  }
   function next(){
-    if (i >= list.length){ toast("全部生成完了"); return Promise.resolve(true); }
+    if (HW_ALL.cancel) return finish("已停止：完成 " + HW_ALL.done + " / " + HW_ALL.total + " 题");
+    if (i >= list.length) return finish("全部生成完了（" + HW_ALL.total + " 题）");
     var p = list[i++];
-    if (HW.ai[HW.hw.id + ":" + p.no] && HW.ai[HW.hw.id + ":" + p.no].done) return next();
-    var keep = HW.prob, keepTab = HW.tab;
+    var key = HW.hw.id + ":" + p.no;
+    if (HW.ai[key] && HW.ai[key].done){ HW_ALL.done++; return next(); }
     HW.prob = p;
+    HW.tab = "analysis";
+    renderProblem();                        /* 让用户看见正在生成哪一题 */
+    fillProbCode();
+    toast("正在生成第 " + (HW_ALL.done + 1) + " / " + HW_ALL.total + " 题…（点题目页上的停止可中断）");
     return aiExplain(true, "explain").then(function(){
-      HW.prob = keep; HW.tab = keepTab;
-      if (HW.tab === "analysis") scheduleAiRender(true);
+      HW_ALL.done++;
       return next();
-    });
+    }, function(){ HW_ALL.done++; return next(); });
   }
   return next();
 }
@@ -7216,6 +7956,16 @@ function aiAskAboutCode(){
     __sec: (st && st.sec) ? (st.sec.title || st.sec.name || "") : ""
   };
   var q = "这是我的代码，帮我看看：哪里不对、怎么改简单点？\n\n```python\n" + (testState().code || "") + "\n```";
+  /* 把「测一测」里刚跑出来的真实结果一起带上：模型不用猜我在什么输入上错。
+     JSON.stringify 既保住换行/制表符，又不会被多行代码围栏搞乱。 */
+  var tst = testState();
+  if (tst.ran && String(tst.stdin || "").length <= 2000){
+    var ranOut = tst.err ? ("[报错] " + tst.err) : (tst.out === null ? "" : tst.out);
+    var ranOk = !tst.err && sameOutput(tst.out, tst.expected, p);
+    q += "\n\n我刚在「测一测」里跑了这组用例：\n输入：" + JSON.stringify(tst.stdin) +
+         "\n期望：" + JSON.stringify(tst.expected) + "\n实际：" + JSON.stringify(ranOut) +
+         "\n" + (ranOk ? "这组是对的。" : "这组没过。");
+  }
   if (HW.hw) q = "这周作业「" + (HW.hw.title || HW.hw.id) + "」第 " + p.no + " 题：**" + String(p.title || "") + "**\n\n" + q;
   openAssistant({ autoAsk: q, problem: prob });
   return Promise.resolve(true);
@@ -7494,6 +8244,32 @@ function onDocClick(e){
   }
   else if (act === "hwcase") hwUseCase(Number(btn.getAttribute("data-i")));
   else if (act === "hwrun") hwRun();
+  else if (act === "hwrunall") hwRunAll();
+  else if (act === "hwgencases"){
+    var cst0 = HW_CASES[hwKey()];
+    hwGenCases(!!(cst0 && (cst0.cases || []).length));
+  }
+  else if (act === "hwrefcopy") copyText(String((HW.prob && HW.prob.solution_code) || ""), "参考代码");
+  else if (act === "hwrefviz"){
+    var rcode = String((HW.prob && HW.prob.solution_code) || "");
+    if (rcode.trim()) openTutor(rcode, null, false, (HW.prob && HW.prob.sample_in) || "");
+  }
+  else if (act === "hwsubmit") hwSubmit();
+  else if (act === "hwstats"){
+    hwRefreshStats(true, false).then(function(ok){
+      toast(ok ? "通过率已更新" : (HW.statsErr || "通过率更新失败"));
+    });
+  }
+  else if (act === "hwautosubmit") hwAutoSubmit();
+  else if (act === "ojconsent"){
+    try{ localStorage.setItem("ic.oj.consent", "1"); }catch(e){}
+    closeModal();
+    stashProbCode();
+    hwDoAutoSubmit(String(testState().code || ""));
+  }
+  else if (act === "ojdologin") ojDoLogin();
+  else if (act === "hwmark"){ hwSetMark(btn.getAttribute("data-v")); renderProblem(); }
+  else if (act === "hwallcancel"){ HW_ALL.cancel = true; toast("正在停止：当前这题跑完就停"); }
   else if (act === "testviz"){ stashProbCode(); var tz = testState(); openTutor(tz.code, null, false, tz.stdin); }
   else if (act === "copysample"){
     var pk = btn.getAttribute("data-key"), pp = HW.prob;
@@ -7523,7 +8299,7 @@ function onDocClick(e){
   else if (act === "asclear") assistantClear();
   else if (act === "aibalrefresh") loadAiBalance(true);
   else if (act === "aigen") aiExplain(btn.getAttribute("data-nocache") === "1", "explain");
-  else if (act === "hwall") aiExplainAll();
+  else if (act === "hwall") hwAskExplainAll(btn);
   else if (act === "codeviz") codeViz(aiBlockCode(Number(btn.getAttribute("data-idx"))));
   else if (act === "codetest") codeTestFromAnalysis(Number(btn.getAttribute("data-idx")));
   else if (act === "codecopy") codeCopy(Number(btn.getAttribute("data-idx")));
@@ -7540,7 +8316,7 @@ function onDocClick(e){
   else if (act === "closemodal") closeLayer();
   else if (act === "scrim") closeLayer();
   else if (act === "reload") reloadData();
-  else if (act === "jump"){ closeTocAll(); closeModal(); jumpToId(btn.getAttribute("data-id")); }
+  else if (act === "jump"){ closeTocAll(); closeModal(); jumpToId(btn.getAttribute("data-id"), btn.getAttribute("data-q")); }
   else if (act === "goto"){ closeModal(); jumpToSec(btn.getAttribute("data-sec")); }
   else if (act === "fillmissing"){ closeModal(); jumpToSec(btn.getAttribute("data-sec")); }
   else if (act === "slide"){
@@ -7863,6 +8639,21 @@ function bindEvents(){
   }
   if (typeof window !== "undefined" && window.addEventListener){
     window.addEventListener("resize", onWindowResize, false);
+  }
+  /* 作业代码框：边敲边存（防抖 350ms）。点「▶ 可视化」是整页跳转，没有这一条
+     回来代码就没了 —— 这是"用得最多的功能"里最扎人的一个洞。 */
+  document.addEventListener("input", function(e){
+    var el = e && e.target;
+    if (!el || el.id !== "probCode" || !HW.prob) return;
+    var st = HW.test[hwKey()];
+    if (st) st.code = el.value;
+    hwDraftTouch();
+  }, false);
+  if (typeof window !== "undefined" && window.addEventListener){
+    window.addEventListener("pagehide", function(){ try{ hwDraftSaveNow(); }catch(e){} }, false);
+    document.addEventListener("visibilitychange", function(){
+      if (document.visibilityState === "hidden"){ try{ hwDraftSaveNow(); }catch(e){} }
+    }, false);
   }
   if ($("btnResume")){
     $("btnResume").addEventListener("click", function(){

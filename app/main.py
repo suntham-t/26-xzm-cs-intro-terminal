@@ -27,8 +27,10 @@
 import base64
 import code
 import datetime as _dt
+import ast
 import hashlib
 import html
+import http.cookiejar
 import importlib.util
 import io
 import json
@@ -661,6 +663,99 @@ def homework_local():
             "file": path, "title": obj.get("title") or "",
         }
     return out
+
+
+# ---------------- 实时通过率 ----------------
+# 通过率 = 通过人数 / 尝试人数，数字在**每道题的 OJ 页面上**
+# （<div class="problem-statistics"> 里的「提交次数 / 尝试人数 / 通过人数」）。
+# 抓题时存进 hw1.json 的 stats 只是快照，所以这里做一份"用到的时候现抓"的：
+# 15 秒内存缓存（面板重绘/连点不会连环打 OJ），?force=1 绕过。
+HW_STATS_TTL = 15.0
+HW_STATS_CACHE = {}          # hw_id -> {"at": monotonic, "data": {...}}
+
+
+def _parse_problem_stats(page):
+    """从题目页里抠「提交次数 / 尝试人数 / 通过人数」。抠不到返回 None。"""
+    side = re.search(r'<div class="problem-statistics[^"]*">(.*?)</div>', page, re.S)
+    if not side:
+        return None
+    fields = dict((hw_strip_tags(k).strip(), hw_strip_tags(v).strip())
+                  for k, v in re.findall(r"<dt>(.*?)</dt>\s*<dd>(.*?)</dd>", side.group(1), re.S))
+    stats = {"submitted": None, "tried": None, "passed": None}
+    for key, label in (("submitted", "提交次数"), ("tried", "尝试人数"),
+                       ("passed", "通过人数")):
+        val = fields.get(label)
+        stats[key] = int(val) if val and val.isdigit() else None
+    return stats if any(v is not None for v in stats.values()) else None
+
+
+def _stats_problems(hw_id):
+    for _slug, it in homework_local().items():
+        if it.get("id") != hw_id:
+            continue
+        try:
+            with open(it["file"], "r", encoding="utf-8") as fh:
+                doc = json.load(fh)
+        except (OSError, ValueError):
+            return []
+        return [p for p in (doc.get("problems") or [])
+                if isinstance(p, dict) and p.get("oj_url")]
+    return []
+
+
+def _fetch_stats(hw_id):
+    """并发抓这份作业每一题的统计块。返回 (stats, errors)。"""
+    probs = _stats_problems(hw_id)
+
+    def one(prob):
+        try:
+            page = oj_fetch(str(prob["oj_url"]), retries=1, timeout=8)
+        except Exception as exc:                                     # noqa: BLE001
+            return prob.get("no"), None, _redact(str(exc))[:160]
+        return prob.get("no"), _parse_problem_stats(page), None
+
+    out, errors = {}, []
+    if probs:
+        from concurrent.futures import ThreadPoolExecutor           # noqa: PLC0415
+        with ThreadPoolExecutor(max_workers=5) as pool:
+            for no, st, err in pool.map(one, probs):
+                if st:
+                    out[str(no)] = st
+                elif err:
+                    errors.append({"hw": hw_id, "no": no, "error": err})
+    return out, errors
+
+
+def homework_stats(hw_id, force=False):
+    """现抓通过率。hw=all 时把本地每一份题集都刷一遍（面板打开时用）。
+
+    每份题集 30 秒内存缓存：面板重绘/连点不会连环打 OJ。返回里带 cached 标记，
+    前端据此决定"通过率：N 秒前更新"那行怎么写。
+    """
+    hw_id = str(hw_id or "").strip()
+    if hw_id in ("", "all", "*"):
+        ids = [it.get("id") for it in homework_local().values() if it.get("id")]
+    else:
+        ids = [hw_id]
+    if not ids:
+        return {"ok": False, "error": "本地还没有作业"}
+
+    now = time.monotonic()
+    sets, errors = {}, []
+    for hid in ids:
+        hit = HW_STATS_CACHE.get(hid)
+        if not force and hit and now - hit["at"] < HW_STATS_TTL:
+            sets[hid] = {"stats": hit["data"]["stats"], "at": hit["data"]["at"], "cached": True}
+            continue
+        stats, errs = _fetch_stats(hid)
+        errors.extend(errs)
+        if stats:
+            data = {"stats": stats, "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
+            HW_STATS_CACHE[hid] = {"at": time.monotonic(), "data": data}
+            sets[hid] = {"stats": stats, "at": data["at"], "cached": False}
+        else:
+            sets[hid] = {"stats": {}, "at": None, "cached": False}
+    return {"ok": True, "sets": sets, "errors": errors}
 
 
 def homework_available(with_archive=True, refresh=False):
@@ -2224,8 +2319,8 @@ DEFAULT_SYSTEM_PROMPT = """你是北京大学「计算概论 B」的助教。学
 - 变量名短而有意：`n`、`cnt`、`a`、`i`、`total`。别上 `result_list`、`temp_dict` 这种。
 - 一行能说清的就别展开，但也别硬压成一行：`list(map(int, input().split()))` 是标准写法，
   可以用；用分号把三件事塞进一行就不行。
-- 注释只写"为什么"，不写"是什么"。`# 整百年要单独判断，否则 1900 会判成闰年` 值得写；
-  `# 循环 n 次` 不要写。
+- **代码里不要写任何注释**，也不写 docstring —— 学生要的是能直接交上去的代码。
+  想解释就写在代码块外面的正文里，别塞进代码。
 - ★ 注意：这份提示词是给**要交到 OJ 上评测**的代码用的，所以上面的
   「不要 import sys / 用 input()」在这里是必须的（助教面板那份演示代码相反，
   不许用 input()）。别把两边搞混。
@@ -2808,6 +2903,628 @@ def verify_code(code, problem, phase="sample", code_index=0):
                            "passed_count": sum(1 for d in details if d["passed"]),
                            "total": len(details)}
     return event
+
+
+# ---------------- 边界用例：AI 出输入，本机算期望输出 ----------------
+#
+# 为什么期望输出不让模型"口算"：模型最容易错的就是"这组输入应该输出什么"。
+# 做法：让它给一份参考解，**用本机跑出来的 stdout 当标准答案**。参考解必须先过官方
+# 样例；过不了就带着真实输出回喂修一次，还不行就整体判失败 —— 宁可不出用例，
+# 也不能给一堆不可信的对错判断（学生会照着它改代码）。
+CASE_DIR = os.path.join(DATA_DIR, "homework-cases")
+CASE_MAX = 6                 # 最多保留几组（跑一遍要起 6 次本机执行，别贪多）
+CASE_MAX_INPUT = 4000
+CASE_MAX_SOLUTION = 20000
+CASE_MAX_OUTPUT = 20000
+
+CASES_SYSTEM_PROMPT = (
+    "你是 OpenJudge 的出题人，正在给一道编程题准备测试数据。\n"
+    "只输出一个 JSON 对象，不要解释、不要 markdown 围栏、不要多余文字：\n"
+    '{"solution": "<完整可运行的 Python 3 参考解>", '
+    '"cases": [{"in": "<一组输入>", "why": "<这组在考什么>"}]}\n'
+    "要求：\n"
+    "1. solution 按题面格式从标准输入读入，输出严格照样例格式（空格、制表符、换行都照样例）。\n"
+    "2. cases 给 %d 组输入，覆盖：最小/最大、边界值、题面特别提醒的坑、最容易写错的情况。\n"
+    "3. 每组 in 是完整的输入内容（可能多行），不要带任何说明文字，不要重复样例输入。\n"
+    "4. 题面没写清的约束按样例和常识取合理值，别超出限制。\n"
+    "5. solution 里**不要有任何注释或 docstring** —— 它会直接被当参考解跑。\n"
+) % CASE_MAX
+
+
+def _strip_py_comments(code):
+    """去掉注释和 docstring（参考解要"干净代码"）。
+
+    用 AST 而不是正则：字符串里出现 # 会被正则误删。ast.unparse 会把代码重排一遍，
+    但语义不变，而这段代码只用来跑用例、不给人看，重排无所谓。
+    """
+    src = str(code or "")
+    if not src.strip():
+        return src
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return src
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            body = getattr(node, "body", None)
+            if (body and isinstance(body[0], ast.Expr)
+                    and isinstance(body[0].value, ast.Constant)
+                    and isinstance(body[0].value.value, str)):
+                node.body = body[1:] or [ast.Pass()]
+    try:
+        return ast.unparse(tree)
+    except Exception:                                            # noqa: BLE001
+        return src
+
+
+def _cases_file(hw_id, no):
+    safe = re.sub(r"[^A-Za-z0-9_.-]", "_", "%s-%s" % (hw_id, no))[:80]
+    return os.path.join(CASE_DIR, safe + ".json")
+
+
+def _loose_out(text):
+    """和后端 verify 同口径（去行尾空白 / 去末尾空行），再把制表符按 8 列展开。
+
+    hw1 第 3 题的样例里就是字面的 \t —— 不展开的话，一份完全正确的参考解会被判
+    "没过样例"，用例也就生不出来。
+    """
+    s = str(text if text is not None else "").replace("\r\n", "\n").replace("\r", "\n")
+    s = s.expandtabs(8)
+    lines = [ln.rstrip(" \t") for ln in s.split("\n")]
+    while lines and lines[-1] == "":
+        lines.pop()
+    return "\n".join(lines)
+
+
+def _json_object_from_text(text):
+    """从模型输出里抠出第一个能解析的 JSON 对象（容忍围栏、前后解释）。"""
+    s = str(text or "")
+    start = s.find("{")
+    while start >= 0:
+        depth = 0
+        in_str = False
+        esc = False
+        for i in range(start, len(s)):
+            c = s[i]
+            if in_str:
+                if esc:
+                    esc = False
+                elif c == "\\":
+                    esc = True
+                elif c == '"':
+                    in_str = False
+                continue
+            if c == '"':
+                in_str = True
+            elif c == "{":
+                depth += 1
+            elif c == "}":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        obj = json.loads(s[start:i + 1])
+                    except ValueError:
+                        break
+                    if isinstance(obj, dict):
+                        return obj
+                    break
+        start = s.find("{", start + 1)
+    return None
+
+
+def _run_reference(code, stdin_text):
+    try:
+        res = run_code_direct(code, stdin_text or "")
+    except Exception as exc:                                     # noqa: BLE001
+        return {"ok": False, "out": "", "error": "本地运行出错：%r" % exc}
+    out = res.get("stdout_final") or ""
+    if res.get("ok"):
+        return {"ok": True, "out": out, "error": None}
+    msg = res.get("error_cn") or res.get("abort_message")
+    if not msg and isinstance(res.get("error"), dict):
+        msg = "%s: %s" % (res["error"].get("type") or "", res["error"].get("message") or "")
+    return {"ok": False, "out": out, "error": msg or "运行失败"}
+
+
+def _cases_digest(problem):
+    raw = "\n---\n".join(str(problem.get(k) or "")
+                         for k in ("statement_md", "sample_in", "sample_out"))
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _find_homework_problem(hw_id, no):
+    try:
+        no = int(no)
+    except (TypeError, ValueError):
+        return None, "no 必须是数字"
+    for _slug, info in homework_local().items():
+        if info.get("id") != hw_id:
+            continue
+        try:
+            with open(info["file"], "r", encoding="utf-8") as fh:
+                doc = json.load(fh)
+        except (OSError, ValueError) as exc:
+            return None, "读不到这份作业：%r" % exc
+        for p in doc.get("problems") or []:
+            if int(p.get("no") or 0) == no:
+                return p, None
+        return None, "这份作业里没有第 %d 题" % no
+    return None, "本地没有这份作业（%s）" % (hw_id or "?")
+
+
+def _ask_for_cases(cfg, problem, feedback=None):
+    user = ["题面：", str(problem.get("statement_md") or ""), "",
+            "样例输入：", str(problem.get("sample_in") or ""),
+            "样例输出：", str(problem.get("sample_out") or "")]
+    lim = problem.get("limits")
+    if isinstance(lim, dict) and lim:
+        user += ["", "限制：%s" % json.dumps(lim, ensure_ascii=False)]
+    if feedback:
+        user += ["", "【上一次的参考解没过样例，按实际情况修正后再给 JSON】", feedback]
+    messages = [{"role": "system", "content": CASES_SYSTEM_PROMPT},
+                {"role": "user", "content": "\n".join(user)}]
+    text, _reason = ai_stream_chat(cfg, messages, lambda ev: None)
+    return _json_object_from_text(text), text
+
+
+def homework_cases(payload):
+    """POST /homework/cases {hw, no, peek?, refresh?}
+
+    peek=1 只读本地缓存、**不调 AI**（打开题目时用）；
+    refresh=1 忽略缓存重新生成。
+    """
+    hw_id = str(payload.get("hw") or "")
+    no = payload.get("no")
+    peek = bool(payload.get("peek"))
+    refresh = bool(payload.get("refresh"))
+    problem, err = _find_homework_problem(hw_id, no)
+    if problem is None:
+        return {"ok": False, "cases": [], "error": err}
+
+    path = _cases_file(hw_id, no)
+    digest = _cases_digest(problem)
+    cached = None
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            cached = json.load(fh)
+    except (OSError, ValueError):
+        cached = None
+    if (isinstance(cached, dict) and cached.get("statement_hash") == digest
+            and not refresh):
+        return {"ok": True, "cached": True,
+                "cases": cached.get("cases") or [],
+                "solution": cached.get("solution") or "",
+                "generated_at": cached.get("generated_at"),
+                "model": cached.get("model")}
+    if peek:
+        return {"ok": True, "cached": False, "cases": []}
+
+    cfg = load_ai_config()
+    if not cfg.get("key"):
+        raise AiError("还没配置 API Key —— 在 AI 设置里填一个")
+    sample_in = problem.get("sample_in") or ""
+    sample_out = problem.get("sample_out") or ""
+    if not str(sample_out).strip():
+        return {"ok": False, "cases": [], "error": "这题没有样例输出，没法用它校准参考解"}
+
+    feedback = None
+    solution = ""
+    data = None
+    for _attempt in range(2):
+        try:
+            data, _raw = _ask_for_cases(cfg, problem, feedback)
+        except AiError as exc:
+            raise AiError(_redact(str(exc)))
+        if not data:
+            feedback = "你上一次的输出不是合法 JSON。只输出那个 JSON 对象，不要别的内容。"
+            continue
+        sol = _strip_py_comments(str(data.get("solution") or "").strip())
+        if not sol:
+            feedback = "上一次的 JSON 里没有 solution 字段。"
+            continue
+        if len(sol) > CASE_MAX_SOLUTION:
+            feedback = "solution 太长了（超过 %d 字符），请精简。" % CASE_MAX_SOLUTION
+            continue
+        run = _run_reference(sol, sample_in)
+        if run["ok"] and _loose_out(run["out"]) == _loose_out(sample_out):
+            solution = sol
+            break
+        feedback = ("样例输入：\n%s\n期望输出：\n%s\n你给的 solution 实际输出：\n%s\n错误：%s"
+                    % (sample_in, sample_out, run["out"][:2000], run["error"] or "（无）"))
+    if not solution:
+        return {"ok": False, "cases": [],
+                "error": "AI 给的参考解没过样例（重试一次仍失败）", "detail": feedback}
+
+    cases = []
+    dropped = 0
+    seen = {sample_in}
+    raw_cases = data.get("cases") if isinstance(data.get("cases"), list) else []
+    for item in raw_cases:
+        if len(cases) >= CASE_MAX:
+            break
+        if isinstance(item, dict):
+            cin = item.get("in")
+            why = str(item.get("why") or "")
+        else:
+            cin, why = item, ""
+        if not isinstance(cin, str):
+            continue
+        cin = cin.replace("\r\n", "\n")
+        if not cin.strip() or len(cin) > CASE_MAX_INPUT or cin in seen:
+            continue
+        seen.add(cin)
+        run = _run_reference(solution, cin)
+        if not run["ok"] or not run["out"].strip() or len(run["out"]) > CASE_MAX_OUTPUT:
+            dropped += 1
+            continue
+        cases.append({"in": cin, "out": run["out"], "why": why})
+    if not cases:
+        return {"ok": False, "cases": [], "error": "模型没给出可用的测试输入",
+                "detail": feedback, "dropped": dropped}
+
+    doc = {"hw": hw_id, "no": int(no), "statement_hash": digest,
+           "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+           "model": cfg.get("model"), "solution": solution, "cases": cases}
+    try:
+        os.makedirs(CASE_DIR, exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(doc, ensure_ascii=False, indent=2))
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, path)
+    except OSError as exc:
+        _log("写用例缓存失败（忽略）：%r" % exc)
+    return {"ok": True, "cached": False, "cases": cases, "solution": solution,
+            "generated_at": doc["generated_at"], "model": doc["model"],
+            "dropped": dropped}
+
+
+# ---------------- OpenJudge 自动提交（用你自己的账号） ----------------
+#
+# 提交链路（2026-10 实地核对过）：
+#   ① POST /api/auth/login/ 表单 email/password/redirectUrl → {"result":"OK"} + PHPSESSID
+#   ② GET  <题目>/submit/   200 = 已登录；401 = 没登录
+#   ③ POST 提交表单：字段名现场从 HTML 里发现（textarea 是源码，select 是语言），
+#      这样 OJ 改字段名也不会立刻坏
+#   ④ 轮询 <班级>/status/?problemNumber=N（**公开页**）解析最新一行的"结果"列
+#
+# 密码**绝不落盘**，只留 session cookie（和 AI key 一样用 icacls 收紧权限）。
+OJ_SESSION_FILE = os.path.join(DATA_DIR, "oj-session.json")
+OJ_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+         "(KHTML, like Gecko) Chrome/126.0 Safari/537.36")
+OJ_LOCK = threading.Lock()
+# 顺序有讲究：先匹配长的，免得 "Compile Error" 被 "Compiling" 抢先
+OJ_VERDICTS = [
+    ("Time Limit Exceeded", "TLE", "超时"),
+    ("Memory Limit Exceeded", "MLE", "内存超限"),
+    ("Output Limit Exceeded", "OLE", "输出超限"),
+    ("Presentation Error", "PE", "格式错误"),
+    ("Compile Error", "CE", "编译错误"),
+    ("Runtime Error", "RE", "运行错误"),
+    ("System Error", "SE", "系统错误"),
+    ("Wrong Answer", "WA", "答案错误"),
+    ("Accepted", "AC", "通过"),
+    ("Compiling", "PENDING", "编译中"),
+    ("Judging", "PENDING", "评测中"),
+    ("Waiting", "PENDING", "等待评测"),
+]
+
+
+def _html_attr(attrs, name):
+    m = re.search(r"\b" + re.escape(name) + r"\s*=\s*(\"([^\"]*)\"|'([^']*)'|([^\s\"'>]+))",
+                  str(attrs or ""), re.I)
+    if not m:
+        return ""
+    return m.group(2) if m.group(2) is not None else (
+        m.group(3) if m.group(3) is not None else (m.group(4) or ""))
+
+
+def _oj_verdict(text):
+    s = str(text or "")
+    for raw, code, cn in OJ_VERDICTS:
+        if raw in s:
+            return code, cn
+    return "", ""
+
+
+def _oj_load_jar():
+    jar = http.cookiejar.CookieJar()
+    try:
+        with open(OJ_SESSION_FILE, "r", encoding="utf-8") as fh:
+            saved = json.load(fh)
+    except (OSError, ValueError):
+        return jar
+    for c in (saved.get("cookies") or []):
+        if not isinstance(c, dict) or not c.get("name"):
+            continue
+        try:
+            jar.set_cookie(http.cookiejar.Cookie(
+                version=0, name=str(c["name"]), value=str(c.get("value") or ""),
+                port=None, port_specified=False,
+                domain=str(c.get("domain") or "xzmdsa.openjudge.cn"),
+                domain_specified=True, domain_initial_dot=False,
+                path=str(c.get("path") or "/"), path_specified=True,
+                secure=False, expires=None, discard=False, comment=None,
+                comment_url=None, rest={}, rfc2109=False))
+        except Exception:                                            # noqa: BLE001
+            continue
+    return jar
+
+
+def _oj_save_jar(jar):
+    cookies = [{"name": c.name, "value": c.value, "domain": c.domain, "path": c.path}
+               for c in jar]
+    if not cookies:
+        return
+    with OJ_LOCK:
+        try:
+            os.makedirs(DATA_DIR, exist_ok=True)
+            tmp = OJ_SESSION_FILE + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as fh:
+                fh.write(json.dumps({"saved_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                                     "cookies": cookies}, ensure_ascii=False, indent=2))
+                fh.flush()
+                os.fsync(fh.fileno())
+            os.replace(tmp, OJ_SESSION_FILE)
+        except OSError as exc:
+            _log("写 OJ session 失败（忽略）：%r" % exc)
+            return
+    _harden_file(OJ_SESSION_FILE)
+
+
+def _oj_opener(jar):
+    return urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
+
+
+def _oj_open(opener, url, data=None, referer=None, timeout=25):
+    headers = {"User-Agent": OJ_UA,
+               "Accept": "text/html,application/json,application/xhtml+xml,*/*"}
+    if referer:
+        headers["Referer"] = referer
+    if data is not None:
+        headers["Content-Type"] = "application/x-www-form-urlencoded"
+        headers["X-Requested-With"] = "XMLHttpRequest"
+    req = urllib.request.Request(url, data=data, headers=headers)
+    try:
+        with opener.open(req, timeout=timeout) as resp:
+            return resp.status, resp.read().decode("utf-8", "replace"), resp.geturl()
+    except urllib.error.HTTPError as exc:
+        try:
+            body = exc.read().decode("utf-8", "replace")
+        except Exception:                                            # noqa: BLE001
+            body = ""
+        return exc.code, body, url
+    except Exception as exc:                                         # noqa: BLE001
+        return 0, "", str(exc)
+
+
+def _oj_parse_form(html):
+    """从提交页里找出表单：action、所有 input/select 的当前值、以及 textarea 的名字。
+
+    不写死字段名 —— openjudge 的提交页字段叫 source/language，但换一版就可能变。
+    """
+    text = str(html or "")
+    for m in re.finditer(r"<form\b([^>]*)>([\s\S]*?)</form>", text, re.I):
+        attrs, inner = m.group(1), m.group(2)
+        if not re.search(r"<textarea\b", inner, re.I):
+            continue
+        fields = {}
+        for im in re.finditer(r"<input\b([^>]*)>", inner, re.I):
+            name = _html_attr(im.group(1), "name")
+            if not name:
+                continue
+            itype = (_html_attr(im.group(1), "type") or "text").lower()
+            if itype in ("submit", "button", "image", "reset", "file"):
+                continue
+            fields[name] = _html_attr(im.group(1), "value")
+        selects = []
+        for sm in re.finditer(r"<select\b([^>]*)>([\s\S]*?)</select>", inner, re.I):
+            name = _html_attr(sm.group(1), "name")
+            if not name:
+                continue
+            options = []
+            for oa, otxt in re.findall(r"<option\b([^>]*)>([\s\S]*?)</option>", sm.group(2), re.I):
+                options.append({"value": _html_attr(oa, "value"),
+                                "text": re.sub(r"<[^>]+>", "", otxt).strip(),
+                                "selected": "selected" in oa.lower()})
+            selects.append({"name": name, "options": options})
+            chosen = next((o["value"] for o in options if o["selected"]), None)
+            if chosen is None and options:
+                chosen = options[0]["value"]
+            fields[name] = chosen or ""
+        tas = re.findall(r"<textarea\b([^>]*)>", inner, re.I)
+        ta_name = _html_attr(tas[-1], "name") if tas else ""
+        if not ta_name:
+            continue
+        return {"action": _html_attr(attrs, "action"), "fields": fields,
+                "textarea": ta_name, "selects": selects}
+    return None
+
+
+def _oj_status_url(problem_url, no):
+    parts = urllib.parse.urlsplit(problem_url)
+    seg = [p for p in parts.path.split("/") if p]
+    if not seg:
+        return ""
+    seg = seg[:-1]                       # .../<class>/<no>/ → .../<class>
+    path = "/" + "/".join(seg) + "/status/"
+    query = urllib.parse.urlencode({"problemNumber": no})
+    return urllib.parse.urlunsplit((parts.scheme, parts.netloc, path, query, ""))
+
+
+def _oj_status_rows(html):
+    rows = []
+    for rm in re.finditer(r"<tr[^>]*>([\s\S]*?)</tr>", str(html or ""), re.I):
+        cells = [re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", c)).strip()
+                 for c in re.findall(r"<td[^>]*>([\s\S]*?)</td>", rm.group(1), re.I)]
+        if len(cells) >= 6:
+            rows.append(cells)
+    return rows
+
+
+def _oj_row_result(cells, code_len):
+    """把一行状态解析成 {verdict,verdict_cn,memory,time,language,submitted_at,owner,code_len}。
+
+    code_len 用来认"这行是不是我刚交的"：代码长度是最稳的指纹（昵称也可能撞）。
+    """
+    if len(cells) < 6:
+        return None
+    verdict = cells[3] if len(cells) > 3 else ""
+    code, cn = _oj_verdict(verdict)
+    if not code:
+        return None
+    size = 0
+    m = re.search(r"(\d+)", cells[6] if len(cells) > 6 else "")
+    if m:
+        size = int(m.group(1))
+    return {"verdict": code, "verdict_cn": cn, "raw": verdict,
+            "memory": cells[4] if len(cells) > 4 else "",
+            "time": cells[5] if len(cells) > 5 else "",
+            "language": cells[7] if len(cells) > 7 else "",
+            "submitted_at": cells[8] if len(cells) > 8 else "",
+            "owner": cells[0], "code_size": size,
+            "size_match": bool(code_len and size and abs(size - code_len) <= max(3, code_len // 200))}
+
+
+def oj_login(email, password):
+    if not email or not password:
+        return {"ok": False, "error": "账号和密码都要填"}
+    jar = _oj_load_jar()
+    opener = _oj_opener(jar)
+    data = urllib.parse.urlencode({"email": email, "password": password,
+                                   "redirectUrl": ""}).encode("utf-8")
+    status, body, _url = _oj_open(opener, OJ_BASE + "/api/auth/login/", data=data,
+                                  referer=OJ_BASE + "/")
+    if status == 0:
+        return {"ok": False, "error": "连不上 OpenJudge：%s" % _redact(body)}
+    result, message = "", ""
+    try:
+        j = json.loads(body)
+        result = str(j.get("result") or "").upper()
+        message = str(j.get("message") or "")
+    except ValueError:
+        pass
+    if result and result != "OK":
+        return {"ok": False, "error": message or "登录失败（账号或密码不对？）"}
+    _oj_save_jar(jar)
+    # 用"能不能打开某一题的提交页"来验证真的登录上了
+    if not _oj_login_probe(opener):
+        return {"ok": False, "error": message or "登录后仍然打不开提交页（可能账号被限制）"}
+    return {"ok": True, "message": "已登录"}
+
+
+def _oj_login_probe(opener):
+    for _slug, info in homework_local().items():
+        try:
+            with open(info["file"], "r", encoding="utf-8") as fh:
+                doc = json.load(fh)
+        except (OSError, ValueError):
+            continue
+        for p in doc.get("problems") or []:
+            url = str(p.get("oj_url") or "")
+            if not url:
+                continue
+            status, _body, _u = _oj_open(opener, url.rstrip("/") + "/submit/", timeout=15)
+            if status == 200:
+                return True
+            if status == 401:
+                return False
+    return False
+
+
+def oj_logged_in():
+    jar = _oj_load_jar()
+    if not len(jar):
+        return {"ok": True, "logged_in": False}
+    return {"ok": True, "logged_in": _oj_login_probe(_oj_opener(jar))}
+
+
+def oj_logout():
+    try:
+        os.remove(OJ_SESSION_FILE)
+    except OSError:
+        pass
+    return {"ok": True}
+
+
+def oj_submit(hw_id, no, code):
+    """提交一道题并等结果。返回 {ok, need_login} 或 {ok, verdict, ...}。"""
+    problem, err = _find_homework_problem(hw_id, no)
+    if problem is None:
+        return {"ok": False, "error": err}
+    problem_url = str(problem.get("oj_url") or "")
+    if not problem_url:
+        return {"ok": False, "error": "这题没有 OJ 链接，交不了"}
+    code = str(code or "")
+    if not code.strip():
+        return {"ok": False, "error": "代码是空的"}
+    submit_url = problem_url.rstrip("/") + "/submit/"
+
+    jar = _oj_load_jar()
+    opener = _oj_opener(jar)
+    status, html, _u = _oj_open(opener, submit_url)
+    if status == 401:
+        return {"ok": False, "need_login": True,
+                "error": "还没登录 OpenJudge（或者登录已过期）"}
+    if status != 200:
+        return {"ok": False, "error": "打不开提交页：HTTP %s" % status}
+    form = _oj_parse_form(html)
+    if not form:
+        return {"ok": False, "error": "没找到提交表单 —— OJ 可能改版了"}
+    fields = dict(form["fields"])
+    fields[form["textarea"]] = code
+    for sel in form["selects"]:
+        if "lang" in sel["name"].lower():
+            py = next((o for o in sel["options"] if "python" in o["text"].lower()), None)
+            if py:
+                fields[sel["name"]] = py["value"]
+    action = urllib.parse.urljoin(submit_url, form["action"] or submit_url)
+    data = urllib.parse.urlencode(fields, doseq=True).encode("utf-8")
+    _log("OJ 提交：%s 第 %s 题，%d 字节" % (hw_id, no, len(code.encode("utf-8"))))
+    status, body, final_url = _oj_open(opener, action, data=data, referer=submit_url, timeout=40)
+    if status == 401:
+        return {"ok": False, "need_login": True, "error": "登录已过期，请重新登录"}
+    if status == 0:
+        return {"ok": False, "error": "提交请求失败：%s" % _redact(body)}
+
+    # 有的版本直接回一个 JSON（ajax 提交），有的回状态页
+    code_len = len(code.encode("utf-8"))
+    code_v, cn_v = _oj_verdict(body)
+    if code_v and code_v != "PENDING":
+        return {"ok": True, "verdict": code_v, "verdict_cn": cn_v,
+                "raw": "", "message": "已提交"}
+
+    # 轮询公开的状态页（不用登录也能看）
+    status_url = _oj_status_url(problem_url, no)
+    deadline = time.monotonic() + 40
+    last = None
+    while status_url and time.monotonic() < deadline:
+        st, page, _p = _oj_open(opener, status_url, timeout=20)
+        if st == 200:
+            rows = _oj_status_rows(page)
+            cand = None
+            for cells in rows:
+                row = _oj_row_result(cells, code_len)
+                if not row:
+                    continue
+                if row["size_match"]:
+                    cand = row
+                    break
+                if cand is None:
+                    cand = row
+            if cand:
+                last = cand
+                if cand["verdict"] != "PENDING":
+                    return {"ok": True, "message": "已提交",
+                            "status_url": status_url, **cand}
+        time.sleep(2)
+    if last:
+        return {"ok": True, "message": "已提交，但没等到评测结果（可能是别人刚提交的那行）",
+                "status_url": status_url, **last}
+    return {"ok": True, "message": "已提交，但没读到评测结果 —— 去 OJ 状态页看看",
+            "status_url": status_url}
+
 
 
 # ---------------- 提示词 ----------------
@@ -5253,6 +5970,13 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json(200, {"ok": True, **open_state()})
         elif clean == "/progress":
             self._send_json(200, {"ok": True, "data": load_progress()})
+        elif clean == "/homework/stats":
+            # 实时通过率：?hw=hw2&force=1
+            hw_id = (query.get("hw", [""])[0] or "").strip()
+            force = query.get("force", ["0"])[0] not in ("0", "false", "no", "")
+            self._send_json(200, homework_stats(hw_id, force=force))
+        elif clean == "/oj/status":
+            self._send_json(200, oj_logged_in())
         elif clean == "/ai/status":
             self._send_json(200, ai_status())
         elif clean == "/ai/balance":
@@ -5820,6 +6544,49 @@ class Handler(BaseHTTPRequestHandler):
             except AiError as exc:
                 # 抓取失败如实报错，**不写半个文件**
                 self._send_json(502, {"ok": False, "error": _redact(str(exc))})
+            return
+
+        if path == "/oj/login":
+            payload = self._read_body()
+            if payload is None:
+                return
+            email = str(payload.get("email") or "").strip()
+            password = str(payload.get("password") or "")
+            self._send_json(200, oj_login(email, password))
+            return
+
+        if path == "/oj/logout":
+            self._read_body()
+            self._send_json(200, oj_logout())
+            return
+
+        if path == "/homework/submit":
+            # 真·提交到 OpenJudge（用用户自己的账号），然后轮询公开状态页拿结果。
+            payload = self._read_body()
+            if payload is None:
+                return
+            hw_id = str(payload.get("hw") or "")
+            no = payload.get("no")
+            code = payload.get("code") or ""
+            if not isinstance(code, str) or not code.strip():
+                self._send_json(400, {"ok": False, "error": "code 不能为空"})
+                return
+            if len(code) > MAX_CODE:
+                self._send_json(400, {"ok": False, "error": "代码太长"})
+                return
+            self._send_json(200, oj_submit(hw_id, no, code))
+            return
+
+        if path == "/homework/cases":
+            # 边界用例：peek=1 只读本地缓存（打开题目时用，不花 token）；
+            # 不带 peek 且缓存失效时才真调 AI，而且**期望输出由本机跑参考解算出来**。
+            payload = self._read_body()
+            if payload is None:
+                return
+            try:
+                self._send_json(200, homework_cases(payload))
+            except AiError as exc:
+                self._send_json(502, {"ok": False, "error": _redact(str(exc)), "cases": []})
             return
 
         if path in ("/ai/config", "/ai/explain", "/ai/cache/clear", "/ai/chat"):

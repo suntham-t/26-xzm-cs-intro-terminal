@@ -36,16 +36,28 @@ PKU《计算概论 B》的**离线桌面学习终端**：把课程平台的讲�
 | 搞懂一段代码怎么跑 | 卡片上的「▶ 在可视化里跑这段」→ 同窗口打开可视化并预填代码 |
 | 随手试一行 | 顶栏「🐍 试一试」→ 底部终端，**变量留在会话里**，报错给中文解释，防死循环 |
 
+**搜索**
+
+- 顶栏「🔍」跨全部章节搜**标题 + 正文**，命中行带章号（"ch03 · 第 5 节 · 知识点 3"）；点一下跳到那张卡，并把命中的词在正文里**高亮**出来
+- 同一个搜索框也搜 100Days 的 287 个主题，点 chip 直接打开那一天
+
 **作业与 AI**
 
 - 从课程 OJ 抓作业（题号／通过率／截止），内联做题；`content/homework/hw1.json` 里已存 6 道题的题面、样例、边界用例、解析、参考代码
+- 「测一测」：代码**草稿自动落盘**（`ic.hwdraft.v1`，按题存；关窗口、去可视化回来都还在）；参考解收在折叠块里，不预填进代码框
+- **边界用例**：抓来的作业没有人工用例，点一下「🤖 生成边界用例」——AI 出输入，**期望输出由本机跑它给的参考解算出来**（跑不通的用例直接丢弃，不给你不可信的对错）；「🏁 全跑一遍」把当前代码对全部用例跑一遍，只展开没过的
+- **提交助手**：「📤 复制并去提交」= 复制代码 + 打开这道题的提交页（提交那一下仍然由你点）；交完可以标「✅ AC / ❌ WA」，列表上出现自己的状态点
+- **通过率是实时的**：数字来自每道题的 OJ 统计块（提交次数 / 尝试人数 / 通过人数），打开面板就把所有题集重抓一遍（每份 30 秒缓存、并发 5 个），面板开着时每 30 秒刷当前题集；右上角那行「通过率：N 秒前更新 · 点我刷新」可以手动刷。抓不到时保留上一次的数字，不会清空
+- **自动提交**：「🚀 自动提交」= 用你自己的 OJ 账号直接交这道题，并把评测结果（AC/WA/CE…、内存、耗时）读回来。登录一次即可（密码只在登录时发给 OJ，**不落盘**；本机只留 session cookie），结果会自动同步到「✅ AC / ❌ WA」标记。第一次点会先说明一次，同意后不再问
 - 「解析」由 DeepSeek 现场生成；生成的代码会**自动验证**：语法检查 → 用样例真跑 → 跑边界用例 → 不过就带着「代码+输入+期望+实际」回喂 AI 修一次；跑不动则标「无法自动验证」而不冤枉它
+- 「✨ 全部生成解析」是两段式：先确认「生成 N 题？」，跑起来之后题目页头上能「⏹ 停止」，不会一按就跑完一整本
 - AI 回复里每段 python 代码块自带 `▶ 在可视化里跑` / `🧪 用样例测` / `📋 复制`
 - 右下角常驻「🤖 助教」：带上下文的多轮对话；`/ai/models` 动态拉模型列表；响应有本地缓存；`/ai/balance` 查余额
 
 **内容更新**
 
-- `/update/check`：快路 `HEAD` + `ETag`/`Last-Modified` 预筛，`?deep=1` 再逐份下整份算 sha256
+- `/update/check`：快路 `HEAD` + `ETag`/`Last-Modified` 预筛，`?deep=1` 再逐份下整份算 sha256；同时读课程站的章节目录，**站上新增的整章**单独报出来（`new_chapters`）
+- `/update/rebuild`：下载讲义/课件 → PDFium 抽页 → 渲染 PNG → 重切知识点 → 落盘（实测 ch03 90 页 35 s），产物**下一次请求就生效**；新章走同一条路，装完写进章节表
 - 资源**三层逐文件回落**：exe 同级目录 → `%LOCALAPPDATA%` → 打包内嵌。所以改 UI 或换 `content/` **不必重打包**，放旁边就行
 - 抓回来的作业写在第 2 层（可写层），不会丢
 
@@ -169,6 +181,10 @@ course-terminal/
 | POST | `/progress` | 写进度（2 MB 上限） |
 | POST | `/ai/config` `/ai/chat` `/ai/explain` `/ai/cache/clear` | 配置、流式对话、代码解析、清缓存 |
 | POST | `/homework/fetch` `/update/rebuild` | 抓题、一键重建 |
+| POST | `/homework/cases` | 边界用例：`{hw,no,peek?}` 读缓存 / `{hw,no}` 生成（AI 出输入 + 本机跑参考解算期望输出）|
+| POST | `/homework/submit` | 自动提交：`{hw,no,code}` → 用已登录的 OJ session 提交，轮询公开状态页读回评测结果 |
+| GET/POST | `/oj/status` `/oj/login` `/oj/logout` | OJ 登录状态、登录（账号/密码只在这一次请求里出现）、退出（删 cookie）|
+| GET | `/homework/stats?hw=hw2` | 实时通过率；`hw=all` 刷全部题集，`force=1` 绕过 30 秒缓存 |
 
 **并发约定**：`/run` 与 REPL **共用同一把全局锁**（`ENGINE_LOCK`）。它们会替换进程级的 `sys.stdout`/`sys.stderr`/`sys.settrace`，并发会让两边的输出互相污染——所以宁可串行。终端会话是有状态的，这也是它必须串行的另一个原因。
 
@@ -181,9 +197,11 @@ course-terminal/
 | 学习进度、WebView2 storage | `%LOCALAPPDATA%\course-terminal\progress.json` 与 `...\webview` |
 | AI 配置（key / base_url / model / thinking） | `%LOCALAPPDATA%\course-terminal\deepseek.json` |
 | 自动抓的作业等可写内容 | `%LOCALAPPDATA%\course-terminal\content\...` |
+| AI 生成的边界用例（每题一个 json） | `%LOCALAPPDATA%\course-terminal\homework-cases\...` |
+| OJ 登录状态（只有 session cookie，没有密码） | `%LOCALAPPDATA%\course-terminal\oj-session.json` |
 | 日志 / 端口 | `%TEMP%\course-terminal.log` / `%TEMP%\course-terminal-port.txt` |
 
-- 进度**双保险**：localStorage（快）+ `progress.json`（真身落盘），关掉再开进度还在
+- 「读过哪张卡 + 连续天数」只存在 WebView2 的 localStorage（`ic.days.v1`：`days[]` + 位置书签）；`progress.json` 是砍掉进度机制之前的遗留，现在只读不写
 - key 只存在那个 json 里：原子写 + Windows `icacls` 收紧权限 + **日志与报错统一打码**（`sk-****`），不进源码也不进 exe
 - 想重置进度：删掉 `%LOCALAPPDATA%\course-terminal`（注意里面也有 B 站登录 cookie，删了就掉登录态）
 
@@ -194,12 +212,13 @@ course-terminal/
 | 限制 | 说明 |
 |---|---|
 | **可视化引擎不在仓库内** | 需自备 pytutor 目录并改 `DEV_PYTUTOR`；缺它时只有可视化与 `/run` 不可用 |
-| **`/update/rebuild` 未落地** | 一键重建（方案丙：PDFium 抽文字 + 课件渲染）仍在待办，接口如实返回 `rebuild_supported=false` |
+| **本地 `content/` 是快照，会落后课程站** | 仓库里这份是 2026-09-26 的快照；课程站 10-14 更新了 ch03、10-20 新增 ch04「计算机系统」。用「🔄 检查更新」装新章 / 重建旧章即可（见上一节），不必重打包 |
 | 视频覆盖不全 | 28/104 个知识点有映射，且为机器匹配、未经人工确认 |
 | 终端挡不住 C 层卡死 | `time.sleep(10**9)` 这类不在 5 s 内返回，会占住那把锁；`/health` 与卡片流不受影响 |
-| 多行代码要一次提交 | 整段粘贴后回车（`Shift+Enter` 换行）；拆两次发会被当成独立语句 |
+| 终端是块级的，不是逐行执行 | 敲完 `for …:` 会进 `...` 续行，补齐缩进回车才执行（和真 Python REPL 一致）；从编辑器整段粘进来最省事 |
 | 外链走系统浏览器 | 刻意的：WebView2 里未处理的 `window.open` 会开出没有地址栏/返回键的子窗口，把用户困住 |
 | OpenJudge 不能内嵌 | 对方发 `X-Frame-Options: SAMEORIGIN`，面板里给了跳转按钮和复制链接 |
+| 自动提交依赖 OJ 的页面结构 | 走的是「登录 → 提交表单 → 轮询状态页」，OJ 改版可能失效；失败会明说原因，不会假装提交成功 |
 | 课件文字是图 | 课件渲染成 PNG，不可选中、不可搜索 |
 | 只在 Windows 上验证过 | 用到 `icacls`、`os.startfile`、WebView2 |
 | 没有测试套件 / 没有 LICENSE | 开发期的自测脚本不在仓库内 |

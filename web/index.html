@@ -6983,7 +6983,7 @@ function hwDoAutoSubmit(code, from){
       t.sub.mem = String(d.memory || "");
       t.sub.time = String(d.time || "");
       t.sub.at = String(d.submitted_at || "");
-      t.sub.url = String(d.status_url || "");
+      t.sub.url = String(d.solution_url || d.status_url || "");
       if (t.sub.verdict === "AC") hwSetMark("ac");
       else if (t.sub.verdict) hwSetMark("wa");
       hwRefreshStats(true, false);   /* 刚交完，通过人数/提交次数都变了 */

@@ -3390,6 +3390,7 @@ def _oj_parse_form(html):
             bname = _html_attr(bm.group(1), "name")
             if bname:
                 fields[bname] = _html_attr(bm.group(1), "value") or "1"
+        radios = []
         for im in re.finditer(r"<input\b([^>]*)>", inner, re.I):
             name = _html_attr(im.group(1), "name")
             if not name:
@@ -3397,6 +3398,10 @@ def _oj_parse_form(html):
             itype = (_html_attr(im.group(1), "type") or "text").lower()
             if itype in ("submit", "button", "image", "reset", "file"):
                 continue
+            if itype == "radio":
+                # OJ 的语言是 radio（不是 select）；记下来好挑 Python
+                radios.append({"name": name, "value": _html_attr(im.group(1), "value"),
+                               "checked": "checked" in im.group(1).lower()})
             fields[name] = _html_attr(im.group(1), "value")
         selects = []
         for sm in re.finditer(r"<select\b([^>]*)>([\s\S]*?)</select>", inner, re.I):
@@ -3422,7 +3427,7 @@ def _oj_parse_form(html):
         if not ta_name:
             continue
         return {"action": _html_attr(attrs, "action"), "fields": fields,
-                "textarea": ta_name, "selects": selects}
+                "textarea": ta_name, "selects": selects, "radios": radios}
     return None
 
 
@@ -3433,9 +3438,9 @@ def _oj_status_url(problem_url, no, nickname=""):
         return ""
     seg = seg[:-1]                       # .../<class>/<no>/ → .../<class>
     path = "/" + "/".join(seg) + "/status/"
+    # ★ 不要加 userName 过滤：实测这个班的 status 页**不认** userName
+    #   （带上去只剩表头一行，什么都查不到），只能在整页里按昵称/代码长度认行。
     params = {"problemNumber": no}
-    if nickname:
-        params["userName"] = nickname
     return urllib.parse.urlunsplit((parts.scheme, parts.netloc, path,
                                     urllib.parse.urlencode(params), ""))
 
@@ -3566,8 +3571,16 @@ def _oj_whoami(opener):
     st, body, _url = _oj_open(opener, OJ_BASE + "/", timeout=15)
     if st != 200:
         return ""
-    for pat in (r'href="/(?:user|u)/([^"/?#]+)',
-                r'href="[^"]*/(?:user|u)/([^"/?#]+)',
+    # 优先：#userToolbar 里那个 /user/<数字>/ 链接的**文字**才是昵称
+    m = re.search(r'id="userToolbar"[\s\S]{0,800}?</ul>', body)
+    if m:
+        mm = re.search(r'<a\b[^>]*href="[^"]*/user/[^"]*"[^>]*>([^<]{1,40})</a>', m.group(0))
+        if mm:
+            name = html.unescape(mm.group(1)).strip()
+            if name:
+                return name
+    for pat in (r'<a\b[^>]*href="[^"]*/user/[^"]*"[^>]*>([^<]{1,40})</a>',
+                r'href="/(?:user|u)/([^"/?#]+)',
                 r'class="[^"]*(?:user|nick)[^"]*"[^>]*>\s*([^<]{1,40})<'):
         m = re.search(pat, body)
         if m:
@@ -3643,6 +3656,11 @@ def oj_submit(hw_id, no, code):
     jar = _oj_load_jar()
     opener = _oj_opener(jar)
     nick = _oj_nickname()
+    if not nick or nick.isdigit():        # 旧版本把 /user/<id>/ 里的数字当成了昵称
+        fresh = _oj_whoami(opener)
+        if fresh and not fresh.isdigit():
+            nick = fresh
+            _oj_save_jar(jar, nick)
     status, html, _u = _oj_open(opener, submit_url)
     if status == 401:
         return {"ok": False, "need_login": True,
@@ -3653,12 +3671,25 @@ def oj_submit(hw_id, no, code):
     if not form:
         return {"ok": False, "error": "没找到提交表单 —— OJ 可能改版了"}
     fields = dict(form["fields"])
-    fields[form["textarea"]] = code
+    # ★ OJ 的提交页带 sourceEncode=base64：代码要 base64 之后再发，
+    #   直接发明文会被拒（返回 {"result":"ERROR","message":"代码编码有问题"}）。
+    enc = str(fields.get("sourceEncode") or "").lower()
+    if enc == "base64":
+        fields[form["textarea"]] = base64.b64encode(code.encode("utf-8")).decode("ascii")
+    else:
+        fields[form["textarea"]] = code
     for sel in form["selects"]:
         if "lang" in sel["name"].lower():
             py = next((o for o in sel["options"] if "python" in o["text"].lower()), None)
             if py:
                 fields[sel["name"]] = py["value"]
+    # 语言是 radio 的版本
+    lang_now = str(fields.get("language") or "")
+    if "python" not in lang_now.lower():
+        py_radio = next((r for r in (form.get("radios") or [])
+                         if r["name"] == "language" and "python" in str(r["value"]).lower()), None)
+        if py_radio:
+            fields["language"] = py_radio["value"]
     action = urllib.parse.urljoin(submit_url, form["action"] or submit_url)
     data = urllib.parse.urlencode(fields, doseq=True).encode("utf-8")
 
@@ -3688,6 +3719,24 @@ def oj_submit(hw_id, no, code):
     if status == 0:
         return {"ok": False, "error": "提交请求失败：%s" % _redact(body)}
     _log("OJ 提交返回：HTTP %s → %s（%d 字节）" % (status, final_url, len(body)))
+    # OJ 是 AJAX 提交，被拒时回的就是 JSON —— 以前忽略它，于是"被拒 → 没记录 → 读到别人的 AC"
+    try:
+        jr = json.loads(body)
+    except ValueError:
+        jr = None
+    accepted = False
+    solution_url = ""
+    if isinstance(jr, dict):
+        res = str(jr.get("result") or "").upper()
+        if res == "ERROR":
+            _log("OJ 提交被拒：%s" % str(jr.get("message") or "")[:200])
+            return {"ok": False,
+                    "error": "OpenJudge 拒绝了这次提交：%s" % (str(jr.get("message") or "") or "未知原因"),
+                    "detail": {"oj_result": jr}}
+        if res == "SUCCESS":
+            accepted = True
+            solution_url = str(jr.get("redirect") or "")
+            _log("OJ 已收下这次提交：%s" % solution_url)
 
     # ② 轮询状态页：只认"新出现 + 时间是刚刚"的那一行
     status_url = _oj_status_url(problem_url, no, nick)
@@ -3698,22 +3747,25 @@ def oj_submit(hw_id, no, code):
         if top:
             is_new = _oj_row_key(top) != _oj_row_key(before_top)
             same_owner = (not nick) or (nick in str(top.get("owner") or ""))
-            ok_row = is_new and _oj_fresh_upload(top.get("submitted_at")) and same_owner
-            if ok_row and not nick:
-                ok_row = bool(top.get("size_match"))
+            ok_row = ((is_new or accepted) and bool(top.get("size_match"))
+                      and _oj_fresh_upload(top.get("submitted_at")) and same_owner)
             if ok_row:
                 fresh_seen = top
                 if top["verdict"] != "PENDING":
                     return {"ok": True, "verified": True, "message": "已提交（状态页已核对）",
-                            "status_url": status_url, **top}
+                            "status_url": status_url, "solution_url": solution_url, **top}
         time.sleep(2)
 
     if fresh_seen:
-        return {"ok": True, "verified": False,
+        return {"ok": True, "verified": accepted,
                 "message": "已提交，但还在评测中 —— 过一会儿去 OJ 看结果",
-                "status_url": status_url, **fresh_seen}
+                "status_url": status_url, "solution_url": solution_url, **fresh_seen}
+    if accepted:
+        return {"ok": True, "verified": True, "verdict": "", "verdict_cn": "",
+                "message": "OJ 已确认收下（提交成功），但状态页还没出现记录 —— 去 OJ 看结果",
+                "status_url": status_url, "solution_url": solution_url}
     return {"ok": True, "verified": False, "verdict": "", "verdict_cn": "",
-            "message": "提交请求已发出，但**没在状态页看到新的记录** —— 很可能没交上去，去 OJ 核对一下",
+            "message": "提交请求已发出，但 OJ 没确认、状态页也没新记录 —— 很可能没交上去，去 OJ 核对一下",
             "status_url": status_url}
 
 

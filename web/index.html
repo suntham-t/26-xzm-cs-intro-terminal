@@ -6960,23 +6960,42 @@ function openOjLogin(){
       "只留登录状态（cookie）。</div>" +
     '<div class="rowIn"><input class="setInput" id="ojEmail" type="text" placeholder="账号（邮箱 / 学号）" autocomplete="username"></div>' +
     '<div class="rowIn" style="margin-top:8px"><input class="setInput" id="ojPass" type="password" placeholder="密码" autocomplete="current-password"></div>' +
+    '<div class="aiErr" id="ojErr" hidden style="margin-top:10px"></div>' +
     '<div class="hwActions" style="margin-top:12px">' +
       '<button class="primary" data-act="ojdologin">登录并提交</button>' +
       '<button data-act="closemodal">取消</button></div>');
   setTimeout(function(){ var e = document.getElementById("ojEmail"); if (e && e.focus) e.focus(); }, 0);
 }
+function ojLoginError(msg){
+  var box = document.getElementById("ojErr");
+  if (box){ box.hidden = false; box.textContent = String(msg || ""); }
+  toast(String(msg || "登录失败"));
+}
 function ojDoLogin(){
   var em = document.getElementById("ojEmail"), pw = document.getElementById("ojPass");
   var email = em ? String(em.value || "").trim() : "";
   var pass = pw ? String(pw.value || "") : "";
-  if (!email || !pass){ toast("账号和密码都要填"); return; }
+  if (!email || !pass){ ojLoginError("账号和密码都要填"); return; }
+  var btn = document.querySelector ? document.querySelector("[data-act=ojdologin]") : null;
+  if (btn && btn.disabled) return;
+  if (btn){ btn.disabled = true; btn.textContent = "正在登录…"; }
   toast("正在登录…");
+  function restore() { if (btn){ btn.disabled = false; btn.textContent = "登录并提交"; } }
   postJson("/oj/login", { email: email, password: pass }).then(function(d){
-    if (!d || d.ok === false){ toast(String((d && d.error) || "登录失败")); return; }
+    if (!d || d.ok === false){
+      restore();
+      ojLoginError(String((d && d.error) || "登录失败"));
+      return;
+    }
+    restore();
     closeModal();
     stashProbCode();
+    if (d.warning) toast(String(d.warning));
     hwDoAutoSubmit(String(testState().code || ""));
-  }, function(e){ toast("登录失败：" + String(e && e.message ? e.message : e)); });
+  }, function(e){
+    restore();
+    ojLoginError("登录失败：" + String(e && e.message ? e.message : e));
+  });
 }
 
 /* 跑一段代码：优先 /run-raw（不追踪、无 5000 步上限）。

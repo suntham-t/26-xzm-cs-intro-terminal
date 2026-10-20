@@ -3443,30 +3443,61 @@ def _oj_row_result(cells, code_len):
             "size_match": bool(code_len and size and abs(size - code_len) <= max(3, code_len // 200))}
 
 
+OJ_LOGIN_RECORD = os.path.join(DATA_DIR, "oj-login-last.json")
+
+
+def _oj_record_login(payload):
+    """把上一次登录尝试写下来（**不含密码**），出问题时看一眼就知道卡在哪一步。"""
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        with open(OJ_LOGIN_RECORD, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, ensure_ascii=False, indent=2)
+    except OSError:
+        pass
+
+
 def oj_login(email, password):
     if not email or not password:
         return {"ok": False, "error": "账号和密码都要填"}
     jar = _oj_load_jar()
     opener = _oj_opener(jar)
+    # ① 先 GET 首页：有的 PHP 站点要求先有 session cookie 才认登录
+    _oj_open(opener, OJ_BASE + "/", timeout=15)
     data = urllib.parse.urlencode({"email": email, "password": password,
                                    "redirectUrl": ""}).encode("utf-8")
     status, body, _url = _oj_open(opener, OJ_BASE + "/api/auth/login/", data=data,
                                   referer=OJ_BASE + "/")
     if status == 0:
+        _oj_record_login({"at": time.strftime("%Y-%m-%dT%H:%M:%S"), "status": 0,
+                          "error": _redact(body)[:200]})
         return {"ok": False, "error": "连不上 OpenJudge：%s" % _redact(body)}
-    result, message = "", ""
+    result, message, raw = "", "", body[:600]
     try:
         j = json.loads(body)
         result = str(j.get("result") or "").upper()
         message = str(j.get("message") or "")
     except ValueError:
         pass
-    if result and result != "OK":
-        return {"ok": False, "error": message or "登录失败（账号或密码不对？）"}
+    # ② 成功判定放宽：这个接口的 result 目前是 OK/ERROR，但别把别的写法当成失败
+    accepted = (result in ("OK", "SUCCESS", "TRUE", "1")
+                or (not result and not message and status == 200))
+    probe = _oj_login_probe(opener) if accepted else None
+    _oj_record_login({"at": time.strftime("%Y-%m-%dT%H:%M:%S"), "status": status,
+                      "result": result, "message": message, "accepted": accepted,
+                      "probe": probe, "cookies": [c.name for c in jar],
+                      "body": "" if accepted else raw})
+    _log("OJ 登录：status=%s result=%r message=%r accepted=%s probe=%s"
+         % (status, result, message, accepted, probe))
+    if not accepted:
+        return {"ok": False,
+                "error": message or "登录失败（账号或密码不对？）",
+                "detail": {"status": status, "result": result, "message": message}}
     _oj_save_jar(jar)
-    # 用"能不能打开某一题的提交页"来验证真的登录上了
-    if not _oj_login_probe(opener):
-        return {"ok": False, "error": message or "登录后仍然打不开提交页（可能账号被限制）"}
+    if probe is False:
+        # 接口说成功、提交页却还是 401：多半是 cookie 没带过去。别直接判"账号错"，
+        # 让用户继续走提交，真没登录的话提交会再弹一次登录框。
+        return {"ok": True, "message": "已登录（提交页还没确认，交题时再看）",
+                "warning": "登录接口返回成功，但提交页仍显示未登录"}
     return {"ok": True, "message": "已登录"}
 
 

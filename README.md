@@ -1,299 +1,225 @@
-# 智能计算概论学习终端
+# 计算概论学习终端
 
-把**课程讲义 + 课件原图 + 黑马视频 + Python-100-Days + 内置可视化 + 内置终端**装进一个桌面 app。
+PKU《计算概论 B》的**离线桌面学习终端**：把课程平台的讲义与课件、B 站视频、Python-100-Days、代码可视化、内置终端、OpenJudge 作业和 AI 讲解，装进一个 pywebview 原生窗口。双击即用，没有黑终端窗口。
 
-**双击桌面快捷方式就能用**，不用开命令行。
-
----
-
-## 启动
-
-双击桌面的 **「计算概论学习终端」** 快捷方式。
-
-- 没有黑终端窗口，关窗即退出
-- 端口自动探测（默认从 8770 起），启动后写入 `%TEMP%\course-terminal-port.txt`
-- 出问题时看日志：`%TEMP%\course-terminal.log`
+- 内容来源：课程站 `csintro2026.zhengmao.ltd`（讲义 + 课件，权威）+ B 站「黑马程序员」Python 全套教程（视频讲解）+ Python-100-Days（文字补充）
+- 形态：Windows 桌面 app，单进程，只监听 `127.0.0.1`，关窗即退出（无托盘、无开机自启）
+- 状态：个人自用项目，仍在迭代。缺口清单见 [NEXT-STEPS.md](NEXT-STEPS.md)，接口契约见 [SPEC.md](SPEC.md)
 
 ---
 
-## 界面
+## 组成
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│ 计算概论 B  ch03 Python入门        🔥 连续天数   🐍试一试 🔍搜索 🧪做题 │
-│ ☰ 目录   第 1 节 程序设计思维  ●●●○○○ 0/6                            │
-├──────────┬──────────────────────────────────┬───────────────────────┤
-│ 目录      │                                  │ 参考                   │
-│ 第1节 0/6 │   ┌────────────────────────┐     │ 📄 讲义 notes.md:161   │
-│  1. ✅   │   │  🎬 B站播放器（可播）    │     │ 📑 课件 P8             │
-│  2. ✅   │   └────────────────────────┘     │ ┌───────────────────┐ │
-│  3. ◀    │   主推 黑马 · P10 … 匹配度80%     │ │  课件原图缩略图     │ │
-│ 第2节 0/5 │                                  │ │   （点击放大）      │ │
-│ ...      │   第 1 节 · 知识点 3               │ └───────────────────┘ │
-│          │   编译器和解释器                    │                       │
-│          │                                    │                       │
-│          │   正文（讲义原稿，一字未改）          │                       │
-│          │                                    │                       │
-│          │   🧪 跑一下  [▶ 在可视化里跑这段]     │                       │
-│          │                                    │                       │
-│          │   ← 上一条   ✅ 学完了   下一条 →      │                       │
-└──────────┴──────────────────────────────────┴───────────────────────┘
-  ↑ 272px                760px                        308px
-```
-
-- **目录常驻左栏**（窄屏自动收回抽屉，点 `☰ 目录` 打开）
-- **右侧材料栏**（窄屏自动把"参考"和缩略图放回卡片底部）
-- 卡片 **760px**——中文舒适行宽，**不要加宽**
-
-### 键盘
-
-| 键 | 作用 |
-|---|---|
-| `←` `→` 或 `J` `K` | 上一条 / 下一条 |
-| `空格` | 标记学完 |
-| `Esc` | 关闭弹层 / 从可视化页返回卡片流 |
-
----
-
-## 三种学习方式
-
-| 场景 | 用哪个 |
-|---|---|
-| 系统学一个知识点 | **卡片流**——看视频 + 读讲义原稿 + 看课件原图 |
-| 想搞懂一段代码怎么跑的 | 卡片上的 **「▶ 在可视化里跑这段」** → 同窗口打开可视化，代码已预填 |
-| 想随手试一行 | 顶栏 **🐍 试一试** → 底部终端，**变量留在会话里**，报错给**中文解释** |
-
-### 内置终端的特别之处
-
-```
->>> a = 41
->>> a + 1
-42
->>> 1/0
-┌─ ❌ 除以 0 了（ZeroDivisionError）
-│ 第 1 行做除法时，除数/模数是 0 —— Python 不允许除以 0。
-│ 💡 打印一下除数看看它为什么是 0：常见原因是循环里没更新…
-└─ ▶ Python 原文（折叠）
-```
-
-**IDLE 和官方 Python Tutor 都没有中文报错。** 而且它防死循环——敲 `while True: pass` 会在 **0.3 秒**内中止并提示，**不会把 app 卡死**。
-
----
-
-## 📝 作业 + AI 解析
-
-顶栏 **📝 作业** → 列出 OJ 上的作业（题号 / 通过率 / 截止时间）。点开一题有三个页签：
-
-| 页签 | 内容 |
-|---|---|
-| **题面** | 从 OJ 抓的原文，**样例放在最上面**（格式以样例为准） |
-| **解析** | **AI 现场生成**（DeepSeek）。一句话 / 思路 / 常见坑 / 参考代码 / 自己测这几组 |
-| **测一测** | 可编辑代码框 + 用例（样例 + 边界用例）+ 一键对样例 + 「让 AI 看看我的代码」 |
-
-### AI 解析的特别之处：**代码会被自动验证**
-
-```
-AI 生成 → 抽出代码块 → 语法检查 → 用样例真跑一遍 → 跑边界用例
-                                    ↓
-        通过 → 挂绿标「✅ 已用样例验证」
-        不过 → 自动把「代码+输入+期望+实际」回喂给 AI 修一次
-        代码带大循环跑不动 → 挂「⚠️ 无法自动验证」而不是冤枉它
-```
-
-**AI 回复里每个 ```python 代码块都带三个按钮**：`▶ 在可视化里跑` / `🧪 用样例测` / `📋 复制`。
-
-### 以后出新作业
-
-作业面板里点 **🔄 检查新作业** → 发现新的就点「抓取」。
-抓回来的作业**只有题面和样例**（没有人工写的边界用例），解析由 AI 现场生成。
-
-### AI 设置
-
-顶栏 → 📝 作业 → ⚙️ AI 设置（或直接改配置文件）：
-
-```
-%LOCALAPPDATA%\course-terminal\deepseek.json
-{"key":"sk-…","model":"deepseek-flash","thinking":"disabled","base_url":"https://api.deepseek.com"}
-```
-
-- **模型下拉是从 `GET /ai/models` 动态拉的**——官方换模型 ID 你不用管
-- **`thinking` 默认 `disabled`** ⚠️ 思考模式**默认是开着的**，开着会让解析又慢又贵（那是计费大头）。解析不需要思维链
-- **key 只存在这个文件里**，不进源码、不进 exe（我扫过 exe，确认没有）
-- 保存后界面会**回读 `/ai/status` 确认**。如果显示「保存似乎没生效」就是没落盘
-
----
-
-## 🔬 两个"立刻试一下"的入口
-
-| 按钮 | 干什么 | 什么时候用 |
+| 部分 | 位置 | 说明 |
 |---|---|---|
-| **🐍 试一试** | 内置终端，敲几行立刻看结果，**变量留在会话里**；报错给**中文解释**；防死循环 | 想试个语法、验证一行代码 |
-| **🔬 可视化** | 逐步单步执行，看变量和引用怎么变 | 想搞懂一段代码**为什么**这么跑 |
-
-两个都不用先选知识点，点开就能写。
-
----
-
-## 📦 分享给别人
-
-**一个 exe 拷过去就能用**（108 MB，自带全部内容 + 可视化引擎）。
-
-- **你的 API key 不在 exe 里**（我扫过），对方要自己配
-- 对方没有 key 也能用：只是 AI 解析用不了，**内置的那份解析照常显示**
-- 进度是**每台机器独立的**（存在各自的 `%LOCALAPPDATA%`）
-
-> ⚠️ exe 里烤着**你们老师的讲义和课件**。同班同学之间用没问题，**别往公开地方发**。
-
-**想更新内容给对方**：不用重发 exe —— 给一个 `content\` 文件夹，放在 exe 旁边就行（见下面）。
+| 桌面壳 | `app/main.py`（约 6000 行） | 一个进程干三件事：`ThreadingHTTPServer` + pywebview 窗口 + 复用可视化引擎 |
+| 前端 | `web/index.html`（单文件，约 410 KB） | 卡片流 UI，零外部依赖；由桌面壳在返回时注入「导航桥」脚本（文件本身不改） |
+| 内容 | `content/` | 讲义 markdown、课件 PNG、知识点 JSON、视频映射、作业、100days |
+| 可视化引擎 | **不在本仓库** | `pytracer` / `explain` / `viewer.html` 是独立项目，见「运行」 |
 
 ---
 
-## 内容从哪来（三家各管一段）
+## 现在能做什么
 
-| 来源 | 提供 | 覆盖 |
-|---|---|---|
-| **课程平台** `csintro2026.zhengmao.ltd` | 讲义原文 + 课件原图 | **权威**（考试考这个） |
-| **黑马程序员 B站** `BV1qW4y1a7fU` | 视频讲解（164 分P） | **只覆盖约 27%** 的知识点 |
-| **Python-100-Days** | 系统性文字 | **补黑马没讲的洞** |
+**卡片流**（一次只看一个知识点，上下翻）
 
-**黑马没讲的东西是真实存在的**（我全量比对过）：`编译/解释器原理`、`PEP8/缩进`、`读懂报错`、`异常处理`、`OJ 评测`、`split/join/strip`、`可变对象的引用/副本陷阱`、`动态类型`…
+- ch01~ch03 共 **104 个知识点**：讲义原稿按知识点切开，**正文一字不改**，渲染 markdown 原文
+- 每张卡配：视频（映射到的 B 站分 P）／ 100Days 对应篇 ／ 讲义行号 ／ 课件原图缩略图（可放大）／ 可一键运行的代码片段
+- 左栏常驻目录，右栏材料区；窄屏自动收成抽屉
+- 进度点阵 + 连续学习天数 + 位置书签
 
-**所以卡片上会明确写「⚠️ 黑马这套没讲这块 → 看下面文字」**，而不是硬塞一个不相关的视频。
+**三种学习方式**
 
-> 尤其注意：**「`b = a` 之后两个名字指向同一个列表」这件事黑马完全没讲**——而它正是本课最容易翻车的点。这块只能靠**讲义 + 可视化工具**，也就是为什么「▶ 在可视化里跑这段」值得存在。
+| 场景 | 入口 |
+|---|---|
+| 系统学一个知识点 | 卡片流：视频 + 讲义原文 + 课件原图 |
+| 搞懂一段代码怎么跑 | 卡片上的「▶ 在可视化里跑这段」→ 同窗口打开可视化并预填代码 |
+| 随手试一行 | 顶栏「🐍 试一试」→ 底部终端，**变量留在会话里**，报错给中文解释，防死循环 |
 
-### 视频匹配的可信度
+**作业与 AI**
 
-每张卡上的视频标了 `机器匹配·匹配度 NN%·待确认`。**没有人工逐条确认过**，对不对要你自己点开看一眼。
+- 从课程 OJ 抓作业（题号／通过率／截止），内联做题；`content/homework/hw1.json` 里已存 6 道题的题面、样例、边界用例、解析、参考代码
+- 「解析」由 DeepSeek 现场生成；生成的代码会**自动验证**：语法检查 → 用样例真跑 → 跑边界用例 → 不过就带着「代码+输入+期望+实际」回喂 AI 修一次；跑不动则标「无法自动验证」而不冤枉它
+- AI 回复里每段 python 代码块自带 `▶ 在可视化里跑` / `🧪 用样例测` / `📋 复制`
+- 右下角常驻「🤖 助教」：带上下文的多轮对话；`/ai/models` 动态拉模型列表；响应有本地缓存；`/ai/balance` 查余额
 
-完整待确认表：[content/mapping-review.md](content/mapping-review.md)
+**内容更新**
+
+- `/update/check`：快路 `HEAD` + `ETag`/`Last-Modified` 预筛，`?deep=1` 再逐份下整份算 sha256
+- 资源**三层逐文件回落**：exe 同级目录 → `%LOCALAPPDATA%` → 打包内嵌。所以改 UI 或换 `content/` **不必重打包**，放旁边就行
+- 抓回来的作业写在第 2 层（可写层），不会丢
 
 ---
 
-## 🔄 每周课件更新怎么做
+## 运行（源码）
 
-课程平台每周更新。但**资源放在哪，取决于你怎么运行**——这一点我之前写错过，这里说清楚：
-
-| | 开发模式（`python app\main.py`） | **打包后的 exe** |
-|---|---|---|
-| `web/` `content/` | 项目目录里那两份 | **烤进 exe 里**（PyInstaller 的 `_MEIPASS` 临时解压目录） |
-| 内容怎么更新 | 直接改文件，重启即可 | 以前**必须重打包**（108 MB） |
-
-> 🔧 **这一条正在改**：新版会让 exe **优先读「exe 旁边的 `content\`」**，读不到才回落到内嵌那份。改完之后，更新内容就是「把新文件丢进 exe 旁边的 `content\`」，**不用重新打包、也能分享给别人**。
-> 在改完并验证之前，**打包后要更新内容还是得重跑 `build.ps1`**。
-
-下面是开发模式（或者改完之后）的更新流程：
-
-但要说实话：**更新分两种情况，难度差很多。**
-
-### 情况 A：已有章节的内容改了（讲义 / 课件被老师修改）
+前置：Windows + Python 3 + 网络（抓作业/查更新才需要）。
 
 ```powershell
-cd D:\opencode\course-terminal
-
-# ① 看有没有变化（只比对远端 sha256，不写任何文件）
-python content\notes\_build-json.py --check
-#    全部 same → 没变；列出 changed 的就是变了的章
-
-# ② 有变化 → 重建那一章
-python content\notes\_build-json.py --only ch03
-
-# ③ 重启 app（content/ 是运行时读的，不重打包）
+pip install -r app\requirements.txt      # pywebview / pyinstaller / pypdfium2
+python app\main.py                       # 开窗
+python app\main.py --no-window           # 只起 HTTP，调试用
+python app\main.py --port 8800           # 指定起始端口
 ```
 
-⚠️ **注意**：如果讲义被改了，`_build-json.py` 里写死的 `notes_sha256` 会对不上。这时需要把 `CHAPTERS['ch03']['notes_sha256']` 更新成新值——**这一步目前要手工做，或者叫我改**。
+- 端口从 **8770** 起试 40 个（8770–8809），全被占则交给内核随机；实际端口写入 `%TEMP%\course-terminal-port.txt`
+- 日志：`%TEMP%\course-terminal.log`
+- 自检：`GET /health` —— 端口、日志路径、引擎是否可用、REPL 限额、助教是否已配 key
 
-### 情况 B：平台新增了一章（比如 ch04）
+> ### ⚠️ 可视化引擎要自己放
+> 开发模式的引擎路径**写死在** `app/main.py` 的 `DEV_PYTUTOR`（默认 `D:\opencode\tools\pytutor`），需要该目录下有 `pytracer.py`、`explain.py`、`viewer.html`。换机器要改这一行。
+> 缺引擎时：窗口和卡片流照常，只有 `/tutor` 与 `/run` 不可用（`/health` 的 `engine.error` 会说明原因）；**REPL 与 `/run-raw` 不受影响**。
 
-**现在也是一条命令了**——当初那套 PDF 分析已经写成程序，并**用 ch01~03 自证三章逐字命中**：
+---
+
+## 打包成 exe
 
 ```powershell
-python content\notes\_build-json.py --detect ch04   # 先看：只分析、不写文件，打印三道校验
-python content\notes\_build-json.py --add    ch04   # 再写：抓取+侦测+渲染+配图+落配置+重建
-python content\notes\_build-json.py --selftest-detect   # 自证侦测逻辑（只读，随时可跑）
+powershell -ExecutionPolicy Bypass -File app\build.ps1
+# 可选： -Clean  -NoShortcut  -SkipDeps  -Name "计算概论学习终端"
 ```
 
-**三道校验必须全过才会写入**：
-1. `正文页数 == <!-- SLIDE --> 标记数`（或标记数+1）——**精确相等**，对不上就**拒绝写入**
-2. 议程页侦测（含「本章内容」的页）
-3. 讲义锚点单调性（能抓出"整体偏移一页"）
-
-实测过：**校验不过时项目目录纹丝不动**（连讲义都不写）。所以字段**全是自动推出来的**，不用手抄：
-
-| 字段 | 怎么来 |
-|---|---|
-| `title` | 自动（讲义章标题） |
-| `notes_sha256` / `slides_sha256` | 自动 |
-| `slides_pages` | 自动 |
-| `non_content_pages` | **自动侦测 + 三道校验** |
-
-**`non_content_pages` 为什么难**：它不是"前两页"那么简单，**每章都不一样**（ch01 只有 2 页，ch02 有 7 页，ch03 有 11 页）。判断方法是「把 PDF 逐页抽文字 → NFKC 归一化 → 找含『本章内容』的议程页 → 再用讲义正文做锚点交叉验证」。
-
-**数错一页，整章所有知识点的课件页码全部错位**——而学生不会发现，只会觉得"这张幻灯片怎么对不上"。
-
-加完之后还要：渲染该章 PDF 为 PNG（`D:\opencode\course\_tools\render-pdf.mjs`）+ 下载该章讲义配图到 `content\images\`。
-
-> **所以新增章节请叫我**，别自己试。我会跑一遍分析 + 交叉验证（就像当初对 ch01~03 做的那样），并检查知识点的 id 有没有和视频映射表对上。
-
-### 更新后要顺便检查的两件事
-
-1. **id 是否稳定**：`chNN-sMM-pKK` 的编号依赖「空 `##` 不占节号」这条口径。**讲义一旦增删小节，同一章后面的 id 会整体平移**，导致学习进度对不上、视频映射错位。
-   检查：重新生成后对比 `content/notes/_point-ids.txt`，**id 集合有增删就说明结构变了**。
-2. **视频映射**：新知识点在 `content/videos.json` 里没有条目 → 卡片上不会显示视频（安全降级，不会报错）。想补就叫我。
-
----
-
----
-
-## 数据放在哪
-
-| 东西 | 位置 |
-|---|---|
-| **学习进度 / UI 偏好** | `%LOCALAPPDATA%\course-terminal\`（WebView2 storage + `progress.json`） |
-| 日志 | `%TEMP%\course-terminal.log` |
-| 端口 | `%TEMP%\course-terminal-port.txt` |
-
-**进度是双保险**：localStorage（快）+ `progress.json`（真身落盘）。**关掉再开，进度还在**（实测过）。
-
-> 想重置进度：删掉 `%LOCALAPPDATA%\course-terminal` 整个目录。
-> 想**保留 B站登录态**（能看 1080P）：别删这个目录——cookie 就存在里面。
-
----
-
-## 已知限制（诚实清单）
-
-| 限制 | 说明 |
-|---|---|
-| **视频匹配未经人工确认** | 27% 覆盖率、置信度机器给的，要看一眼 |
-| **终端挡不住 C 层卡死** | `time.sleep(10**9)` 这类不在 5 秒内回来。`/health` 和其他功能不受影响，但后续终端请求会排队 |
-| **终端多行要一次提交** | 整段贴进去回车即可（`Shift+Enter` 换行）；拆成两次发会被当独立语句 |
-| **外链走系统浏览器** | 点 OpenJudge / B站会在**浏览器**里打开，不在 app 内。这是刻意的——WebView 里开新窗口会把用户困住 |
-| **OpenJudge 不能内嵌** | 对方发 `X-Frame-Options: SAMEORIGIN`。面板里如实写了，给了按钮和复制链接 |
-| **箭头可能穿过对象盒子** | 可视化页的已知项（源和目标之间有别的盒子时） |
-| **课件文字是图** | 课件渲染成 PNG，**不可选中/搜索** |
-| **空节内容不在知识点里** | 「本章学习的目的 / 本章总结」做成了**章级卡**，不算学习进度 |
-| **ch01/ch02 没有视频** | 黑马是 Python 教程，不讲计算机通识和数制编码 |
+- 产物：`app\dist\计算概论学习终端.exe`（PyInstaller onefile，约 **147 MB**，内含 web/content/引擎）+ 桌面快捷方式
+- `build.ps1` 必须保持 **UTF-8 with BOM**：Windows PowerShell 5.1 读无 BOM 的 `.ps1` 会按 GBK 解码，中文直接解析失败
+- **exe 不进仓库**（超过 GitHub 单文件 100 MB 硬限制），发布在 Release 里
 
 ---
 
 ## 目录结构
 
 ```
-D:\opencode\course-terminal\
-├── SPEC.md                    接口契约与设计规格
-├── app\
-│   ├── main.py                桌面壳（HTTP + WebView + /run /repl /open /progress）
-│   ├── build.ps1              打包脚本（PyInstaller + 快捷方式）
-│   └── dist\计算概论学习终端.exe  ← 双击这个（快捷方式指向它）
-├── web\index.html             卡片流 UI（单文件，零外部依赖）
-├── content\
-│   ├── ch01~03.json           知识点（讲义原稿切分，104 个）
-│   ├── videos.json            视频映射 + 待确认表
-│   ├── images\                讲义配图（120 张）
-│   ├── slides\                课件 PNG（62 + 90 + 90）
-│   ├── notes\                 讲义原文 + _build-json.py（更新工具）
-│   └── 100days\               22 篇本地化的 Python-100-Days
-└── _dev\accept.ps1            一键终验（数据 + HTTP + 5 张截图）
+course-terminal/
+├─ app/
+│  ├─ main.py              桌面壳：HTTP 路由 + 窗口 + REPL + AI + 作业 + 更新
+│  ├─ build.ps1            PyInstaller 打包 + 快捷方式
+│  ├─ requirements.txt
+│  ├─ assets/              图标等
+│  └─ dist/                打包产物（.gitignore 排除）
+├─ web/
+│  ├─ index.html           卡片流 UI（单文件）
+│  └─ tutor/               占位；运行期挂载引擎的 viewer.html
+├─ content/
+│  ├─ ch01.json ch02.json ch03.json   知识点数据（17 / 21 / 66 个点）
+│  ├─ videos.json          B 站视频目录 + 知识点→分 P 映射
+│  ├─ notes/               讲义 markdown 原文 + 重建脚本
+│  ├─ slides/              课件原图 PNG（62 + 90 + 90 = 242 张）
+│  ├─ images/              讲义配图（179 张）
+│  ├─ homework/            hw1.json（6 题）+ 抓题脚本
+│  ├─ 100days/             Python-100-Days 本地副本（23 篇 markdown）
+│  └─ mapping-review.md    视频匹配待确认表
+├─ SPEC.md                 冻结的接口/目录契约
+├─ NEXT-STEPS.md           续办单：当前进度与待办
+└─ 计算概论学习终端-使用说明书.pdf
 ```
 
-可视化引擎复用的是 `D:\opencode\tools\pytutor\`（**独立项目，别改**）。
+---
+
+## 内容数据
+
+### `content/chNN.json`
+
+```jsonc
+{
+  "chapter": "ch03", "title": "Python入门",
+  "source": { "notes_url": "...", "notes_sha256": "...", "slides_url": "...",
+              "slides_sha256": "...", "slides_pages": 90, "fetched_at": "..." },
+  "sections": [{
+    "id": "ch03-s05", "no": 5, "title": "基本输入输出", "slide_range": [41, 51],
+    "points": [{
+      "id": "ch03-s05-p03", "no": 3, "title": "输入输出的细节", "level": 3,
+      "body_md": "（讲义原文，一字不改）",
+      "notes_lines": [924, 948],       // 对应讲义行号
+      "slides": [44],                  // 对应课件页
+      "pitfall": null, "video": null,  // video 目前全部为 null，视频走 videos.json
+      "refs": [{ "kind": "100days", "label": "Day11 字符串", "url": "100days/Day11-字符串.md" }],
+      "run": "'  hello  '.strip()"      // 卡片上的可运行片段
+    }]
+  }]
+}
+```
+
+### `content/videos.json`
+
+- 只挂**一个**合集：`BV1qW4y1a7fU`（黑马程序员，164 分 P），不下载、不碰时间戳，播放走 B 站
+- `mapping` 的 key 是 `"chNN|<知识点标题>"`，与知识点 id 解耦（讲义增删小节不会整体错位）
+- 每条映射里的 `videos[]` 带 `level`（`basic` 基础 / `main` 主线 / `extra` 补充 / `adv` 拔高）、`confidence`、`confirmed`
+- **现状：28 个知识点已映射**，其余知识点视频为空 —— 卡片上安全降级（不显示视频，不报错）。机器匹配未经人工逐条确认，待确认表见 `content/mapping-review.md`
+
+---
+
+## HTTP 接口
+
+只监听 `127.0.0.1`，**无鉴权**——本机任何进程都能调用。
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/` `/index.html` | 卡片流首页（注入导航桥） |
+| GET | `/health` | 自检：端口、日志、引擎状态、REPL 限额、助教就绪 |
+| GET | `/tutor` `/viewer.html` | 可视化界面（`?code=` 预填） |
+| GET | `/content/...` `/web/...` | 静态资源（走三层回落） |
+| GET | `/open?url=` `/open/count` | 外链交给系统浏览器（仅 http/https 白名单） |
+| GET | `/progress` | 读学习进度 |
+| GET | `/ai/status` `/ai/models` `/ai/balance` | AI 配置状态、模型列表、余额（`?refresh=1` 强制打上游） |
+| GET | `/homework/available` | 可用作业列表（`?refresh=1` 重抓） |
+| GET | `/update/check` `/update/status` `/update/rebuild/status` | 内容更新检查（`?deep=1&wait=1&refresh=1`） |
+| POST | `/run` | 追踪执行（pytracer，5000 步上限，30 s 墙钟，忙则 503） |
+| POST | `/run-raw` | 直接 exec，不追踪 |
+| POST | `/repl` `/repl/complete` `/repl/reset` | 有状态终端：200 万步 / 5 s / 64 KB 输出上限 |
+| POST | `/progress` | 写进度（2 MB 上限） |
+| POST | `/ai/config` `/ai/chat` `/ai/explain` `/ai/cache/clear` | 配置、流式对话、代码解析、清缓存 |
+| POST | `/homework/fetch` `/update/rebuild` | 抓题、一键重建 |
+
+**并发约定**：`/run` 与 REPL **共用同一把全局锁**（`ENGINE_LOCK`）。它们会替换进程级的 `sys.stdout`/`sys.stderr`/`sys.settrace`，并发会让两边的输出互相污染——所以宁可串行。终端会话是有状态的，这也是它必须串行的另一个原因。
+
+---
+
+## 数据落在哪
+
+| 内容 | 路径 |
+|---|---|
+| 学习进度、WebView2 storage | `%LOCALAPPDATA%\course-terminal\progress.json` 与 `...\webview` |
+| AI 配置（key / base_url / model / thinking） | `%LOCALAPPDATA%\course-terminal\deepseek.json` |
+| 自动抓的作业等可写内容 | `%LOCALAPPDATA%\course-terminal\content\...` |
+| 日志 / 端口 | `%TEMP%\course-terminal.log` / `%TEMP%\course-terminal-port.txt` |
+
+- 进度**双保险**：localStorage（快）+ `progress.json`（真身落盘），关掉再开进度还在
+- key 只存在那个 json 里：原子写 + Windows `icacls` 收紧权限 + **日志与报错统一打码**（`sk-****`），不进源码也不进 exe
+- 想重置进度：删掉 `%LOCALAPPDATA%\course-terminal`（注意里面也有 B 站登录 cookie，删了就掉登录态）
+
+---
+
+## 已知限制
+
+| 限制 | 说明 |
+|---|---|
+| **可视化引擎不在仓库内** | 需自备 pytutor 目录并改 `DEV_PYTUTOR`；缺它时只有可视化与 `/run` 不可用 |
+| **`/update/rebuild` 未落地** | 一键重建（方案丙：PDFium 抽文字 + 课件渲染）仍在待办，接口如实返回 `rebuild_supported=false` |
+| 视频覆盖不全 | 28/104 个知识点有映射，且为机器匹配、未经人工确认 |
+| 终端挡不住 C 层卡死 | `time.sleep(10**9)` 这类不在 5 s 内返回，会占住那把锁；`/health` 与卡片流不受影响 |
+| 多行代码要一次提交 | 整段粘贴后回车（`Shift+Enter` 换行）；拆两次发会被当成独立语句 |
+| 外链走系统浏览器 | 刻意的：WebView2 里未处理的 `window.open` 会开出没有地址栏/返回键的子窗口，把用户困住 |
+| OpenJudge 不能内嵌 | 对方发 `X-Frame-Options: SAMEORIGIN`，面板里给了跳转按钮和复制链接 |
+| 课件文字是图 | 课件渲染成 PNG，不可选中、不可搜索 |
+| 只在 Windows 上验证过 | 用到 `icacls`、`os.startfile`、WebView2 |
+| 没有测试套件 / 没有 LICENSE | 开发期的自测脚本不在仓库内 |
+
+---
+
+## 第三方材料与版权
+
+| 来源 | 用在哪儿 |
+|---|---|
+| 课程站 `csintro2026.zhengmao.ltd` | 讲义原文（markdown）、课件（渲染为 PNG）——以原稿为准 |
+| B 站「黑马程序员」Python 全套教程 `BV1qW4y1a7fU` | 视频讲解，仅保存分 P 元数据与链接，不下载视频 |
+| Python-100-Days | 本地化副本，补黑马没讲到的点 |
+| 本地 pytutor（`pytracer` / `explain` / `viewer.html`） | 代码追踪与可视化 |
+
+本仓库目前**私有**：里面包含课程讲义与课件原图。若要转公开，请先确认上述材料的再分发许可。
+
+---
+
+## 相关文档
+
+- [SPEC.md](SPEC.md) —— 冻结的接口与目录契约（数据字段硬规定）
+- [NEXT-STEPS.md](NEXT-STEPS.md) —— 续办单：现在做到哪、下一步做什么
+- [计算概论学习终端-使用说明书.pdf](计算概论学习终端-使用说明书.pdf) —— 图文使用手册

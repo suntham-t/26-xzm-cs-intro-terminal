@@ -1,0 +1,321 @@
+{
+  "defaults": {
+    "viewport": [
+      1280,
+      880
+    ],
+    "settle": 1200,
+    "beforeJs": "var IC = window.__IC__;\nIC.closeAll();\nawait __cap.sleep(250);\nif (!document.querySelector('#repl').hidden) { var rb=document.querySelector('#btnReplClose'); if (rb) { rb.click(); await __cap.sleep(350); } }\nvar wide = document.body.getAttribute('data-wide') === '1';\nvar toc = document.querySelector('#toc');\nif (wide && toc.hidden) { document.querySelector('#btnToc').click(); await __cap.sleep(450); }\nif (!wide && IC.UIDRAWER_STATE.open) { document.querySelector('#btnToc').click(); await __cap.sleep(450); }\nvar m = document.querySelector('main'); if (m) m.scrollTop = 0;\nvar tb = document.querySelector('#tocBody'); if (tb) tb.scrollTop = 0;\nawait __cap.sleep(200);\nreturn {replClosed: document.querySelector('#repl').hidden, tocHidden: toc.hidden, wide: wide};"
+  },
+  "scenarios": [
+    {
+      "name": "card@dark",
+      "desc": "知识卡片 · 默认落地（点阵 + 目录 + 翻卡）（深色主题）",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        },
+        {
+          "w": 1500,
+          "h": 1000
+        }
+      ],
+      "note": "默认落地是第 1 章第 1 个知识点（点阵 1 / 3，#toc 在 1280 默认展开） // 深色：正式主题功能（html[data-theme=dark] + localStorage ic.theme.v1）",
+      "steps": [
+        {
+          "desc": "dark theme on",
+          "js": "document.documentElement.setAttribute(\"data-theme\",\"dark\");try{ localStorage.setItem(\"ic.theme.v1\",\"dark\"); }catch(e){} await __cap.sleep(600); return document.documentElement.getAttribute(\"data-theme\");"
+        },
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "main scroll top",
+          "js": "document.querySelector('main').scrollTop = 0; await __cap.sleep(300); return true;"
+        },
+        {
+          "desc": "assert card",
+          "expect": "!!document.querySelector('#card h2.cardTitle') && document.querySelector('#card h2.cardTitle').textContent.trim().length > 0 && document.querySelectorAll('#dots .dot').length > 0"
+        }
+      ]
+    },
+    {
+      "name": "search@dark",
+      "desc": "搜索面板 · 输入「列表」后的命中列表（命令面板）（深色主题）",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        },
+        {
+          "w": 1500,
+          "h": 1000
+        }
+      ],
+      "note": "真实路径：点左侧搜索 → 在 .searchInput 里输入「列表」。命中 20 条（含高亮 b） // 深色：正式主题功能（html[data-theme=dark] + localStorage ic.theme.v1）",
+      "steps": [
+        {
+          "desc": "dark theme on",
+          "js": "document.documentElement.setAttribute(\"data-theme\",\"dark\");try{ localStorage.setItem(\"ic.theme.v1\",\"dark\"); }catch(e){} await __cap.sleep(600); return document.documentElement.getAttribute(\"data-theme\");"
+        },
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "open search",
+          "js": "document.querySelector('#btnSearch').click(); await __cap.sleep(500); return document.querySelector('#modal').getAttribute('data-kind');"
+        },
+        {
+          "desc": "type keyword",
+          "js": "__cap.setVal('#modal .searchInput', '列表'); await __cap.sleep(700); return document.querySelectorAll('.searchHit').length;"
+        },
+        {
+          "desc": "assert hits",
+          "expect": "document.querySelectorAll('.searchHit').length > 0 && !!document.querySelector('.searchHit b')"
+        },
+        {
+          "desc": "scroll to 100DAYS topics",
+          "js": "var mb=document.querySelector('#modalBody'); if(mb) mb.scrollTop = mb.scrollHeight; await __cap.sleep(700); return mb?mb.scrollTop:null;",
+          "shot": "search-topics@dark@1280x880"
+        }
+      ]
+    },
+    {
+      "name": "videos@dark",
+      "desc": "视频目录 · 内嵌面板，列表滚到中段展示分组（深色主题）",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        },
+        {
+          "w": 1500,
+          "h": 1000
+        }
+      ],
+      "note": "真实路径：点左侧「视频目录」；面板落在卡片区内嵌（#inlinePanel），main 是滚动区 // 深色：正式主题功能（html[data-theme=dark] + localStorage ic.theme.v1）",
+      "steps": [
+        {
+          "desc": "dark theme on",
+          "js": "document.documentElement.setAttribute(\"data-theme\",\"dark\");try{ localStorage.setItem(\"ic.theme.v1\",\"dark\"); }catch(e){} await __cap.sleep(600); return document.documentElement.getAttribute(\"data-theme\");"
+        },
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "open videos",
+          "js": "document.querySelector('#btnVideos').click(); await __cap.sleep(800); return document.querySelectorAll('#vidList .newHwRow').length;"
+        },
+        {
+          "desc": "scroll list to mid",
+          "js": "var m=document.querySelector('main'); m.scrollTop = Math.round((m.scrollHeight - m.clientHeight) * 0.42); await __cap.sleep(500); return m.scrollTop;"
+        },
+        {
+          "desc": "assert videos",
+          "expect": "!document.querySelector('#inlinePanel').hidden && !!document.querySelector('#vidQ') && document.querySelectorAll('#vidList .newHwRow').length > 20"
+        }
+      ]
+    },
+    {
+      "name": "hw@dark",
+      "desc": "作业列表 · 内嵌面板（本地 hw1/hw2/hw3 + 小测）（深色主题）",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        },
+        {
+          "w": 1500,
+          "h": 1000
+        }
+      ],
+      "note": "数据来自 content/homework（隔离 QA 实例下本地可见 hw1；共享实例里可能还有 hw2/hw3/小测）。面板内容随环境不同，但版式不变 // 深色：正式主题功能（html[data-theme=dark] + localStorage ic.theme.v1）",
+      "steps": [
+        {
+          "desc": "dark theme on",
+          "js": "document.documentElement.setAttribute(\"data-theme\",\"dark\");try{ localStorage.setItem(\"ic.theme.v1\",\"dark\"); }catch(e){} await __cap.sleep(600); return document.documentElement.getAttribute(\"data-theme\");"
+        },
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "open hw",
+          "js": "document.querySelector('#btnHw').click(); await __cap.sleep(1200); await __cap.waitFor(function(){ return document.querySelectorAll('#inlineBody .hwBlock').length > 0; }, 12000); await __cap.sleep(400); return document.querySelectorAll('#inlineBody .hwBlock').length;"
+        },
+        {
+          "desc": "scroll to top",
+          "js": "document.querySelector('main').scrollTop=0; await __cap.sleep(400); return true;"
+        },
+        {
+          "desc": "assert hw",
+          "expect": "!document.querySelector('#inlinePanel').hidden && document.querySelectorAll('.hwBlock').length > 0 && document.querySelectorAll('.hwRow').length > 0"
+        }
+      ]
+    },
+    {
+      "name": "repl@dark",
+      "desc": "终端抽屉 · 打开并执行 print(1+1)，输出 2（深色主题）",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        },
+        {
+          "w": 1000,
+          "h": 760
+        }
+      ],
+      "note": "在 #replIn 里设 value 再派发 Enter keydown（与真实敲键同一条代码路径），断言 #replOut 出现 2 // 深色：正式主题功能（html[data-theme=dark] + localStorage ic.theme.v1）",
+      "steps": [
+        {
+          "desc": "dark theme on",
+          "js": "document.documentElement.setAttribute(\"data-theme\",\"dark\");try{ localStorage.setItem(\"ic.theme.v1\",\"dark\"); }catch(e){} await __cap.sleep(600); return document.documentElement.getAttribute(\"data-theme\");"
+        },
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "open repl",
+          "js": "document.querySelector('#btnRepl').click(); await __cap.sleep(900); return !document.querySelector('#repl').hidden;"
+        },
+        {
+          "desc": "run print(1+1)",
+          "js": "var inp=document.querySelector('#replIn'); inp.focus(); inp.value='print(1+1)'; inp.dispatchEvent(new Event('input',{bubbles:true})); inp.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true})); await __cap.sleep(1600); return String(document.querySelector('#replOut').textContent||'').trim();"
+        },
+        {
+          "desc": "assert output 2",
+          "expect": "/2/.test(String(document.querySelector('#replOut').textContent||'')) && document.querySelectorAll('#replOut .rl-out').length > 0"
+        }
+      ]
+    },
+    {
+      "name": "assistant-panel@dark",
+      "desc": "助教完整面板（气泡里点 ⤢ 展开）（深色主题）",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        }
+      ],
+      "note": "无 AI Key：面板显示上下文条 + 空消息区 + 底部能力提示 // 深色：正式主题功能（html[data-theme=dark] + localStorage ic.theme.v1）",
+      "steps": [
+        {
+          "desc": "dark theme on",
+          "js": "document.documentElement.setAttribute(\"data-theme\",\"dark\");try{ localStorage.setItem(\"ic.theme.v1\",\"dark\"); }catch(e){} await __cap.sleep(600); return document.documentElement.getAttribute(\"data-theme\");"
+        },
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "open bubble",
+          "js": "document.querySelector('#asFab').click(); await __cap.sleep(700); return !document.querySelector('#asBubble').hidden;"
+        },
+        {
+          "desc": "expand to panel",
+          "js": "document.querySelector('#asBubble [data-act=\"asexpand\"]').click(); await __cap.sleep(1200); return document.querySelector('#modal').getAttribute('data-kind');"
+        },
+        {
+          "desc": "assert panel",
+          "expect": "document.querySelector('#modal').getAttribute('data-kind') === 'assistant' && !!document.querySelector('#asMsgs') && !!document.querySelector('#asInput')"
+        }
+      ]
+    },
+    {
+      "name": "settings@dark",
+      "desc": "AI 设置面板（Key / 余额 / 模型 / 思考模式 / 预览 JSON）（深色主题）",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        }
+      ],
+      "note": "本机没配 AI Key：面板如实显示空 Key + 余额行 + 提示（这是真实状态，不是空状态兜底） // 深色：正式主题功能（html[data-theme=dark] + localStorage ic.theme.v1）",
+      "steps": [
+        {
+          "desc": "dark theme on",
+          "js": "document.documentElement.setAttribute(\"data-theme\",\"dark\");try{ localStorage.setItem(\"ic.theme.v1\",\"dark\"); }catch(e){} await __cap.sleep(600); return document.documentElement.getAttribute(\"data-theme\");"
+        },
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "open ai settings",
+          "js": "document.querySelector('#btnAiSet').click(); await __cap.sleep(1500); await __cap.waitFor(function(){ return !!document.querySelector('#aiKey'); }, 12000); await __cap.sleep(400); return document.querySelector('#modal').getAttribute('data-kind');"
+        },
+        {
+          "desc": "assert settings",
+          "expect": "document.querySelector('#modal').getAttribute('data-kind') === 'aiset' && !!document.querySelector('#aiKey') && !!document.querySelector('#aiModel') && document.querySelector('#modalBody').innerHTML.length > 500"
+        }
+      ]
+    },
+    {
+      "name": "toast@dark",
+      "desc": "toast 提示（底部居中 pill）（深色主题）",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        }
+      ],
+      "note": "直接调用页面全局 toast('测试 toast')（测试工具可以不走 UI）；toast 2.4s 后自动消失，截图在 300ms 内 // 深色：正式主题功能（html[data-theme=dark] + localStorage ic.theme.v1）",
+      "steps": [
+        {
+          "desc": "dark theme on",
+          "js": "document.documentElement.setAttribute(\"data-theme\",\"dark\");try{ localStorage.setItem(\"ic.theme.v1\",\"dark\"); }catch(e){} await __cap.sleep(600); return document.documentElement.getAttribute(\"data-theme\");"
+        },
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "show toast",
+          "js": "toast('测试 toast'); await __cap.sleep(300); return document.querySelector('#toast').textContent;"
+        },
+        {
+          "desc": "assert toast",
+          "expect": "!document.querySelector('#toast').hidden && document.querySelector('#toast').classList.contains('show')"
+        }
+      ]
+    }
+  ]
+}

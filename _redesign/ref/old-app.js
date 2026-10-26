@@ -1,0 +1,7983 @@
+
+"use strict";
+/* =====================================================================
+ * 智能计算概论学习终端 · 卡片流 UI（web/index.html）
+ *
+ * 安全总纲（重要）：
+ *   1) 任何来自 content/*.json 的字符串，一律先经 escapeHtml() 再拼进 HTML；
+ *   2) 本文件里出现的每一个标签（b/code/pre/a/ul/li/h4/blockquote/table/img…）
+ *      都是**我自己写死的字面量**，只放在白名单位置；
+ *   3) 绝不出现 `el.innerHTML = 后端字符串`。所有 innerHTML 的右值都是
+ *      esc()/inline()/renderMarkdown()/buildXxxHtml() 的产物。
+ * =================================================================== */
+
+/* ============================ 常量 ============================ */
+var CHAPTERS = ["ch01", "ch02", "ch03", "ch04", "ch05", "ch06", "ch07", "ch08"];
+/* 老进度 key：★ 只读一次拿 days，永不回写（原样留在盘上） */
+var PKEY = "ic.terminal.progress.v1";
+var NOTE_PREFIX = "content/notes/";
+var SLIDES_PREFIX = "content/slides/";
+var DAYS_PREFIX = "content/100days/";
+var OJ_HOME = "http://cs101.openjudge.cn/";
+var OJ_XZ = "http://xzmdsa.openjudge.cn/";
+var OJ_SAMPLE = "http://cs101.openjudge.cn/practice/31184/";
+
+/* ============================ 小工具 ============================ */
+function $(id){ return document.getElementById(id); }
+
+/* 唯一的安全出口：& < > " ' 全部转义 */
+function escapeHtml(s){
+  return String(s === undefined || s === null ? "" : s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+/* 属性值出口（比 escapeHtml 多挡一层反引号与等号，非必需但更稳） */
+function attr(s){ return escapeHtml(s); }
+/* 反解 escapeHtml 出来的实体（只用于"这段文本已经转义过了、但我需要原始 URL"的场合）。
+   &amp; 必须最后还原，否则 &amp;lt; 会被解成 < 而不是 &lt; */
+function unescapeEntities(s){
+  return String(s === undefined || s === null ? "" : s)
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&");
+}
+
+function todayStr(d){
+  d = d || new Date();
+  var m = String(d.getMonth() + 1), day = String(d.getDate());
+  if (m.length < 2) m = "0" + m;
+  if (day.length < 2) day = "0" + day;
+  return d.getFullYear() + "-" + m + "-" + day;
+}
+function shiftDay(str, delta){
+  var p = String(str).split("-");
+  var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+  d.setDate(d.getDate() + delta);
+  return todayStr(d);
+}
+/* 连续学习天数：从今天（今天没学就从昨天）往前数，断一天就停。
+   当天学完 >=1 个知识点算一天；漏掉整整一天 -> 归零。 */
+function computeStreak(days, today){
+  var set = {};
+  (days || []).forEach(function(d){ set[String(d)] = 1; });
+  today = today || todayStr();
+  var cur = set[today] ? today : shiftDay(today, -1);
+  if (!set[cur]) return 0;
+  var n = 0;
+  while (set[cur]){ n++; cur = shiftDay(cur, -1); }
+  return n;
+}
+
+/* url 白名单：只允许 http(s)/协议相对/相对路径；其它一律换成 # */
+function safeUrl(u){
+  var s = String(u === undefined || u === null ? "" : u).trim().replace(/&amp;/g, "&");
+  if (/^(https?:)?\/\//i.test(s)) return u;
+  if (/^[a-z][a-z0-9+.\-]*:/i.test(s)) return "#";   /* javascript: data: vbscript: … */
+  return u;
+}
+/* body_md 里的图片路径是相对 content/notes/ 的 */
+function resolveImgUrl(u){ return safeImgSrc(u) || ""; }
+/* refs[].url -> 站内路径 */
+function resolveContentPath(u){
+  var s = String(u || "").trim();
+  if (/^https?:\/\//i.test(s)) return s;
+  s = s.replace(/^\.?\//, "");
+  if (s.indexOf("content/") === 0) return s;
+  if (s.indexOf("100days/") === 0) return "content/" + s;
+  if (/\.md$/i.test(s) && s.indexOf("/") < 0) return DAYS_PREFIX + s;
+  return "content/" + s;
+}
+function isExternal(u){ return /^https?:\/\//i.test(String(u || "")); }
+
+function pad2(n){ n = String(n); return n.length < 2 ? "0" + n : n; }
+/* 课件图可能叫 page-44.png / page-44.png(2位) / 44.png …，按可能性排序全部试一遍 */
+function slideCandidateUrls(chapter, page){
+  var nn = pad2(page), base = SLIDES_PREFIX + chapter + "/";
+  var names = ["page-" + nn + ".png", "page-" + page + ".png", page + ".png",
+               nn + ".png", "slide-" + nn + ".png", "slide-" + page + ".png",
+               "p" + page + ".png", "p" + nn + ".png"];
+  var out = [], seen = {};
+  names.forEach(function(n){ if (!seen[n]){ seen[n] = 1; out.push(base + n); } });
+  return out;
+}
+
+/* =====================================================================
+ * markdown 子集渲染（先转义，再替换；只生成白名单标签）
+ *   支持：标题 / 无序列表 / 有序列表 / 围栏代码块 / 行内代码 / 粗体 /
+ *         链接 / 引用块 / 分隔线 / 管道表格 / 图片
+ *   外加一个**只有 6 个标签的 HTML 白名单**（讲义自带的复习题要用）：
+ *         img / details / summary / mark / figure / figcaption
+ * =================================================================== */
+
+/* 讲义原文里夹着少量 HTML。白名单之外的标签（script/b/div/iframe/svg/style…）
+   一律照旧被 escapeHtml 转成可见文本 —— 不放开 HTML。
+   唯一的文本级处理是删掉 HTML 注释（SLIDE 标记等），注释变不出标签。
+   **注意**：这一步要在标签配对之前做，免得注释里的标签参与了配对。 */
+function normalizeNotesHtml(src){
+  return String(src === undefined || src === null ? "" : src)
+    .replace(/\r\n?/g, "\n")
+    .replace(/<!--[\s\S]*?-->/g, "");
+}
+
+/* ---------------- <img> 一对一白名单转换 ---------------- */
+/* 相对路径按 content/notes/ 解析，再把 . / .. 折叠掉；
+   折叠后如果还有 ..（想跳出 content/ 根目录）就整条拒绝。 */
+function resolveContentRel(u){
+  var s = String(u || "");
+  var start = /^content\//.test(s) ? "" : "content/notes/";
+  var parts = (start + s).split("/");
+  var out = [];
+  for (var i = 0; i < parts.length; i++){
+    var seg = parts[i];
+    if (seg === "" || seg === ".") continue;
+    if (seg === ".."){
+      if (!out.length) return null;          /* 逃出根目录 → 拒绝 */
+      out.pop(); continue;
+    }
+    out.push(seg);
+  }
+  return out.length ? out.join("/") : null;
+}
+/* src 校验：只接受 http(s)（含协议相对）绝对 URL，或不含 : 的相对路径。
+   javascript: / data: / vbscript: / C:\ 这些带冒号的一律拒绝。 */
+function safeImgSrc(s){
+  var u = String(s === undefined || s === null ? "" : s).trim();
+  if (!u) return null;
+  if (/^(https?:)?\/\//i.test(u)){
+    return /[\s"'<>]/.test(u) ? null : u;
+  }
+  if (u.indexOf(":") >= 0) return null;
+  if (/[\x00-\x1f"'<>\\]/.test(u)) return null;
+  return resolveContentRel(u);
+}
+/* 从属性串里取一个属性值；取不到返回 "" */
+function attrOf(attrs, name){
+  var re = new RegExp("\\b" + name + "\\s*=\\s*(\"([^\"]*)\"|'([^']*)'|([^\\s\"'>]+))", "i");
+  var m = String(attrs || "").match(re);
+  if (!m) return "";
+  return m[2] !== undefined ? m[2] : (m[3] !== undefined ? m[3] : (m[4] || ""));
+}
+/* 把 <img ...> 的属性串变成【我自己写死的】<img>：
+   只提取 src / alt / width / style 里的 zoom:NN% —— 其它属性（onerror 之类）全部丢掉。 */
+function imgHtml(attrs){
+  var raw = String(attrs || "");
+  var src = attrOf(raw, "src");
+  var alt = attrOf(raw, "alt");
+  var width = attrOf(raw, "width");
+  var style = attrOf(raw, "style");
+  var url = safeImgSrc(src);
+  if (url === null) return null;             /* src 不合法 → 整条不生成（原样转义成文本） */
+  var z = /zoom\s*:\s*(\d+)\s*%/i.exec(style);
+  var styleOut;
+  if (z) styleOut = "width:" + z[1] + "%";
+  else if (/^\d+$/.test(width)) styleOut = "width:" + width + "px";
+  else styleOut = "max-width:100%";
+  return '<img src="' + attr(url) + '" alt="' + attr(alt) + '" style="' + attr(styleOut) + '">';
+}
+
+/* =====================================================================
+ * HTML 白名单（6 个标签）
+ *   规则：
+ *     · 只认 img / details / summary / mark / figure / figcaption，别的全转义；
+ *     · **属性一律丢弃**（不解析、不保留、不渲染）—— onerror/onclick/style 没机会；
+ *     · 标签之间的文字一律走 escapeHtml；
+ *     · 开闭必须配对，**不配对的（孤立 </mark>、没闭合的 <details>）整体转义**；
+ *     · 合法标签先换成占位符（\u0002N\u0002），等整段 escapeHtml 之后再换回
+ *       我自己写死的字面量，这样标签本身永远不会被转义、注入也进不来。
+ * =================================================================== */
+var ALLOWED_TAGS = { img: 1, details: 1, summary: 1, mark: 1, figure: 1, figcaption: 1, br: 1 };
+var VOID_TAGS = { img: 1, br: 1 };          /* img / br 自成一体，不需要闭合 */
+var BLOCK_TAGS = { details: 1, figure: 1 }; /* 这两个要自己占一块，不能包进 <p> */
+/* 标签字面量写死在这两张表里：生成出来的 HTML 只可能来自这里，静态可查 */
+var TAG_OPEN = {
+  details: "<details>", summary: "<summary>", mark: "<mark>",
+  figure: "<figure>", figcaption: "<figcaption>", br: "<br>"
+};
+var TAG_CLOSE = {
+  details: "</details>", summary: "</summary>", mark: "</mark>",
+  figure: "</figure>", figcaption: "</figcaption>"
+};
+
+var CUR_TOKENS = [];                        /* 本次 renderMarkdown 里合法标签的 HTML 字面量 */
+
+/* 扫出所有「名字在白名单里」的标签（属性串原样带着，后面只用 img 会去解析它） */
+function matchAllowedTags(text){
+  var re = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)\b([^>]*)>/g;
+  var out = [], m;
+  while ((m = re.exec(text))){
+    var name = m[2].toLowerCase();
+    if (!ALLOWED_TAGS[name]) continue;      /* 白名单之外的标签不认，原样留着给 escapeHtml */
+    out.push({ start: m.index, end: re.lastIndex, closing: m[1] === "/", name: name, attrs: m[3],
+               valid: false, html: null });
+  }
+  return out;
+}
+/* 配对：只有成对的才算合法；stack 是跨「文本段」共享的，所以 <details> 和 </details>
+   中间夹一个围栏代码块也能配上 */
+function planAllowedTags(text, stack){
+  var ms = matchAllowedTags(text);
+  for (var i = 0; i < ms.length; i++){
+    var t = ms[i];
+    if (VOID_TAGS[t.name]){
+      if (t.closing) continue;                       /* </img> / </br> 非法 */
+      if (t.name === "img"){
+        var h = imgHtml(t.attrs);                    /* img 要单独校验 src/alt/style */
+        if (h !== null){ t.valid = true; t.html = h; }
+      }else{
+        t.valid = true; t.html = TAG_OPEN[t.name];    /* br 之类：属性全丢，只留标签本身 */
+      }
+      continue;
+    }
+    if (!t.closing){ stack.push(t); continue; }       /* 先挂起，等它自己的闭合标签 */
+    var top = stack[stack.length - 1];
+    if (top && top.name === t.name){
+      stack.pop();
+      top.valid = true; top.html = TAG_OPEN[top.name];
+      t.valid = true;   t.html = TAG_CLOSE[t.name];
+    }
+    /* 配不上（孤立闭合、或闭错了对象）→ valid 保持 false → 整体转义 */
+  }
+  return ms;
+}
+function applyTokens(text, matches){
+  var out = "", last = 0;
+  for (var i = 0; i < matches.length; i++){
+    var t = matches[i];
+    out += text.slice(last, t.start);
+    if (t.valid){
+      CUR_TOKENS.push(t.html);
+      out += "\u0002" + (CUR_TOKENS.length - 1) + "\u0002";
+    }else{
+      out += text.slice(t.start, t.end);              /* 不合法 → 原样留着，最后被转义成纯文本 */
+    }
+    last = t.end;
+  }
+  return out + text.slice(last);
+}
+function tokenTag(html){
+  var m = /^<(\/?)([a-z]+)>$/.exec(String(html || ""));
+  return m ? { closing: !!m[1], name: m[2] } : null;
+}
+/* 这一行是不是以 details/figure/summary/figcaption 开头 —— 是的话它要自己占一块。
+   不包 <p> 的原因：<summary> 必须是 <details> 的直接子元素，否则浏览器会另造一个
+   默认的 "Details" 标题，折叠开关就废了。 */
+function lineIsTagBlock(line){
+  var m = /^\s*\u0002(\d+)\u0002/.exec(String(line || ""));
+  if (!m) return false;
+  var t = tokenTag(CUR_TOKENS[Number(m[1])]);
+  if (!t) return false;
+  return !!(BLOCK_TAGS[t.name] || t.name === "summary" || t.name === "figcaption");
+}
+/* 当前文本里 details/figure 的嵌套深度（用来把「列表项里开了一个 details」整段收进这一项） */
+function blockDepth(text){
+  var d = 0, m, re = /\u0002(\d+)\u0002/g, s = String(text || "");
+  while ((m = re.exec(s))){
+    var t = tokenTag(CUR_TOKENS[Number(m[1])]);
+    if (!t || !BLOCK_TAGS[t.name]) continue;
+    d += t.closing ? -1 : 1;
+  }
+  return d;
+}
+
+/* =====================================================================
+ * 极简 LaTeX（不引 KaTeX/MathJax —— 那是外链，违反零依赖）
+ *   只认 $...$ 行内公式，支持的构造就是讲义里真实出现过的那几种：
+ *     \sqrt \le \ge \times \div \cdot \sum \approx \text{} \, ^x _x ^{} _{}
+ *   认不出来就**整条按原文显示**（含 $），绝不半转换 —— 半个公式比原样更误导。
+ * =================================================================== */
+var MATH_SYMBOLS = {
+  le: "≤", leq: "≤", ge: "≥", geq: "≥", neq: "≠", ne: "≠",
+  times: "×", div: "÷", cdot: "·", pm: "±", approx: "≈", equiv: "≡",
+  sum: "∑", prod: "∏", infty: "∞", pi: "π", to: "→", rightarrow: "→",
+  ldots: "…", dots: "…", cdots: "⋯", deg: "°",
+  /* 100Days 里真的用到的补进来（原来缺一个就整条降级成原文） */
+  gt: ">", lt: "<", bar: "̄", vec: "⃗", hat: "̂", in: "∈", notin: "∉",
+  subset: "⊂", subseteq: "⊆", supset: "⊃", supseteq: "⊇", cup: "∪", cap: "∩",
+  emptyset: "∅", partial: "∂", nabla: "∇", alpha: "α", beta: "β", gamma: "γ",
+  delta: "δ", epsilon: "ε", varepsilon: "ε", theta: "θ", lambda: "λ", mu: "μ",
+  nu: "ν", rho: "ρ", sigma: "σ", tau: "τ", phi: "φ", varphi: "φ", chi: "χ",
+  psi: "ψ", omega: "ω", Gamma: "Γ", Delta: "Δ", Theta: "Θ", Lambda: "Λ",
+  Sigma: "Σ", Phi: "Φ", Psi: "Ψ", Omega: "Ω",
+  leftarrow: "←", rightleftharpoons: "⇌", mapsto: "↦", lfloor: "⌊", rfloor: "⌋",
+  lceil: "⌈", rceil: "⌉", equiv2: "≡", sim: "∼", propto: "∝", perp: "⊥",
+  angle: "∠", triangle: "△", circ: "∘", prime: "′", therefore: "∴", because: "∵"
+};
+/* \small\large 这类「字号/间距」命令对内容没有任何影响，却会让 renderMath 判定
+   "不认识 → 整条按原文显示"。100Days 里 80 个行内公式有 73 个带 \small，
+   所以这一条就是"LaTeX 没渲染"的主因。留着当空操作即可。 */
+var MATH_NOOP = /^\s*\\(?:small|footnotesize|scriptsize|tiny|normalsize|large|Large|LARGE|huge|Huge|displaystyle|textstyle|scriptstyle|limits|nolimits|left|right|big|Big|bigg|Bigg|,|;|:|!)\s*/;
+/* 分式：先摘成占位，最后换成竖排 HTML（不能让它参与 escapeHtml） */
+var MATH_FRAC_RE = /\\(?:dfrac|tfrac|frac)\s*\{([^{}]*)\}\s*\{([^{}]*)\}/;
+/* ---------- 公式里"自己生成的 HTML"怎么逃过转义 ----------
+   递归渲染出来的片段（分式、根号内容、上下标）已经是 HTML，不能再被 escapeHtml
+   转义，也不能参与后面的符号替换。做法：把成品 HTML 登记到一张**全局**表里，
+   原文只留 \u0007序号\u0007，收尾时还原。
+   ★ 序号必须是全局唯一的，不能"每层从 0 开始"：
+     分式的分子分母是递归 renderMath 出来的，嵌套时两层的 0 号含义不同，
+     还原时就会张冠李戴（实测：分母显示成 "\u00070\u0007"）。
+     全局唯一之后，一次扫描就能全部还原，且不怕嵌套。
+   哨兵用 \u0007（控制字符），原始 markdown 里不可能出现。 */
+var SHIELDED = [];
+function shield(html){
+  SHIELDED.push(html);
+  return "\u0007" + (SHIELDED.length - 1) + "\u0007";
+}
+function releaseShielded(s){
+  var out = String(s);
+  for (var round = 0; round < 6; round++){
+    if (out.indexOf("\u0007") < 0) break;
+    out = out.replace(/\u0007(\d+)\u0007/g, function(m, i){
+      var v = SHIELDED[Number(i)];
+      return (v === undefined) ? m : v;
+    });
+  }
+  return out;
+}
+/* 分式：\frac{分子}{分母}。★ 必须用**花括号配对扫描**，不能用正则 ——
+   实测 Day05 的 \frac{体重}{身高^{2}} 分母里套着 ^{2}，正则要么匹配不到、
+   要么把嵌套的 } 当成结尾，整条公式只能放弃渲染。
+   返回 {body, next}；next 从右花括号之后开始。 */
+function readBraceGroup(str, start){
+  var i = start;
+  while (i < str.length && /\s/.test(str.charAt(i))) i++;
+  if (str.charAt(i) !== "{") return null;
+  var depth = 0, j = i;
+  for (; j < str.length; j++){
+    var c = str.charAt(j);
+    if (c === "\\"){ j++; continue; }              /* 被转义的下一个字符不算括号 */
+    if (c === "{") depth++;
+    else if (c === "}"){ depth--; if (depth === 0) break; }
+  }
+  if (depth !== 0) return null;                    /* 没配平 → 交给上层放弃 */
+  return { body: str.slice(i + 1, j), next: j + 1 };
+}
+/* 摘掉所有 \frac：把 {分子}{分母} 换成 \u0006num\u0006den\u0006 形式的分段标记。
+   ★ 分子/分母**不在这里渲染**：它们自己也是公式（可能带 ^ _ \sum，甚至嵌套分式），
+     要回到 renderMath 递归处理。第一版就地拼 HTML，结果分式内部的 ^{2}、\sum
+     全都没被处理 —— 这份材料里正好大量用到。 */
+/* 摘掉所有 \frac：把 {分子}{分母} 换成 \u0006分子\u0006分母\u0006 三段标记。
+   ★ 这里**绝对不要递归**。递归放在第 8 步（renderFracs）——那时分子分母已经
+     走完脱花括号/上下标/符号表。在这里递归的话，内层会在上下标替换**之前**
+     就被 renderMath 处理，^{2} 变成的标记随后又被外层当成普通文字转义，
+     页面上就会看到字面的标记（实测踩到，找了很久）。 */
+function extractFracs(s){
+  var guard = 0;
+  while (guard++ < 40){
+    var k = s.indexOf("\\frac");
+    if (k < 0) k = s.indexOf("\\dfrac");
+    if (k < 0) k = s.indexOf("\\tfrac");
+    if (k < 0) break;
+    var after = s.slice(k).match(/^\\(?:dfrac|tfrac|frac)/);
+    if (!after) break;
+    var p = k + after[0].length;
+    var a = readBraceGroup(s, p);
+    if (!a){ s = s.slice(0, k) + s.slice(p); continue; }   /* \frac 后不是 { → 去掉命令 */
+    var b = readBraceGroup(s, a.next);
+    if (!b){ s = s.slice(0, k) + s.slice(p); continue; }
+    s = s.slice(0, k) + "\u0006" + a.body + "\u0006" + b.body + "\u0006" + s.slice(b.next);
+  }
+  return s;
+}
+/* 收尾：转义 → 放行自己生成的上标/下标 → 还原屏蔽起来的 HTML 片段。
+   ★ 递归调用（分式的分子分母、根号内容）也要走这一遍 —— 第一版只在最外层做，
+     结果递归出来的片段里 \u0001SUP\u0001 标记原样留在了页面上（实测踩到）。 */
+function finalizeMath(s){
+  var out = escapeHtml(s);
+  out = out.replace(/\u0001SUP\u0001([\s\S]*?)\u0002/g, "<sup>$1</sup>");
+  out = out.replace(/\u0001SUB\u0001([\s\S]*?)\u0002/g, "<sub>$1</sub>");
+  return releaseShielded(out);
+}
+/* 递归渲染一个子片段（分式的分子/分母、根号的内容）。
+   ★ 必须容忍失败：`\frac{体重}{身高^{2}}` 的分子是纯中文，renderMath 会判成
+     "不是公式"返回 null（这个判定是为了别把「价格是 $5 到 $10」当公式）。
+     直接把它写进 HTML 就会在页面上出现字面的 "null" —— 实测踩过。
+     失败时按纯文字转义输出即可，那本来就是文字。 */
+function mathPart(src, depth){
+  var t = String(src === undefined || src === null ? "" : src).trim();
+  var h = renderMath(t, (depth || 0) + 1);
+  return (h === null) ? escapeHtml(t) : h;   /* 不是公式的片段（如纯中文）按文字输出 */
+}
+/* 把 \u0006num\u0006den\u0006 展开成竖排 HTML，内容递归渲染后再屏蔽起来。
+   ★ 递归结果必须先 shield：renderMath 内部已经做过 escapeHtml，外层再来一次
+     会把 <span> 变成 &lt;span&gt;。 */
+function renderFracs(s, depth){
+  if (depth > 6) return s;
+  var guard = 0;
+  while (guard++ < 40 && s.indexOf("\u0006") >= 0){
+    var a = s.indexOf("\u0006");
+    var b = s.indexOf("\u0006", a + 1);
+    if (b < 0) break;
+    var c = s.indexOf("\u0006", b + 1);
+    if (c < 0) break;
+    var num = s.slice(a + 1, b), den = s.slice(b + 1, c);
+    var html = '<span class="frac"><span><span>' + mathPart(num, depth) +
+               '</span></span><span><span>' + mathPart(den, depth) +
+               '</span></span></span>';
+    s = s.slice(0, a) + shield(html) + s.slice(c + 1);
+  }
+  return s;
+}
+/* 括号里还有括号时（比如 ^{2} 套在分式的分母里），正则去不掉那层花括号。
+   花括号在公式里只是"分组"，对显示没有意义，所以配平就整个脱掉。
+   紧跟 ^ _ 的要留给上下标那一步（那里需要配对扫描取内容）。 */
+function stripBraces(s){
+  var guard = 0, prev = null;
+  while (s !== prev && guard++ < 20){
+    var cur = s;
+    prev = s;
+    s = s.replace(/\{([^{}]*)\}/g, function(m, inner, off){
+      var before = cur.charAt(off - 1);
+      if (before === "^" || before === "_") return m;
+      return inner;
+    });
+  }
+  return s;
+}
+/* 段内公式：一段里的空格在 LaTeX 里大多没有意义，直接吃掉。
+   但如果是「文字 空格 命令」（如 \bar{x} = ... 里的 " = "）就保留 ——
+   不留空格会拼成 x̄=...，纯字母连写的公式会糊成一片。 */
+function tightenMath(s){
+  return String(s).replace(/[ \t]{2,}/g, " ")
+                  .replace(/([A-Za-z0-9)}])\s+([A-Za-z0-9({])/g, "$1$2");
+}
+/* 这段文字看起来像不像公式（防止把「价格是 $5 到 $10」当公式）。
+   ★ 顺序有讲究：
+     1) 有 LaTeX 命令 → 一定是公式
+     2) 上下标信号要排在"含中文就不是公式"【前面】，否则 \frac{体重}{身高^{2}}
+        的分母 身高^{2} 会被判成非公式，递归那一支失败、标记漏到页面上（实测踩到）
+     3) 但 ^ _ 不能单独当判据：`foo_bar` 这类标识符会被误判，所以含中文时要求
+        上标/下标旁边有数字/括号/花括号，或者有 = + * / 这类运算符
+     ★ 已知误判：`looks_like_math` 这种下划线标识符（两边都是字母、没数字）
+       仍会被当成公式。纯靠文本没法干净区分它和 x_i，而界面里公式远比这类
+       标识符常见，所以按"当公式"处理。 */
+function looksLikeMath(s){
+  s = String(s || "");
+  if (!s.trim()) return false;
+  if (/\\[a-zA-Z]+/.test(s)) return true;                 /* 有命令 → 是公式（含 \text{中文}） */
+  if (/^[\x20-\x7e]+$/.test(s)) return true;              /* 纯 ASCII 可打印（$b$ $i$ $O(n)$） */
+  if (/[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]/.test(s)){
+    return /[\^_]\s*[0-9({]/.test(s) || /[=+*/<>]/.test(s);   /* 含中文：只认明显的数学 */
+  }
+  return /[\^_=]/.test(s);
+}
+/* 认不出来返回 null → 调用方把整条 $...$ 按原文留着。
+   ------------------------------------------------------------------
+   处理顺序（★ 每一步的位置都是有原因的，改顺序前先看注释）：
+     1 分式 \frac{}{} 摘成配对标记，**内容先不渲染**（要递归）
+     2 字号命令 \small 等 → 空操作
+     3 附加符号 \bar{} \vec{} → 组合字符
+     4 分段函数 \begin{cases}
+     5 \text{} / \sqrt{}
+     6 脱花括号 → 上下标 → 再脱一次
+     7 符号表 → 认不出来就整条放弃
+     8 展开分式（**必须最后**）：这一步才会把分子分母递归渲染成 HTML
+     9 转义 → 放行上标/下标 → 还原屏蔽的 HTML
+   第 8 步为什么必须最后：分子分母要先走完 2-7（它们自己也是公式），
+   否则里面的 ^{2}、\sum 会被后面的规则二次处理 —— 实测就是这样出错的。
+   ------------------------------------------------------------------ */
+function renderMath(inner, depth){
+  depth = depth || 0;
+  var s = String(inner === undefined || inner === null ? "" : inner).trim();
+  if (!s || depth > 6 || !looksLikeMath(s)) return null;
+    var guard = 0;
+
+  /* 1 分式摘成标记 */
+  s = extractFracs(s);
+
+  /* 2 尺寸/间距类命令 = 空操作。100Days 里 80 个行内公式有 73 个带 \small，
+       原来正因为"不认识"而整条不渲染 —— 这是"LaTeX 没渲染"的主因。
+       ★ MATH_NOOP 不能带 /g：带 g 的正则 .test() 会记住 lastIndex，
+         循环里行为不可预测。 */
+  while (MATH_NOOP.test(s) && guard++ < 80) s = s.replace(MATH_NOOP, "");
+
+  /* 3 \bar{x} \vec{v} \hat{x} → x̄ v⃗ x̂（组合附加符号紧跟在字母后）。
+       用配对扫描而不是正则：参数里可能有嵌套。附加符号写成 \u 转义，
+       免得源码里出现不可见的组合字符（复制粘贴时极易被吃掉）。 */
+  var ACCENT = { bar: "\u0304", vec: "\u20D7", hat: "\u0302",
+                 tilde: "\u0303", dot: "\u0307", ddot: "\u0308" };
+  guard = 0;
+  while (guard++ < 30){
+    var am = /\\(bar|vec|hat|tilde|dot|ddot)\s*\{/.exec(s);
+    if (!am) break;
+    var ag = readBraceGroup(s, am.index + am[0].length - 1);
+    if (!ag){ s = s.slice(0, am.index) + s.slice(am.index + am[0].length); continue; }
+    s = s.slice(0, am.index) + ag.body + ACCENT[am[1]] + s.slice(ag.next);
+  }
+
+  /* 4 分段函数 → 一行 { a，当 条件；b，当 条件 } */
+  s = s.replace(/\\begin\{cases\}([\s\S]*?)\\end\{cases\}/g, function(m, body){
+    var rows = body.replace(/\\\\(?:\[[^\]]*\])?/g, "\u0001ROW\u0001").split("\u0001ROW\u0001");
+    var parts = [];
+    rows.forEach(function(r){
+      r = r.replace(/&/g, "\u0001AMP\u0001").trim();
+      if (!r) return;
+      var seg = r.split("\u0001AMP\u0001");
+      var lhs = tightenMath(String(seg[0] || "").trim());
+      var rhs = String(seg[1] || "").replace(/\u0001AMP\u0001/g, "").trim();
+      parts.push(rhs ? (lhs + "，当 " + rhs) : lhs);
+    });
+    return "⎧ " + parts.join("；") + " ⎨ ⎩";
+  });
+  if (/\\begin\{|\\end\{/.test(s)) return null;        /* 别的环境不认识 → 整条留原文 */
+
+  /* 5 其余 \\ （换行）当分隔符；\text{} / \sqrt{} 取参数（靠花括号界定，
+       所以必须排在"脱花括号"之前 —— 先脱会把 \bar{x} 变成 \barx）。 */
+  s = s.replace(/\\\\/g, " ; ");
+  guard = 0;
+  while (guard++ < 20){
+    var mm = /\\(text|mathrm|mathbf|mathit|operatorname|sqrt)\s*\{/.exec(s);
+    if (!mm) break;
+    var g = readBraceGroup(s, mm.index + mm[0].length - 1);
+    if (!g){ s = s.slice(0, mm.index) + s.slice(mm.index + mm[0].length); continue; }
+    /* \sqrt 的内容也是公式 → 递归渲染后屏蔽起来；\text 的内容是纯文字 */
+    var repl = (mm[1] === "sqrt")
+      ? shield("√(" + mathPart(g.body, depth) + ")")
+      : g.body;
+    s = s.slice(0, mm.index) + repl + s.slice(g.next);
+  }
+  s = s.replace(/\\sqrt\s*([A-Za-z0-9])/g, "√($1)");
+
+  /* 6 花括号只是"分组"，对显示没意义 → 脱掉；紧跟 ^ _ 的留给下一步。
+       ★ 上下标在这里就地换成 <sup>/<sub> 并**立刻屏蔽**（不是留到最后）。
+         原因：第 8 步展开分式时要把分子分母交给递归 renderMath，如果此时它们
+         还带着 \u0001SUP\u0001 这种中间标记，递归那一层不认识它，会当成普通
+         文字转义掉 —— 页面上就会出现字面的标记（这个 bug 找了很久）。
+         先屏蔽成 HTML，递归和最终转义都不会再碰它。 */
+  s = stripBraces(s);
+  s = s.replace(/\^\s*\{([^{}]*)\}/g, function(m, a){ return shield("<sup>" + a + "</sup>"); });
+  s = s.replace(/_\s*\{([^{}]*)\}/g, function(m, a){ return shield("<sub>" + a + "</sub>"); });
+  s = s.replace(/\^\s*([A-Za-z0-9+\-])/g, function(m, a){ return shield("<sup>" + a + "</sup>"); });
+  s = s.replace(/_\s*([A-Za-z0-9+\-])/g, function(m, a){ return shield("<sub>" + a + "</sub>"); });
+  s = stripBraces(s);
+
+  /* 7 间距命令 + 符号表；认不出来就整条放弃（宁可原样显示，也不显示半个公式） */
+  s = s.replace(/\s*\\[,;:]\s*/g, "\u2009").replace(/\s*\\!\s*/g, "").replace(/\\ /g, " ");
+  var unknown = null;
+  s = s.replace(/\\([a-zA-Z]+)/g, function(m, name){
+    var v = MATH_SYMBOLS[name];
+    if (v === undefined){ if (!unknown) unknown = name; return m; }
+    return v;
+  });
+  if (unknown) return null;
+  if (s.indexOf("\\") >= 0) return null;             /* 还剩反斜杠 → 放弃 */
+
+  /* 8 ★ 最后才展开分式：此时分子分母已经走完 2-7，可以安全地递归渲染。
+       提前展开的话，它们会被 6/7 二次处理，内容退化成标记形式（实测踩过）。 */
+  s = renderFracs(s, depth);
+
+  /* 9 收尾 */
+  return finalizeMath(s);
+}
+/* 独立成行的公式块。100Days 里有 8 处、讲义里也有 —— 原来 inline() 只认
+   单个 $，`$$` 完全没处理，所以这些公式原样显示成一堆反斜杠。
+   renderMath 认不出来就**原样输出**（宁可显示原文，也不要显示半个公式）。 */
+function mathBlockHtml(src){
+  var t = String(src).replace(/\u0001ROW\u0001/g, "\\").trim();
+  var html = renderMath(t);
+  var body = (html === null) ? escapeHtml(t) : html;
+  return '<div class="md-math">' + body + "</div>";
+}
+
+/* 行内：先把 `代码` 和 markdown 图片摘出来（摘出来的不再参与转义前的匹配），
+   再整体 escapeHtml，再做 粗体 / 链接，最后把摘出来的和白名单标签占位符还原。 */
+function inline(text){
+  var codes = [], imgs = [], maths = [];
+  var s = String(text === undefined || text === null ? "" : text);
+  s = s.replace(/`([^`\n]+)`/g, function(m, c){ codes.push(c); return "\u0001" + (codes.length - 1) + "\u0001"; });
+  /* markdown 图片（讲义/100Days 里几乎没有，但支持一下，走同一套 src 校验） */
+  s = s.replace(/!\[([^\]\n]*)\]\(([^)\s]+)\)/g, function(m, a, u){
+    var url = safeImgSrc(String(u).replace(/&amp;/g, "&"));
+    if (url === null) return m;
+    imgs.push('<img src="' + attr(url) + '" alt="' + attr(a) + '" style="max-width:100%">');
+    return "\u0003" + (imgs.length - 1) + "\u0003";
+  });
+  /* $...$ 行内公式（代码块 / 行内 code 里的 $ 已经在上面被摘走了，走不到这里） */
+  s = s.replace(/\$([^$\n]+)\$/g, function(m, inner){
+    var html = renderMath(inner);
+    if (html === null) return m;          /* 不认识 / 不像公式 → 整条按原文显示 */
+    maths.push(html);
+    return "\u0004" + (maths.length - 1) + "\u0004";
+  });
+  s = escapeHtml(s);
+  s = s.replace(/\[([^\]\n]+)\]\(([^)\s]+)\)/g, function(m, t, u){
+    /* ★ u 是在 escapeHtml 之后拿到的，已经带实体了；先还原再校验、再转义一次，
+       否则 & 会变成 &amp;amp;（"合法输入 → 错输出"）。 */
+    var href = safeUrl(unescapeEntities(u));
+    if (href === "#") return t;
+    return '<a href="' + attr(href) + '" target="_blank" rel="noopener noreferrer">' + t + "</a>";
+  });
+  s = s.replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>");
+  s = s.replace(/\u0001(\d+)\u0001/g, function(m, i){
+    var c = codes[Number(i)];
+    return "<code>" + escapeHtml(c === undefined ? "" : c) + "</code>";
+  });
+  s = s.replace(/\u0003(\d+)\u0003/g, function(m, i){
+    return imgs[Number(i)] === undefined ? "" : imgs[Number(i)];
+  });
+  s = s.replace(/\u0004(\d+)\u0004/g, function(m, i){
+    return maths[Number(i)] === undefined ? "" : maths[Number(i)];
+  });
+  /* 白名单标签占位符 → 我自己写死的字面量 */
+  s = s.replace(/\u0002(\d+)\u0002/g, function(m, i){
+    return CUR_TOKENS[Number(i)] === undefined ? "" : CUR_TOKENS[Number(i)];
+  });
+  return s;
+}
+
+var BLOCK_START = /^(\s*(#{1,6})\s|\s*```|\s*~~~|\s*>|\s*([-*+])\s|\s*\d+[.)]\s|\s*(-{3,}|\*{3,}|_{3,})\s*$|\s*\|)/;
+function isBlank(l){ return !l || !l.trim(); }
+
+/* 列表项：源文件里「1. / 空行 / 1.」是**同一个 loose list**（CommonMark），
+   所以空行不终止列表 —— 只要后面还有同类型的列表标记就继续并进去。
+   中间隔着标题/正文段落/图片的，才是新列表。
+   另外讲义里有一处「列表项里开了一个 <details>」，那个整段要收进同一项。 */
+function parseListItems(lines, start, ordered){
+  var re = ordered ? /^\s*\d+[.)]\s+(.*)$/ : /^\s*[-*+]\s+(.*)$/;
+  var list = [], i = start;
+  while (i < lines.length){
+    var m = lines[i].match(re);
+    if (m){
+      list.push(m[1]); i++;
+      /* 这一项里开了 details/figure 却没闭合 → 一直吃到配对为止（含空行），顺手去掉缩进 */
+      while (i < lines.length && blockDepth(list[list.length - 1]) > 0){
+        list[list.length - 1] += "\n" + lines[i].replace(/^[ \t]+/, ""); i++;
+      }
+      continue;
+    }
+    if (isBlank(lines[i])){
+      var j = i;
+      while (j < lines.length && isBlank(lines[j])) j++;
+      if (j < lines.length && (j - i) <= 3 && re.test(lines[j])){ i = j; continue; }  /* loose list */
+      break;
+    }
+    /* 缩进续行：并进当前项 */
+    if (!BLOCK_START.test(lines[i]) && !lineIsTagBlock(lines[i]) && /^\s+\S/.test(lines[i]) && list.length){
+      list[list.length - 1] += " " + lines[i].trim(); i++; continue;
+    }
+    break;
+  }
+  return { list: list, next: i };
+}
+function renderListItem(x){
+  if (x.indexOf("\n") >= 0) return "<li>" + renderTextBlock(x) + "</li>";
+  return "<li>" + inline(x) + "</li>";
+}
+
+function renderTextBlock(text){
+  var lines = String(text).split("\n");
+  var out = [], i = 0;
+  function stops(l){ return BLOCK_START.test(l) || lineIsTagBlock(l); }
+  while (i < lines.length){
+    var line = lines[i];
+    if (isBlank(line)){ i++; continue; }
+    /* details / figure / summary / figcaption 自己占一块（不包 <p>，否则折叠开关会失效） */
+    if (lineIsTagBlock(line)){ out.push(inline(line)); i++; continue; }
+    var h = line.match(/^(#{1,6})\s+(.*?)\s*#*\s*$/);
+    if (h){
+      var lv = Math.min(6, h[1].length);
+      out.push('<h4 class="md-h md-h' + lv + '">' + inline(h[2]) + "</h4>");
+      i++; continue;
+    }
+    if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)){ out.push('<hr class="md-hr">'); i++; continue; }
+    if (/^\s*```/.test(line) || /^\s*~~~/.test(line)){ i++; continue; }  /* 理论上到不了 */
+    /* 独立成行的公式：$$ 独占一行（可能跨多行，比如 \begin{cases}），
+       或者 $$...$$ 写在同一行。讲义和 100Days 都有这种写法，
+       原来只认行内单个 $，所以这些公式原样显示成一堆反斜杠。 */
+    if (/^\s*\$\$/.test(line)){
+      var buf = [];
+      var rest = line.replace(/^\s*\$\$/, "");
+      if (/\$\$/.test(rest)){                       /* $$公式$$ 同一行 */
+        buf.push(rest.replace(/\$\$.*$/, ""));
+        i++;
+      } else {                                      /* $$ 独占一行 → 吃到闭合的 $$ */
+        if (rest.trim()) buf.push(rest);
+        i++;
+        while (i < lines.length && !/\$\$/.test(lines[i])){ buf.push(lines[i]); i++; }
+        if (i < lines.length){ buf.push(lines[i].replace(/\$\$.*$/, "")); i++; }
+      }
+      /* 跨行时行之间补一个换行标记 —— cases 环境靠它分行（用占位符是为了
+         不被后面"还有反斜杠残留 = 转换失败"的检查误判） */
+      var joined = buf.map(function(x){ return String(x).trim(); })
+                      .filter(function(x){ return x !== ""; })
+                      .join(" \u0001ROW\u0001 ");
+      out.push(mathBlockHtml(joined));
+      continue;
+    }
+    /* 管道表格：本行是 |…|，下一行是 |---|---| */
+    if (/^\s*\|/.test(line) && i + 1 < lines.length && /^\s*\|[\s:|-]+\|\s*$/.test(lines[i + 1])){
+      var head = splitRow(line);
+      i += 2;
+      var rows = [];
+      while (i < lines.length && /^\s*\|/.test(lines[i])){ rows.push(splitRow(lines[i])); i++; }
+      var t = ['<table class="md-table"><thead><tr>'];
+      head.forEach(function(c){ t.push("<th>" + inline(c) + "</th>"); });
+      t.push("</tr></thead><tbody>");
+      rows.forEach(function(r){
+        t.push("<tr>");
+        for (var k = 0; k < head.length; k++) t.push("<td>" + inline(r[k] === undefined ? "" : r[k]) + "</td>");
+        t.push("</tr>");
+      });
+      t.push("</tbody></table>");
+      out.push(t.join(""));
+      continue;
+    }
+    /* 引用块 */
+    if (/^\s*>/.test(line)){
+      var q = [];
+      while (i < lines.length && /^\s*>/.test(lines[i])){
+        q.push(lines[i].replace(/^\s*>\s?/, "")); i++;
+      }
+      out.push("<blockquote><p>" + q.map(inline).join("<br>") + "</p></blockquote>");
+      continue;
+    }
+    /* 列表（缩进层级一律拉平，讲义里最多两层） */
+    if (/^\s*[-*+]\s+/.test(line) || /^\s*\d+[.)]\s+/.test(line)){
+      var ordered = /^\s*\d+[.)]\s+/.test(line);
+      var r = parseListItems(lines, i, ordered);
+      i = r.next;
+      out.push((ordered ? "<ol>" : "<ul>") + r.list.map(renderListItem).join("") +
+               (ordered ? "</ol>" : "</ul>"));
+      continue;
+    }
+    /* 段落 */
+    var para = [line];
+    i++;
+    while (i < lines.length && !isBlank(lines[i]) && !stops(lines[i])){
+      para.push(lines[i]); i++;
+    }
+    out.push("<p>" + para.map(inline).join("<br>") + "</p>");
+  }
+  return out.join("\n");
+}
+function splitRow(line){
+  var s = String(line).trim().replace(/^\|/, "").replace(/\|\s*$/, "");
+  return s.split("|").map(function(c){ return c.trim(); });
+}
+
+/* 剥掉围栏那一层的公共缩进：最多去掉 pad 个空白字符（不足就全去掉）；空行归零。
+   ★ 用的是【开围栏那一行】的缩进 pad，不是"内容各行的最小缩进" ——
+     后者会把程序自己的循环体缩进一起毁掉。 */
+function dedentLine(line, pad){
+  if (!pad) return line;
+  var s = String(line), k = 0;
+  while (k < pad && k < s.length && (s.charAt(k) === " " || s.charAt(k) === "\t")) k++;
+  return s.slice(k);
+}
+/* 围栏代码块先切出来，保证代码里的 <tag> 一个都不被 normalize 动到。
+   ★ info string 允许带空白（```python {hl_lines=[1]} 这种），和内容管道的 Python 侧
+     （`_build-json.py` 用的是 `([^`~]*)`）对齐 —— 否则两边解析同一份 markdown 结果不同：
+     带属性的围栏不算围栏 → 闭合围栏反被当新开 → 后面正文整段被吞成代码。
+   ★ 闭合围栏必须 >= 开启长度（CommonMark），否则 4 反引号会被内部的 3 反引号提前闭合。 */
+function splitFences(src){
+  var lines = String(src).split("\n"), segs = [], buf = [], i = 0;
+  while (i < lines.length){
+    /* 列表项里的围栏是合法 markdown（整块缩进 4 格），必须按标准把这一层缩进剥掉，
+       否则第一行带着 4 个空格进 Python = IndentationError */
+    var m = lines[i].match(/^([ \t]*)(```+|~~~+)[ \t]*([^`~]*)$/);
+    if (!m){ buf.push(lines[i]); i++; continue; }
+    if (buf.length){ segs.push({ t: "text", v: buf.join("\n") }); buf = []; }
+    var pad = m[1].length, fence = m[2], mark = fence.charAt(0), fenceLen = fence.length;
+    var code = [];
+    i++;
+    var closed = false;
+    while (i < lines.length){
+      var cm = lines[i].match(/^[ \t]*(`{3,}|~{3,})[ \t]*$/);
+      if (cm && cm[1].charAt(0) === mark && cm[1].length >= fenceLen){ closed = true; i++; break; }
+      code.push(dedentLine(lines[i], pad));
+      i++;
+    }
+    segs.push({ t: "code", v: code.join("\n"), lang: String(m[3] || "").trim(), closed: closed });
+  }
+  if (buf.length) segs.push({ t: "text", v: buf.join("\n") });
+  return segs;
+}
+function renderMarkdown(md, opts){
+  if (md === undefined || md === null) return "";
+  var segs = splitFences(String(md).replace(/\r\n?/g, "\n"));
+  /* 先去掉注释，再让 6 个白名单标签配对（配对栈跨文本段共享，
+     所以 <details> 和 </details> 中间夹一个围栏代码块也能配上）。
+     代码段完全不参与配对：里面的 <img>/<details> 会当普通代码文字转义。 */
+  segs.forEach(function(sg){ if (sg.t === "text") sg.v = normalizeNotesHtml(sg.v); });
+  CUR_TOKENS = [];
+  var stack = [];
+  var plans = segs.map(function(sg){ return sg.t === "code" ? [] : planAllowedTags(sg.v, stack); });
+  var out = [];
+  var codeIdx = 0;
+  segs.forEach(function(sg, si){
+    if (sg.t === "code"){
+      var html = '<pre class="md-pre"><code>' + escapeHtml(sg.v) + "</code></pre>";
+      /* opts.codeBlock 让调用方（AI 解析）能给每个代码块挂工具栏 */
+      if (opts && typeof opts.codeBlock === "function"){
+        var custom = opts.codeBlock({ index: codeIdx, lang: sg.lang, code: sg.v, closed: sg.closed });
+        if (custom) html = custom;
+      }
+      codeIdx++;
+      out.push(html);
+    }else{
+      out.push(renderTextBlock(applyTokens(sg.v, plans[si])));
+    }
+  });
+  return out.join("\n");
+}
+
+/* =====================================================================
+ * body_md 的第一行就是它自己的标题（内容管道为了让 body_md 能按 notes_lines
+ * 逐字取回，特意保留了那一行）→ 卡片上会跟标题重复。渲染前跳过它。
+ * 只有文本和 point.title 对得上（或互相包含）才跳，避免误删正文里的小标题。
+ * =================================================================== */
+function stripLeadingTitle(bodyMd, title){
+  var s = String(bodyMd === undefined || bodyMd === null ? "" : bodyMd).replace(/\r\n?/g, "\n");
+  var lines = s.split("\n"), k = 0;
+  while (k < lines.length && isBlank(lines[k])) k++;
+  if (k >= lines.length) return s;
+  var m = lines[k].match(/^(#{1,6})\s+(.*?)\s*#*\s*$/);
+  if (!m) return s;
+  function norm(x){ return String(x == null ? "" : x).replace(/\s+/g, "").replace(/[。：:、.，,；;]+$/, ""); }
+  var head = norm(m[2]), t = norm(title);
+  if (!head || !t) return s;
+  if (head !== t && head.indexOf(t) < 0 && t.indexOf(head) < 0) return s;   /* 对不上 → 不跳 */
+  var j = k + 1;
+  while (j < lines.length && isBlank(lines[j])) j++;
+  return lines.slice(j).join("\n");
+}
+
+/* =====================================================================
+ * 状态
+ * =================================================================== */
+var S = {
+  chapters: [],
+  videos: null,
+  daysIndex: null,
+  chapterReg: null,       /* content/notes/_chapters.json：章首/章末的课件页从这里取 */
+  steps: [],
+  cur: 0,
+  loadErrors: [],
+  tried: false,
+  slideCache: {},
+  slideExpanded: {},      /* "p:ch02:ch02-s04-p02" -> true：课件缩略图那一行是否展开全部 */
+  videoPage: {},          /* pointId -> 用户点「补充」后切到的分P */
+  resumeHidden: false
+};
+/* =====================================================================
+ * 进度：★ 已经砍掉了。只留两样东西：
+ *   · days     —— 🔥 连续天数（按日期记，跟讲义怎么改无关，自动更新打不到它）
+ *   · bookmark —— {ch, s, p} 位置书签（「继续上次」用），**不参与任何统计**
+ * 被砍掉的（用户已知情并接受可见后果）：
+ *   已学标记 / 跑过次数 / 学习时长 / 上次那个知识点 id，外加一整套"防脏键"机制
+ *   —— 那些东西都挂在"知识点 id 永远不变"这个假设上，而 id 会随讲义重排而变。
+ * ★ 旧的 ic.terminal.progress.v1 一律【不再写】，原样留在盘上（万一要回滚还有依据）。
+ * =================================================================== */
+var DKEY = "ic.days.v1";                 /* 新的天数 key（老 key 只读一次做兼容） */
+var P = { days: [], bookmark: null };
+
+var POINT_ID_RE = /^ch\d{2}-s\d{2}-p\d{2}$/;
+function isPointId(k){ return POINT_ID_RE.test(String(k === undefined || k === null ? "" : k)); }
+function loadProgress(){
+  P = { days: [], bookmark: null };
+  try{
+    var raw = localStorage.getItem(DKEY);
+    if (raw){
+      var o = JSON.parse(raw);
+      if (o && typeof o === "object" && Array.isArray(o.days)){
+        P.days = o.days.filter(function(x){ return typeof x === "string"; });
+      }
+      if (o && o.bookmark && typeof o.bookmark === "object") P.bookmark = normBookmark(o.bookmark);
+      return;
+    }
+    /* 一次性兼容：新 key 还没有时，从老的进度里【只读】days（🔥 连续天数不能丢）。
+       老 key 绝不回写 —— 那个文件原样留着。 */
+    var old = localStorage.getItem(PKEY);
+    if (!old) return;
+    var p = JSON.parse(old);
+    if (p && typeof p === "object" && Array.isArray(p.days)){
+      P.days = p.days.filter(function(x){ return typeof x === "string"; });
+    }
+  }catch(e){ /* 隐私模式 / 坏数据：当作全新，不崩 */ }
+}
+function normBookmark(b){
+  if (!b || typeof b !== "object") return null;
+  var ch = String(b.ch === undefined || b.ch === null ? "" : b.ch);
+  var s = Number(b.s), p = Number(b.p);
+  if (!ch || !isFinite(s) || !isFinite(p)) return null;
+  return { ch: ch, s: s, p: p };
+}
+/* 只写新 key（days + bookmark），绝不碰老 key */
+function saveProgress(){
+  try{
+    localStorage.setItem(DKEY, JSON.stringify({ days: P.days, bookmark: P.bookmark }));
+  }catch(e){ /* 忽略 */ }
+}
+function markToday(){
+  var t = todayStr();
+  if (P.days.indexOf(t) < 0){ P.days.push(t); P.days.sort(); }
+}
+
+/* =====================================================================
+ * 版面偏好（左栏 / 右栏 / 终端）—— 单独一个 key，不动学习进度
+ * =================================================================== */
+var UIKEY = "ic.ui.v1";
+var ui = { toc: "1", rail: "1", repl: "0", replh: 300 };
+var TOCOPE_W = 1100;      /* ≥ 这个宽度：目录常驻左栏 */
+var RAIL_W = 1400;        /* ≥ 这个宽度：材料栏常驻右侧 */
+var S_TOcDRAWER = { open: false };   /* 窄屏抽屉的临时开关，不落盘 */
+
+function loadUi(){
+  ui = { toc: "1", rail: "1", repl: "0", replh: 300 };
+  try{
+    var raw = localStorage.getItem(UIKEY);
+    if (!raw) return;
+    var o = JSON.parse(raw);
+    if (!o || typeof o !== "object") return;
+    if (o.toc === "0" || o.toc === "1") ui.toc = o.toc;
+    if (o.rail === "0" || o.rail === "1") ui.rail = o.rail;
+    if (o.repl === "0" || o.repl === "1") ui.repl = o.repl;
+    if (typeof o.replh === "number" && o.replh >= 120 && o.replh <= 1200) ui.replh = o.replh;
+  }catch(e){ /* 坏数据/隐私模式：用默认值，不崩 */ }
+}
+function saveUi(){
+  try{ localStorage.setItem(UIKEY, JSON.stringify(ui)); }catch(e){ /* 忽略 */ }
+}
+/* 断点判断：matchMedia 不在（老环境/测试桩）就当窄屏 */
+function isWide(px){
+  try{
+    if (typeof window !== "undefined" && window.matchMedia){
+      return !!window.matchMedia("(min-width:" + px + "px)").matches;
+    }
+  }catch(e){ /* 落到下面 */ }
+  return false;
+}
+function tocVisible(){
+  return isWide(TOCOPE_W) ? (ui.toc === "1") : S_TOcDRAWER.open;
+}
+function railVisible(){ return isWide(RAIL_W) && ui.rail === "1"; }
+function replOpen(){ return ui.repl === "1"; }
+
+/* 把版面状态刷到 DOM 上：谁显示、谁隐藏、按钮什么字 */
+function applyChrome(){
+  var wide = isWide(TOCOPE_W), wideRail = isWide(RAIL_W);
+  try{ document.body.setAttribute("data-wide", wide ? "1" : "0"); }catch(e){}
+  if ($("toc")) $("toc").hidden = !tocVisible();
+  if ($("rail")){
+    /* 宽屏才显示右栏；用户收起时不是"藏起来"，而是挤成一条窄边 + 一个 › ——
+       这样永远找得回来（否则收起之后就再没有入口了） */
+    $("rail").hidden = !wideRail;
+    if ($("rail").classList) $("rail").classList.toggle("collapsed", wideRail && ui.rail !== "1");
+  }
+  if ($("btnRailClose")){
+    var open = ui.rail === "1";
+    $("btnRailClose").textContent = open ? "‹" : "›";
+    $("btnRailClose").setAttribute("aria-label", open ? "收起材料栏" : "展开材料栏");
+    $("btnRailClose").setAttribute("title", open ? "收起材料栏" : "展开材料栏");
+  }
+  if ($("repl")){
+    $("repl").hidden = !replOpen();
+    $("repl").style.height = ui.replh + "px";
+  }
+  if ($("btnToc")){
+    /* ★ 这里以前写的是 $("btnToc").textContent = "☰ 目录"，把按钮里那个 SVG 图标
+       **整个抹掉**了 —— 窄栏（图标栏只有 48px）里剩下的文字只能竖着折成"目/录"，
+       和旁边一排图标完全不是一回事。图标是天生的样式，不该由 JS 改写成文字。
+       状态只靠 .on 类表达（和 btnRepl 一致），文字留给 data-tip / aria-label。 */
+    var ton = tocVisible();
+    if ($("btnToc").classList) $("btnToc").classList.toggle("on", ton);
+    $("btnToc").setAttribute("aria-pressed", ton ? "true" : "false");
+    $("btnToc").setAttribute("data-tip", ton ? "目录 · 已展开，点一下收起" : "目录 · 章节 / 小节 / 知识点");
+  }
+  if ($("btnRepl") && $("btnRepl").classList) $("btnRepl").classList.toggle("on", replOpen());
+  /* 遮罩只在「窄屏抽屉打开」或「有弹层」时出现 */
+  if ($("scrim")) $("scrim").hidden = !((!wide && S_TOcDRAWER.open) || !$("modal").hidden);
+  /* 🤖 常驻圆钮的显隐也在这里统一管：完整助手面板开着时让位（免得盖住弹层右上角）。
+     放在 applyChrome 里是为了和其他显隐开关待在一起 —— 分两处写迟早会打架。 */
+  asFabSync();
+}
+
+function setTocPref(on){
+  if (isWide(TOCOPE_W)){ ui.toc = on ? "1" : "0"; saveUi(); }
+  else { S_TOcDRAWER.open = !!on; }
+  applyChrome();
+}
+function toggleToc(){
+  if (isWide(TOCOPE_W)) setTocPref(ui.toc !== "1");
+  else setTocPref(!S_TOcDRAWER.open);
+}
+function setRailPref(on){ ui.rail = on ? "1" : "0"; saveUi(); applyChrome(); renderCard(); }
+function setReplPref(on){
+  ui.repl = on ? "1" : "0"; saveUi(); applyChrome();
+  if (on && $("replIn") && $("replIn").focus) $("replIn").focus();
+}
+function setReplHeight(h){
+  h = Math.max(140, Math.min(1200, Math.round(Number(h) || 300)));
+  ui.replh = h; saveUi();
+  if ($("repl")) $("repl").style.height = h + "px";
+}
+
+/* 窗口宽度跨过断点时才重排（不然每次 resize 都会把视频 iframe 重新加载） */
+var _lastWideToc = null, _lastWideRail = null;
+function onWindowResize(){
+  var a = isWide(TOCOPE_W), b = isWide(RAIL_W);
+  if (a === _lastWideToc && b === _lastWideRail) return;
+  _lastWideToc = a; _lastWideRail = b;
+  if (!a) S_TOcDRAWER.open = false;         /* 从宽变窄：抽屉回到关闭 */
+  applyChrome();
+  renderCard();                             /* 卡片底部 chip 的去留会跟着变 */
+}
+
+/* =====================================================================
+ * 数据加载（三个 JSON 都可能还不存在 → 一律优雅降级）
+ * =================================================================== */
+function fetchJson(url){
+  return new Promise(function(resolve, reject){
+    if (typeof fetch !== "function"){ reject(new Error("这个环境没有 fetch")); return; }
+    /* ★ 超时兜底：所有 /update/* 请求最终都走 UPDATE_LOCK，深检在跑时它们会一起排队。
+       没有超时的话，一个卡住的请求会让「检查中…」永远停在按钮上 —— 界面看起来像死了，
+       而用户完全不知道后台其实在干活。宁可 60 秒后明说"超时，可能后台正忙着深检"。 */
+    var ac = null, timer = null;
+    try{
+      if (typeof AbortController === "function"){
+        ac = new AbortController();
+        timer = setTimeout(function(){ try{ ac.abort(); }catch(e){} }, 60000);
+      }
+    }catch(e){ ac = null; }
+    var opts = { cache: "no-store" };
+    if (ac) opts.signal = ac.signal;
+    var done = function(){ if (timer) { clearTimeout(timer); timer = null; } };
+    var p;
+    try{ p = fetch(url, opts); }
+    catch(e){ done(); reject(e); return; }
+    Promise.resolve(p).then(function(r){
+      if (!r || r.ok === false || (r.status && r.status >= 400)){
+        done();
+        reject(new Error(url + " → HTTP " + ((r && r.status) || "?")));
+        return null;
+      }
+      return r.text().then(function(t){ return JSON.parse(t); });
+    }).then(function(j){ done(); if (j !== null && j !== undefined) resolve(j); })
+      .catch(function(e){ done(); reject(e); });
+  });
+}
+function fetchText(url){
+  return new Promise(function(resolve, reject){
+    if (typeof fetch !== "function"){ reject(new Error("这个环境没有 fetch")); return; }
+    var p;
+    try{ p = fetch(url, { cache: "no-store" }); }
+    catch(e){ reject(e); return; }
+    Promise.resolve(p).then(function(r){
+      if (!r || r.ok === false || (r.status && r.status >= 400)){ reject(new Error("HTTP " + ((r && r.status) || "?"))); return null; }
+      return r.text();
+    }).then(function(t){ if (typeof t === "string") resolve(t); })
+      .catch(reject);
+  });
+}
+
+/* ---------- videos.json → point.video（新旧两种形状都吃）----------
+   ★ 新形状（内容管道冻结的那版）：
+     · mapping 的 key = "chNN|" + 该点在 chNN.json 里的 title
+     · mapping[key] = { status:"mapped"|"unmatched"|"pending", point_id, confirmed,
+                        videos:[{page, level, clean_title, duration, confidence}] }
+     · 顶层有 levels：{main:"主线", basic:"基础", extra:"补充", adv:"拔高"} —— UI 直接拿来显示
+     · pages[] 每页有 clean_title（去掉 "第一阶段-第六章-08-" 前缀）
+   ★ 老形状：mapping[pointId] = {page,title,confidence,confirmed,extra:[...]}
+   ★ 过渡期两种都要能命中，所以这里建三张索引：按新 key、按点 id、按 point_id 反查。 */
+var LEVEL_FALLBACK = { main: "主线", basic: "基础", extra: "补充", adv: "拔高" };
+function levelLabel(level, levels){
+  if (level === undefined || level === null || level === "") return "";
+  var key = String(level);
+  if (levels && typeof levels === "object" && levels[key]) return String(levels[key]);
+  return LEVEL_FALLBACK[key] || key;           /* 认不出来就原样显示，别丢信息 */
+}
+/* 显示用标题：优先 clean_title；老数据没这个字段就手工去掉"第一阶段-第六章-08-"那种前缀 */
+function cleanTitleOf(it, page){
+  var t = (it && it.clean_title) || (page && page.clean_title) || "";
+  if (t) return String(t);
+  var raw = String((it && it.title) || (page && page.title) || "");
+  return raw.replace(/^第[一二三四五六七八九十百\d]+阶段-第[一二三四五六七八九十百\d]+章-\d+-/, "");
+}
+function normVideoItem(it, page, levels){
+  if (!it || it.page === undefined || it.page === null) return null;
+  var pg = page || null;
+  var dur = (typeof it.duration === "number") ? it.duration
+          : (pg && typeof pg.duration === "number") ? pg.duration : null;
+  var lv = (it.level === undefined || it.level === null) ? "" : String(it.level);
+  return {
+    page: it.page,
+    title: cleanTitleOf(it, pg),
+    duration: dur,
+    level: lv,
+    label: levelLabel(lv, levels),
+    confidence: (typeof it.confidence === "number") ? it.confidence : null,
+    confirmed: !!it.confirmed
+  };
+}
+function mergeVideos(chapters, videos){
+  if (!videos || typeof videos !== "object") return;
+  var map = (videos.mapping && typeof videos.mapping === "object") ? videos.mapping : {};
+  var levels = (videos.levels && typeof videos.levels === "object") ? videos.levels : null;
+  var pages = {};
+  (Array.isArray(videos.pages) ? videos.pages : []).forEach(function(pg){
+    if (pg && pg.page !== undefined && pg.page !== null) pages[String(pg.page)] = pg;
+  });
+  /* 三张索引：新 key（"chNN|标题"）/ 老 key（点 id）/ point_id 反查 */
+  var byId = {};
+  Object.keys(map).forEach(function(k){
+    var e = map[k];
+    if (!e || typeof e !== "object") return;
+    if (k.indexOf("|") < 0) byId[k] = e;
+    if (typeof e.point_id === "string" && e.point_id) byId[e.point_id] = e;
+  });
+  /* 顺序有讲究：新 key（"chNN|标题"，不随 id 平移）→ 老 key（位置式 id）
+     → point_id 反查。★ 试过再加一层"分P 号 → 知识点"的索引，结论是**它解决不了
+     重命名**：按分P 号查视频的前提是"这个知识点对应哪个分P"，而那个信息正是会随
+     重命名一起丢的东西。加它只会多一个用不上的字段，所以没加。 */
+  chapters.forEach(function(ch){
+    (ch.sections || []).forEach(function(sec){
+      (sec.points || []).forEach(function(p){
+        var own = (p.video && typeof p.video === "object") ? p.video : null;
+        var entry = map[String(ch.chapter) + "|" + String(p.title || "")]
+                 || map[p.id] || byId[p.id] || null;
+        var status = "unmatched", items = [];
+        if (entry && entry.status === "pending"){
+          status = "pending";                      /* ★ 绝不挂错视频 */
+        }else if (entry && entry.status === "unmatched"){
+          status = "unmatched";
+        }else if (entry && Array.isArray(entry.videos) && entry.videos.length){
+          entry.videos.forEach(function(it){
+            var n = normVideoItem(it, pages[String(it.page)], levels);
+            if (n) items.push(n);
+          });
+          status = items.length ? "mapped" : "unmatched";
+        }else if (entry && entry.page !== undefined && entry.page !== null){
+          /* 老形状：主推 + extra 平铺 */
+          var n0 = normVideoItem(entry, pages[String(entry.page)], levels);
+          if (n0) items.push(n0);
+          (Array.isArray(entry.extra) ? entry.extra : []).forEach(function(it){
+            var n = normVideoItem(it, pages[String(it.page)], levels);
+            if (n) items.push(n);
+          });
+          status = items.length ? "mapped" : "unmatched";
+        }else if (own && own.page !== undefined && own.page !== null){
+          /* 知识点自带的 video 字段（chNN.json 里写的） */
+          var o0 = normVideoItem(own, pages[String(own.page)], levels);
+          if (o0) items.push(o0);
+          (Array.isArray(own.extra) ? own.extra : []).forEach(function(it){
+            var n = normVideoItem(it, pages[String(it.page)], levels);
+            if (n) items.push(n);
+          });
+          status = items.length ? "mapped" : "unmatched";
+        }
+        /* 去掉同一个 P 的重复项（老的 extra 可能和主推撞） */
+        var seen = {};
+        items = items.filter(function(it){
+          var k = String(it.page);
+          if (seen[k]) return false;
+          seen[k] = 1; return true;
+        });
+        if (!items.length && status === "mapped") status = "unmatched";
+        /* 主线排最前（数据说已排好，这里再稳一手；其余保持原顺序） */
+        items.sort(function(a, b){
+          var am = a.level === "main" ? 0 : 1, bm = b.level === "main" ? 0 : 1;
+          return am - bm;
+        });
+        var mainItem = items[0] || null;
+        if (!mainItem && !entry && !own){ p.video = null; return; }   /* 什么都没提 → null */
+        p.video = {
+          status: status,
+          bvid: (own && own.bvid) || videos.bvid || null,
+          up: videos.up || "黑马程序员",
+          page: mainItem ? mainItem.page : null,      /* 默认播的那一页 */
+          title: mainItem ? mainItem.title : "",
+          confidence: (entry && typeof entry.confidence === "number") ? entry.confidence
+                    : (mainItem ? mainItem.confidence : null),
+          confirmed: !!(entry && entry.confirmed),
+          items: items,
+          levels: levels                                 /* 留着，换标题时还能用 */
+        };
+      });
+    });
+  });
+}
+
+function buildSteps(){
+  var steps = [];
+  S.chapters.forEach(function(ch, ci){
+    /* 章级材料：intro_md 排在本章第一张卡之前，summary_md 排在最后一张卡之后。
+       它们不是知识点，不进点阵、不影响 n/M 计数。 */
+    if (chapterMd(ch, "intro_md")){
+      steps.push({ kind: "intro", ch: ch, ci: ci, sec: null, secKey: null, total: 0, points: [] });
+    }
+    (ch.sections || []).forEach(function(sec, si){
+      var pts = sec.points || [];
+      pts.forEach(function(p, pi){
+        steps.push({ kind: "point", ch: ch, sec: sec, p: p, ci: ci, si: si, pi: pi,
+                     total: pts.length, secKey: sec.id || (ch.chapter + "-s" + sec.no) });
+      });
+      steps.push({ kind: "end", ch: ch, sec: sec, ci: ci, si: si,
+                   points: pts, total: pts.length, secKey: sec.id || (ch.chapter + "-s" + sec.no) });
+    });
+    if (chapterMd(ch, "summary_md")){
+      steps.push({ kind: "summary", ch: ch, ci: ci, sec: null, secKey: null, total: 0, points: [] });
+    }
+  });
+  S.steps = steps;
+  return steps;
+}
+/* intro_md / summary_md 可能是 null、可能字段不存在 → 都当没有，不渲染空卡 */
+function chapterMd(ch, key){
+  var v = ch ? ch[key] : null;
+  return (typeof v === "string" && v.trim()) ? v : null;
+}
+/* 章级材料的第一行是它自己的 ## 标题（和 body_md 一个规矩）→ 跳掉并留作 kicker */
+function stripLeadingHeading(md){
+  var s = String(md === undefined || md === null ? "" : md).replace(/\r\n?/g, "\n");
+  var lines = s.split("\n"), k = 0;
+  while (k < lines.length && isBlank(lines[k])) k++;
+  if (k >= lines.length) return { title: "", body: s };
+  var m = lines[k].match(/^(#{1,6})\s+(.*?)\s*#*\s*$/);
+  if (!m) return { title: "", body: s };
+  var j = k + 1;
+  while (j < lines.length && isBlank(lines[j])) j++;
+  return { title: m[2], body: lines.slice(j).join("\n") };
+}
+/* 章级卡的「下一步」按钮指向哪一步 */
+function chapterTargetStep(st, isIntro){
+  var i;
+  if (isIntro){
+    for (i = 0; i < S.steps.length; i++){
+      var s = S.steps[i];
+      if (s.kind === "point" && s.ch === st.ch) return i;
+    }
+    return -1;
+  }
+  for (i = 0; i < S.steps.length; i++){
+    var s2 = S.steps[i];
+    if (s2.kind === "point" && s2.ci > st.ci) return i;
+  }
+  return -1;
+}
+function buildChapterCardHtml(st){
+  var isIntro = st.kind === "intro";
+  var src = chapterMd(st.ch, isIntro ? "intro_md" : "summary_md");
+  var head = stripLeadingHeading(src);
+  var out = [];
+  out.push('<div class="kicker">' + escapeHtml(st.ch.chapter + " " + (st.ch.title || "")) +
+    (head.title ? ' · <span class="secTitleInl">' + escapeHtml(head.title) + "</span>" : "") + "</div>");
+  out.push('<h2 class="cardTitle">' + (isIntro ? "🎯 本章要学什么" : "📌 本章总结") + "</h2>");
+  out.push('<div class="body">' + renderMarkdown(head.body) + "</div>");
+  out.push(chapterSlidesHtml(st));      /* ★ 章首/章末自己的课件图（以前这里什么都没有） */
+  if (!isIntro){
+    var pts = [];
+    (st.ch.sections || []).forEach(function(s){ (s.points || []).forEach(function(p){ pts.push(p); }); });
+    /* ★ 这里原来有「本章你标记学完了 N/M 个知识点」—— 进度砍掉后就没有"标记"这回事了 */
+    out.push('<div class="warnbar info" style="margin-top:20px">🏁 本章共 <b>' +
+      escapeHtml(pts.length) + "</b> 个知识点。随时可以回来翻。</div>");
+  }
+  var t = chapterTargetStep(st, isIntro);
+  out.push('<div class="endBtns" style="margin-top:22px">');
+  if (t >= 0){
+    out.push('<button class="primary" data-act="jumpidx" data-idx="' + attr(t) + '">' +
+      (isIntro ? "开始第 1 节 →" : "进入 " + escapeHtml(S.steps[t].ch.chapter) + " 第 " +
+        escapeHtml(S.steps[t].sec.no) + " 节 →") + "</button>");
+  }else{
+    out.push('<span class="endSub">🎉 整门课都走完了，厉害。</span>');
+  }
+  out.push('<button data-act="toc">打开目录</button>');
+  out.push("</div>");
+  return '<div class="endCard chapterCard">' + out.join("") + "</div>";
+}
+
+/* 章节表的权威来源是 content/notes/_chapters.json 的 order[]（安装/重建一章时由
+   内容管道写进来）。以前这里硬编码常量表 CHAPTERS = ch01..ch08 全量试探，没有的章也照发请求，
+   每次启动都在控制台留 5 条红色 404 —— 看起来像"应用加载失败"，其实只是没那几章。
+   现在先读登记表；读不到（老内容层）才退回常量表。 */
+function registryChapterIds(reg){
+  if (!reg || typeof reg !== "object") return null;
+  var ids = [];
+  if (Array.isArray(reg.order)) ids = reg.order.slice();
+  else if (Array.isArray(reg.chapters)){
+    ids = reg.chapters.map(function(c){ return c && (c.id || c.chapter); });
+  }else if (reg.chapters && typeof reg.chapters === "object"){
+    ids = Object.keys(reg.chapters);
+  }
+  ids = ids.filter(function(x){ return typeof x === "string" && /^ch\d{1,3}$/.test(x); });
+  return ids.length ? ids : null;
+}
+function loadData(){
+  S.loadErrors = [];
+  /* 章首/章末卡的课件页也从这份注册表里的 content_page_list 取（读不到就退化成不显示，不崩） */
+  return fetchJson("content/notes/_chapters.json").then(function(reg){ return reg; },
+    function(){ return null; }
+  ).then(function(reg){
+    S.chapterReg = reg || null;
+    var ids = registryChapterIds(reg) || CHAPTERS;
+    return Promise.all(ids.map(function(id){
+      return fetchJson("content/" + id + ".json").then(function(j){ return j; },
+        function(e){ S.loadErrors.push(String(e && e.message ? e.message : e)); return null; });
+    }));
+  }).then(function(list){
+    var chapters = list.filter(function(c){ return c && Array.isArray(c.sections); });
+    /* 只保留真的有点的章节，免得空白章把翻卡卡住 */
+    chapters = chapters.filter(function(c){
+      return c.sections.some(function(s){ return (s.points || []).length > 0; });
+    });
+    S.chapters = chapters;
+    return Promise.all([
+      fetchJson("content/videos.json").then(function(j){ return j; }, function(){ return null; }),
+      fetchJson("content/100days/index.json").then(function(j){ return j; }, function(){ return null; })
+    ]);
+  }).then(function(extra){
+    S.videos = extra[0];
+    S.daysIndex = extra[1];
+    mergeVideos(S.chapters, S.videos);
+    buildSteps();
+    S.tried = true;
+    return S;
+  });
+}
+
+/* 给测试/调试用：直接塞数据 */
+function setData(chapters, videos, daysIndex){
+  S.chapters = chapters || [];
+  S.videos = videos || null;
+  S.daysIndex = daysIndex || null;
+  mergeVideos(S.chapters, S.videos);
+  buildSteps();
+  return S.steps;
+}
+
+/* =====================================================================
+ * 渲染
+ * =================================================================== */
+/* ★ 「是否学完」的判定 /「标记学完」的动作 / 已学计数 都已随进度机制砍掉 */
+function sectionPoints(sec){ return (sec && sec.points) ? sec.points : []; }
+function stepAt(i){ return S.steps[i] || null; }
+
+function biliSrc(bvid, page){
+  return "//player.bilibili.com/player.html?bvid=" + encodeURIComponent(bvid) +
+         "&page=" + encodeURIComponent(page) + "&autoplay=0&high_quality=1";
+}
+/* 去 B 站看完整播放器。
+   ★ 为什么必须有这条出口：嵌入播放器（player.bilibili.com）是**简化版**，控制条里
+     没有倍速、也没有清晰度菜单 —— 那是 B 站嵌入版的限制，URL 参数改不出来
+     （只有 autoplay / danmaku / high_quality 这几个，high_quality 是"允许高清"，
+      不是清晰度选择器）。所以"想调倍速"只能去完整播放器。
+   ★ 用 www.bilibili.com 而不是 m.bilibili.com：手机版页面在桌面浏览器里排版很怪。
+     代价是网页版对未登录用户可能限制清晰度 —— 这一点如实写在按钮的 title 里。
+   ★ autoplay 置 0：浏览器会把带声音的自动播放拦掉，写 1 只会得到"看起来没反应"。 */
+function biliWatchUrl(bvid, page){
+  return "https://www.bilibili.com/video/" + encodeURIComponent(bvid) +
+         (page ? "?p=" + encodeURIComponent(page) : "");
+}
+function fmtDur(sec){
+  if (typeof sec !== "number" || !isFinite(sec) || sec <= 0) return "";
+  return " (" + (sec / 60).toFixed(1) + " min)";
+}
+/* ---------- 一个知识点可以有多个视频（主线 / 基础 / 补充 / 拔高）----------
+   mergeVideos() 已经把两种数据形状归一成 p.video.items 了；
+   这里只负责"还有没有别的地方塞了视频数组"这种兜底（测试会直接塞数组）。 */
+function videoList(v){
+  if (!v || typeof v !== "object") return [];
+  if (Array.isArray(v.items)) return v.items.slice();        /* ★ mergeVideos 归一好的 */
+  var arr = null;
+  ["videos", "list", "parts"].forEach(function(k){
+    if (!arr && Array.isArray(v[k]) && v[k].length) arr = v[k];
+  });
+  var out = [], seen = {};
+  function push(page, title, duration, level, conf, confirmed, pageTitle){
+    if (page === undefined || page === null) return;
+    var k = String(page);
+    if (seen[k]) return;
+    seen[k] = 1;
+    out.push({ page: page, title: cleanTitleOf({ title: title, clean_title: pageTitle },
+                                                { title: title, clean_title: pageTitle }),
+               duration: (typeof duration === "number") ? duration : null,
+               level: level || "", label: level || "",
+               confidence: (typeof conf === "number") ? conf : null, confirmed: !!confirmed });
+  }
+  if (arr){
+    arr.forEach(function(it){
+      if (!it || typeof it !== "object") return;
+      push(it.page, it.title, it.duration, levelOf(it), it.confidence, it.confirmed, it.clean_title);
+    });
+  }else{
+    push(v.page, v.title, v.duration, levelOf(v), v.confidence, v.confirmed, v.clean_title);
+    videoExtras(v).forEach(function(it){
+      push(it.page, it.title, it.duration, levelOf(it), it.confidence, it.confirmed, it.clean_title);
+    });
+  }
+  return out;
+}
+function levelOf(it){
+  if (!it || typeof it !== "object") return "";
+  var raw = it.level !== undefined ? it.level
+          : it.kind !== undefined ? it.kind
+          : it.tag !== undefined ? it.tag
+          : it.role !== undefined ? it.role
+          : it.type;
+  if (raw === undefined || raw === null) return "";
+  var s = String(raw).trim();
+  return s ? levelLabel(s, null) : "";          /* 没带 levels 表时用兜底表 */
+}
+/* 把 p.video 归一成一个数组（mergeVideos 已经产好 items；这里只做兜底） */
+function videoExtras(v){
+  return (v && Array.isArray(v.extra))
+    ? v.extra.filter(function(x){ return x && x.page !== undefined && x.page !== null; })
+    : [];
+}
+/* 当前实际在放哪一页：默认主推，点过别的分P就记在 S.videoPage 里 */
+/* ---------- 视频目录（整个系列的 164 个分P 都在这儿）----------
+   为什么要有它：映射覆盖永远不可能 100%（黑马那套 164 个分P 里只有一部分讲这门课的
+   知识点），而"每个知识点只挂最相关的几条"又是刻意的 —— 两者合起来的效果是
+   **用户看不到整套视频**。所以给一个"全部都在"的出口，按 B 站自己的
+   阶段/章 分类，并标出哪些已经挂到知识点上（可以跳过去）。
+   ★ 分P 的 stage/chapter/serial 是从标题解析出来的（"第一阶段-第二章-15-数据输入"），
+     不是猜的；解析不到的就不硬塞分类。 */
+function videoPagePoint(page){
+  if (!S.videos || !S.videos.mapping) return null;
+  var want = String(page);
+  var m = S.videos.mapping;
+  for (var k in m){
+    if (!Object.prototype.hasOwnProperty.call(m, k)) continue;
+    var e = m[k];
+    if (!e || !Array.isArray(e.videos)) continue;
+    for (var i = 0; i < e.videos.length; i++){
+      if (String(e.videos[i].page) === want){
+        /* 反查知识点的 id：用标题去 steps 里找（key 是 "chNN|标题"） */
+        var bar = k.indexOf("|");
+        if (bar > 0){
+          var chId = k.slice(0, bar), title = k.slice(bar + 1);
+          var hit = pointIdByTitle(chId, title);
+          if (hit) return hit;
+        }
+        return e.point_id || null;
+      }
+    }
+  }
+  return null;
+}
+function pointIdByTitle(chId, title){
+  for (var i = 0; i < S.steps.length; i++){
+    var st = S.steps[i];
+    if (st.kind === "point" && st.ch && st.ch.chapter === chId && st.p && st.p.title === title){
+      return st.p.id;
+    }
+  }
+  return null;
+}
+function vidPageRows(){
+  var v = S.videos || {};
+  var pages = Array.isArray(v.pages) ? v.pages.slice() : [];
+  var q = String(v.vidQ || "").trim().toLowerCase();
+  /* ★ 先排序再分组：分P 原本的落盘顺序里"解析不出阶段的"会散在中间，
+     于是同一阶段被切成好几段、标题重复出现（实测得到四个"阶段"头）。
+     按 阶段 → 章 → 序号 排，解析不出的统一落到最后。 */
+  var CN = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10 };
+  function ord(x){ return (x === null || x === undefined) ? 99 : (CN[String(x)] || 99); }
+  pages.sort(function(a, b){
+    var s = ord(a.stage) - ord(b.stage);
+    if (s) return s;
+    var c = ord(a.chapter) - ord(b.chapter);
+    if (c) return c;
+    var n1 = (a.serial === null || a.serial === undefined) ? 999 : a.serial;
+    var n2 = (b.serial === null || b.serial === undefined) ? 999 : b.serial;
+    if (n1 !== n2) return n1 - n2;
+    return (a.page || 0) - (b.page || 0);
+  });
+  var out = [];
+  pages.forEach(function(p){
+    var label = String(p.clean_title || p.title || "");
+    var hay = (label + " " + (p.title || "") + " P" + p.page).toLowerCase();
+    if (q && hay.indexOf(q) < 0) return;
+    out.push(p);
+  });
+  return out;
+}
+function vidListHtml(){
+  var v = S.videos || {};
+  var rows = vidPageRows();
+  var all = Array.isArray(v.pages) ? v.pages.length : 0;
+  var out = [];
+  if (!all){
+    return '<div class="emptyCard" style="padding:16px 6px"><div class="emptyIco">📺</div>' +
+      "<h2>视频清单还没生成</h2><div class=\"setHint\">content/videos.json 里没有 pages。</div></div>";
+  }
+  out.push('<div class="setHint" style="margin:2px 0 10px">共 ' + escapeHtml(all) +
+    " 个分P" + (rows.length !== all ? "，匹配 " + escapeHtml(rows.length) + " 个" : "") +
+    "　·　已挂到知识点的可以点进去看；没挂的旁边有「B站」直达（那边能调倍速和清晰度）。</div>");
+  var lastStage = null, lastChap = null;
+  rows.forEach(function(p){
+    var stage = p.stage ? ("第" + p.stage + "阶段") : "未分类";
+    var chap = p.chapter ? ("第" + p.chapter + "章") : "";
+    if (stage !== lastStage){
+      out.push('<div class="setLabel" style="width:auto;margin:14px 0 6px">📚 ' + escapeHtml(stage) + "</div>");
+      lastStage = stage; lastChap = null;
+    }
+    if (chap && chap !== lastChap){
+      out.push('<div class="setHint" style="margin:8px 0 4px">' + escapeHtml(chap) + "</div>");
+      lastChap = chap;
+    }
+    var pid = videoPagePoint(p.page);
+    var flags = (p.is_extra ? '<span class="vlev">拓展</span>' : "") +
+                (p.is_review ? '<span class="vlev">回顾</span>' : "");
+    out.push('<div class="newHwRow"><span class="vno">P' + escapeHtml(p.page) + "</span>" +
+      '<span class="vttl">' + escapeHtml(String(p.clean_title || p.title || "")) + "</span>" + flags +
+      '<span class="vdur">' + escapeHtml(String(fmtDur(p.duration)).replace(/^ \(|\)$/g, "")) + "</span>" +
+      '<span class="sp"></span>' +
+      (pid
+        ? '<button data-act="vidopen" data-page="' + attr(p.page) + '">看这一条</button>'
+        : '<button data-act="vidbili" data-page="' + attr(p.page) + '">B站 ↗</button>') +
+      "</div>");
+  });
+  if (!rows.length){
+    out.push('<div class="setHint" style="margin-top:12px">没有匹配「' +
+      escapeHtml(v.vidQ || "") + "」的分P。</div>");
+  }
+  return out.join("");
+}
+function openVideos(opts){
+  opts = opts || {};
+  if (opts.push !== false) pushLayer({ kind: "videos" });
+  var v = S.videos || {};
+  if (!v.vidQ) v.vidQ = "";
+  openModal("videos", "📺 视频目录", videoPanelShellHtml());
+  var box = document.getElementById("vidQ");
+  if (box && box.focus) box.focus();
+}
+function videoPanelShellHtml(){
+  var v = S.videos || {};
+  return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">' +
+    '<input class="searchInput" id="vidQ" placeholder="搜分P标题，例如「字符串」「函数」" ' +
+    'value="' + attr(v.vidQ || "") + '" style="flex:1">' +
+    '<button data-act="vidclear">清空</button></div>' +
+    '<div id="vidList">' + vidListHtml() + "</div>";
+}
+function vidRerender(){
+  var box = document.getElementById("vidList");
+  if (box && box.innerHTML !== undefined) box.innerHTML = vidListHtml();
+}
+/* 输入时只重渲染列表，**不重渲染整个面板** —— 否则 input 会被换掉、焦点丢失，
+   一边打字一边丢光标（这个项目已经因为"重渲染导致失焦"修过一次了）。 */
+function onVidInput(){
+  var box = document.getElementById("vidQ");
+  if (!box) return;
+  if (!S.videos) S.videos = {};
+  S.videos.vidQ = box.value || "";
+  vidRerender();
+}
+
+function currentVideoPage(p){
+  var v = p.video;
+  var ov = S.videoPage[p.id];
+  if (ov === undefined || ov === null) return v.page;
+  if (ov === v.page) return ov;
+  var list = videoList(v);
+  for (var i = 0; i < list.length; i++) if (list[i].page === ov) return ov;
+  return v.page;                       /* 越界的记录一律忽略，别把播放器弄坏 */
+}
+function videoTagHtml(v){
+  if (v.confirmed) return '<span class="tag">已确认</span>';
+  return (typeof v.confidence === "number")
+    ? '<span class="tag unconf">机器匹配 · 匹配度 ' + Math.round(v.confidence * 100) + "% · 待确认</span>"
+    : '<span class="tag unconf">机器匹配 · 待确认</span>';
+}
+/* 视频区内部结构：iframe + 抬头 + 分P列表（一行一条：级别 / P号 / 标题 / 时长） */
+function videoInnerHtml(p, page){
+  var v = p.video;
+  var cur = (page === undefined || page === null) ? v.page : page;
+  var list = videoList(v);
+  var out = [];
+  out.push('<iframe class="bili" src="' + attr(biliSrc(v.bvid, cur)) + '" scrolling="no" frameborder="0" ' +
+    'framespacing="0" allowfullscreen="true" loading="lazy" title="' + attr("B站视频 P" + cur) + '"></iframe>');
+  out.push('<div class="videoMeta">');
+  /* 抬头：🎬 UP 名 + 匹配状态；右边是「去 B 站看」。
+     ★ 那个按钮是必需的出口：嵌入播放器（player.bilibili.com）是简化版，控制条里
+       没有倍速、也没有清晰度菜单 —— B 站嵌入版的限制，URL 参数改不出来。想调只能
+       去完整播放器。走 /open 交给系统浏览器（app 里也走得通）。
+     ★ 按钮放在 .videoMeta 这一层（不是 .vHead 里）：.sp{flex:1} 是 .videoMeta 的
+       直接子元素才推得动，塞进嵌套的 .vHead 里推不动。 */
+  out.push('<div class="vHead"><span class="vbadge">🎬 ' +
+    escapeHtml(v.up || "黑马程序员") + "</span>" + videoTagHtml(v) + "</div>");
+  out.push('<span class="sp"></span>');
+  out.push('<button class="tb" data-act="biliwatch" data-page="' + attr(cur) + '"' +
+    ' title="' + attr("在浏览器里打开 B 站完整播放器 —— 可以调倍速和清晰度（网页版对未登录用户可能限制清晰度）") +
+    '">↗ 去 B 站看</button>');
+  /* 分P列表：一级标签用数据里的 levels 里取的中文（主线/基础/补充/拔高），不写死 */
+  out.push('<div class="vList">');
+  list.forEach(function(it){
+    out.push('<button class="vlink' + (cur === it.page ? " on" : "") + '" data-act="vpage" data-page="' +
+      attr(it.page) + '" title="' + attr("播放 P" + it.page) + '">' +
+      (it.label ? '<span class="vlev">' + escapeHtml(it.label) + "</span>" : "") +
+      '<span class="vno">P' + escapeHtml(it.page) + "</span>" +
+      '<span class="vttl">' + escapeHtml(it.title || ("第 " + it.page + " 分P")) + "</span>" +
+      '<span class="vdur">' + escapeHtml(String(fmtDur(it.duration)).replace(/^ \(|\)$/g, "")) + "</span>" +
+      "</button>");
+  });
+  out.push("</div>");
+  out.push("</div>");
+  return out.join("");
+}
+/* 视频区三态：mapped / unmatched（黑马没讲）/ pending（待确认 —— 绝不挂错视频） */
+function videoAreaHtml(p){
+  var v = p.video;
+  if (v && v.status === "pending"){
+    return '<div class="warnbar videopending">⚠️ 待确认 —— 这个知识点和视频的对应还没核过，' +
+      "先不挂视频（宁可不给，也不挂错）</div>";
+  }
+  if (!v || v.status === "unmatched" || v.page === undefined || v.page === null || !v.bvid ||
+      !videoList(v).length){
+    return '<div class="warnbar novideo">📄 黑马这套没讲这块 · 直接看下面的讲义原文</div>';
+  }
+  return '<div class="videoWrap">' + videoInnerHtml(p, currentVideoPage(p)) + "</div>";
+}
+/* 点列表里的某一条 → 只换视频区，不重排整张卡（免得正文跳一下） */
+function switchVideoPage(page){
+  var st = stepAt(S.cur);
+  if (!st || st.kind !== "point" || !st.p.video) return false;
+  var v = st.p.video;
+  page = Number(page);
+  if (!page) return false;
+  var list = videoList(v), hit = false;
+  for (var i = 0; i < list.length; i++) if (list[i].page === page) hit = true;
+  if (!hit) return false;                       /* 只认列表里列过的 P */
+  S.videoPage[st.p.id] = page;
+  var wrap = (document.querySelector ? document.querySelector("#card .videoWrap") : null);
+  if (wrap && wrap.innerHTML !== undefined) wrap.innerHTML = videoInnerHtml(st.p, page);
+  toast("已切到 P" + page);
+  return true;
+}
+
+/* ---------- 这段代码适不适合直接跑？（静态判定）----------
+   讲义里有些块被标成 ```python，但本来就不是"整段直接跑"的东西：
+   写文件的、死循环/长等待的、>>> 交互式会话记录、依赖装不上的第三方库。
+   讲义"一字不改"是硬约束，所以判定放在前端：**不挂 ▶，但照常挂 📋 复制**，
+   并给一行小字说清为什么。
+   ★ 只用在卡片正文 + 100Days 阅读器（cardMarkdown）。
+     AI 回复那条路不加这套 —— 它的代码已经过我们自己的 verify 流程。 */
+var EXTRA_LIBS = { rich: 1, module1: 1, module2: 1, requests: 1, pygame: 1,
+                   numpy: 1, pandas: 1, matplotlib: 1 };
+var RUN_ADVICE = {
+  write: "⚠️ 这段会往磁盘写文件，不能在可视化里直接跑",
+  slow:  "⚠️ 这段含长循环/等待，跑起来会很慢，已不在可视化里运行",
+  repl:  "💬 这是交互式会话记录（>>> 那种），不是可以直接整段跑的代码",
+  lib:   "⚠️ 这段依赖外部库（{mod}），本地可能没有"
+};
+function adviceText(why){
+  if (!why) return "";
+  if (why.indexOf("lib:") === 0) return RUN_ADVICE.lib.replace("{mod}", why.slice(4));
+  return RUN_ADVICE[why] || "";
+}
+/* 返回 null（可以跑）或原因码：write / slow / repl / lib:<名字>
+   宁可少挂（少一个按钮）也别误挂（点进去写盘或卡死）。 */
+function codeRunAdvice(code){
+  var s = String(code === undefined || code === null ? "" : code);
+  if (!s.trim()) return "repl";
+  /* ① 会往磁盘写文件（最严重） */
+  if (/open\s*\([^)]*['"][^'"]*[wax]/.test(s)) return "write";
+  /* ② 会挂很久 / 挂死（while True 里带 break 的不算 —— 那是正常写法） */
+  if (/while\s+True\s*:/.test(s) && !/\bbreak\b/.test(s)) return "slow";
+  if (/time\.sleep\s*\(/.test(s)) return "slow";
+  if (/\bfor\b[^\n]*\brange\s*\(\s*\d{5,}/.test(s)) return "slow";
+  /* ③ 交互式会话记录（去掉空行后的第一行是 >>> 或 ...） */
+  var ls = s.split("\n"), first = null;
+  for (var i = 0; i < ls.length; i++) if (ls[i].trim()){ first = ls[i]; break; }
+  if (first !== null && /^\s*(>>>|\.\.\.)(\s|$)/.test(first)) return "repl";
+  /* ④ 依赖装不上的第三方库（保守黑名单） */
+  var re = /\b(?:import|from)\s+([A-Za-z_][\w.]*)/g, m;
+  while ((m = re.exec(s))){
+    var mod = m[1].split(".")[0];
+    if (EXTRA_LIBS[mod]) return "lib:" + mod;
+  }
+  return null;
+}
+/* 代码块上那个「▶ 可视化」按钮的 title。四处（卡片正文 / 🧪 跑一下那块 /
+   AI 解析 / 测一测）共用这一份，免得一处一个说法。
+   ★ 必须和顶栏那个「🔬 可视化」的 title 区分开：
+     顶栏 = 开空白页、自己随手写；这个 = 把**这段代码**带过去跑。 */
+var VIZ_TITLE = "逐步执行这段代码，看变量和引用怎么变（会打开可视化页）";
+/* 卡片正文里的 ```python 代码块也挂工具栏（以前只有 run 字段那块能跑，
+   于是讲义里 62 段 Python 全是死的 —— 而这些例题卡片的价值就在那段代码）。
+   只挂「▶ 可视化」+「📋 复制」；作业题才有的「🧪 用样例测」这里不给。 */
+function cardMarkdown(md, p, sink){
+  return renderMarkdown(md, {
+    codeBlock: function(info){
+      var pre = '<pre class="md-pre"><code>' + escapeHtml(info.code) + "</code></pre>";
+      if (!isPythonLang(info.lang)) return pre;          /* text / c / xml / 无标记 → 不挂 */
+      var idx = sink ? sink.length : 0;
+      if (sink) sink.push(info.code);                     /* 复制按钮要靠它取代码 */
+      var copyBtn = '<button class="tb" data-act="cardcopy" data-id="' + attr(p.id) +
+        '" data-idx="' + idx + '">📋 复制</button>';
+      var why = codeRunAdvice(info.code);
+      if (why){                                           /* 不适合跑 → 不挂 ▶，只说明 + 复制 */
+        return '<div class="codeBlock">' + pre + '<div class="codeBar adviceBar">' +
+          '<span class="runAdvice">' + escapeHtml(adviceText(why)) + "</span>" +
+          '<span class="sp"></span>' + copyBtn + "</div></div>";
+      }
+      return '<div class="codeBlock">' + pre +
+        '<div class="codeBar">' +
+          '<button class="tb" data-act="cardviz" data-id="' + attr(p.id) + '" data-idx="' + idx + '" title="' + attr(VIZ_TITLE) + '">▶ 可视化</button>' +
+          copyBtn +
+        "</div></div>";
+    }
+  });
+}
+/* 规范化后比较两段代码是不是同一段（run 字段常常就是从 body_md 里抽出来的） */
+function sameCode(a, b){
+  function nz(s){
+    return String(s === undefined || s === null ? "" : s)
+      .replace(/\r\n?/g, "\n")
+      .split("\n").map(function(l){ return l.replace(/[ \t]+$/, ""); }).join("\n")
+      .replace(/^\n+/, "").replace(/\n+$/, "");
+  }
+  return nz(a) === nz(b) && nz(a) !== "";
+}
+/* 页面上那些代码块按钮，代码存在谁身上？卡片是当前 step，100Days 阅读器是 readerStep */
+function codesOwner(){
+  if (modalKind() === "reader" && S.readerStep) return S.readerStep;
+  return stepAt(S.cur);
+}
+/* 这一页所有能跑的 python 块（正文的 + run 字段的），供按钮按 idx 取代码 */
+function cardCodeOf(st, idx){
+  var list = (st && st._codes) || [];
+  return list[Number(idx)] || "";
+}
+function runBlockHtml(p, idx){
+  if (idx === undefined) idx = 0;
+  return '<div class="runBlock">' +
+    '<div class="runHead">🧪 跑一下</div>' +
+    '<pre class="runCode"><code>' + escapeHtml(p.run) + "</code></pre>" +
+    '<div class="runActions">' +
+      '<button class="primary" data-act="cardviz" data-id="' + attr(p.id) + '" data-idx="' + idx + '" title="' + attr(VIZ_TITLE) + '">▶ 可视化</button>' +
+      '<button class="linkbtn" data-act="cardcopy" data-id="' + attr(p.id) + '" data-idx="' + idx + '">复制代码</button>' +
+      '<span class="runNote">在本窗口打开可视化并预填这段代码</span>' +
+    "</div></div>";
+}
+
+function refsHtml(st){
+  var p = st.p, ch = st.ch, chips = [];
+  (Array.isArray(p.refs) ? p.refs : []).forEach(function(r, i){
+    if (!r) return;
+    var label = r.label || r.url || "";
+    if (String(r.kind || "") === "100days" || /100days/i.test(String(r.url || ""))){
+      chips.push('<button class="chip" data-act="ref" data-kind="days" data-i="' + i + '">📖 Python-100-Days · ' + escapeHtml(label) + "</button>");
+    }else if (isExternal(r.url)){
+      chips.push('<button class="chip" data-act="ref" data-kind="ext" data-i="' + i + '">🔗 ' + escapeHtml(label) + "</button>");
+    }else if (r.url){
+      chips.push('<button class="chip" data-act="ref" data-kind="file" data-i="' + i + '">📄 ' + escapeHtml(label) + "</button>");
+    }else if (label){
+      chips.push('<span class="chip" style="cursor:default">📌 ' + escapeHtml(label) + "</span>");
+    }
+  });
+  if (Array.isArray(p.notes_lines) && p.notes_lines.length === 2){
+    chips.push('<button class="chip" data-act="ref" data-kind="notes">📄 讲义 notes.md:' +
+      escapeHtml(p.notes_lines[0]) + "-" + escapeHtml(p.notes_lines[1]) + "</button>");
+  }
+  var seen = {}, slidePages = [];
+  (Array.isArray(p.slides) ? p.slides : []).forEach(function(pg){
+    if (typeof pg !== "number" || seen[pg]) return;
+    seen[pg] = 1;
+    slidePages.push(pg);
+  });
+  /* 一个知识点可能覆盖十几页课件：chip 只列前几个，剩下的靠缩略图那行的「共 N 页」说明 */
+  slidePages.slice(0, 6).forEach(function(pg){
+    /* 图标要跟同一行里的「📄 讲义 / 📖 100Days」对齐，不然只有它没图标，看着像漏了 */
+    chips.push('<button class="chip" data-act="slide" data-page="' + attr(pg) + '">🖼 课件 P' + escapeHtml(pg) + "</button>");
+  });
+  if (slidePages.length > 6){
+    chips.push('<span class="chip more">…共 ' + escapeHtml(slidePages.length) + " 页课件</span>");
+  }
+  if (!chips.length) return "";
+  return '<div class="refs">' + chips.join("") + "</div>";
+}
+
+/* 课件缩略图那一行（知识点卡片和章首/章末卡片共用同一套 DOM，
+   这样 hydrate() 的 img[data-slide-page] 水合和 openSlide 点开放大都不用改）
+   ★ max<=0 表示全部渲染：以前知识点卡片写死只显示前 4 页，结果 6 个知识点
+     一共 54 页课件"在数据里有、在界面上永远点不到"（ch02-s04-p02 一个点就覆盖 42 页，
+     只显示 4 页）—— 和章首/章末那个缺口是同一类 bug，一起补上。 */
+/* 缩略图那张卡片的按钮（单张） */
+function thumbBtnHtml(chId, pg){
+  return '<button class="thumbBtn" data-act="slide" data-page="' + attr(pg) + '" title="' +
+    attr("点击放大：课件第 " + pg + " 页") + '">' +
+    '<img class="thumb" data-slide-chapter="' + attr(chId) + '" data-slide-page="' + attr(pg) +
+      '" alt="' + attr("课件第 " + pg + " 页") + '">' +
+    '<span class="thumbCap">P' + escapeHtml(pg) + "</span></button>";
+}
+/* ★ 超过 8 页先收起来 + 一个「展开全部（共 N 页）」；展开状态记在 S.slideExpanded。
+   以前知识点卡片写死只显示前 4 页 → 6 个知识点一共 54 页课件"数据里有、界面上永远点不到"
+   （ch02-s04-p02 一个点就覆盖 42 页）。默认收起是为了不把卡片撑得离谱，
+   但**展开后必须全都点得到**。 */
+var SLIDE_CAP = 8;
+function slideThumbRowHtml(chId, pages, key){
+  var expanded = !!(key && S.slideExpanded[key]);
+  var capped = !expanded && pages.length > SLIDE_CAP;
+  var show = capped ? pages.slice(0, SLIDE_CAP) : pages;
+  var row = show.map(function(pg){ return thumbBtnHtml(chId, pg); }).join("");
+  if (key && pages.length > SLIDE_CAP){
+    row += '<button class="thumbMore" data-act="slideexpand" data-key="' + attr(key) + '"' +
+      ' title="' + attr(capped ? "展开全部课件页" : "收起来") + '">' +
+      (capped ? "展开全部（共 " + escapeHtml(pages.length) + " 页）" : "收起 ▴") + "</button>";
+  }
+  return '<div class="thumbRow">' + row + "</div>";
+}
+function slidesHtml(st){
+  var pages = (Array.isArray(st.p.slides) ? st.p.slides : [])
+    .filter(function(n){ return typeof n === "number"; });
+  if (!pages.length) return "";
+  return '<div class="slides"><div class="secHead">课件原图</div>' +
+    slideThumbRowHtml(st.ch.chapter || "", pages, "p:" + st.ch.chapter + ":" + st.p.id) + "</div>";
+}
+/* ---------- 章首 / 章末卡的课件图 ----------
+   数据审计员发现这两个卡片以前只渲染 markdown，于是被判为"正经内容页"的课件
+   在 app 里永远看不到（ch02 有 7 页、ch03 有 3 页是孤儿）。
+   页号不去按区间猜（ch01 的 relation 是 M+1，区间推会错），而是：
+     段的标记数 N ← 直接从 intro_md / summary_md 里数 <!-- SLIDE --> （渲染时会被注释剥离）
+     页          ← 取 _chapters.json 的 content_page_list（内容管道算好的权威有序表）最前 N 页 / 最后 N 页 */
+var SLIDE_MARK_RE = /<!--\s*SLIDE[^>]*-->/gi;
+function chapterMdMarkers(md){
+  var s = String(md === undefined || md === null ? "" : md);
+  var m = s.match(SLIDE_MARK_RE);
+  return m ? m.length : 0;
+}
+function chapterSlidePages(st){
+  var ch = st.ch || {};
+  var reg = (S.chapterReg && S.chapterReg.chapters) ? S.chapterReg.chapters[ch.chapter] : null;
+  var cpl = (reg && reg.detection && Array.isArray(reg.detection.content_page_list))
+    ? reg.detection.content_page_list : null;
+  if (!cpl || !cpl.length) return [];
+  var isIntro = st.kind === "intro";
+  var src = chapterMd(ch, isIntro ? "intro_md" : "summary_md");
+  var n = chapterMdMarkers(src);
+  if (!n) return [];
+  return isIntro ? cpl.slice(0, n) : cpl.slice(-n);
+}
+function chapterSlidesHtml(st){
+  var pages = chapterSlidePages(st);
+  if (!pages.length) return "";
+  return '<div class="slides" style="margin-top:20px"><div class="secHead">本章课件原图</div>' +
+    slideThumbRowHtml(st.ch.chapter || "", pages, "c:" + st.ch.chapter + ":" + st.kind) + "</div>";
+}
+
+/* railMode=true：材料已经搬到右侧常驻栏了，卡片底部就不再重复渲染（同一条 chip 只出现一次） */
+function buildPointCardHtml(st, railMode){
+  var p = st.p, sec = st.sec;
+  if (railMode === undefined) railMode = railVisible();
+  var out = [];
+  out.push(videoAreaHtml(p));
+  out.push('<div class="kicker">第 <b>' + escapeHtml(sec.no) + "</b> 节 · 知识点 " +
+    escapeHtml(p.no) + "</div>");
+  out.push('<h2 class="cardTitle">' + escapeHtml(p.title || "(无标题)") + "</h2>");
+  /* 正文里的 ```python 块也挂按钮，顺手把它们的代码按顺序收进 codes */
+  var codes = st._codes = [];
+  out.push('<div class="body">' + cardMarkdown(stripLeadingTitle(p.body_md, p.title), p, codes) + "</div>");
+  if (p.pitfall){
+    out.push('<div class="warnbar pitfall"><b>⚠️ 点坑</b><div>' + inline(p.pitfall) + "</div></div>");
+  }
+  /* run 字段那块：正文里已经有同一段代码（且那块带按钮）就不要再显示一遍，免得同段代码两个按钮 */
+  var runTxt = (p.run && String(p.run).trim()) ? String(p.run) : "";
+  if (runTxt){
+    var dup = false;
+    for (var i = 0; i < codes.length; i++) if (sameCode(codes[i], runTxt)){ dup = true; break; }
+    st._runDup = dup;
+    if (!dup){
+      codes.push(runTxt);
+      out.push(runBlockHtml(p, codes.length - 1));
+    }
+  }else st._runDup = false;
+  if (!railMode){
+    out.push(refsHtml(st));
+    out.push(slidesHtml(st));
+  }
+  return out.join("");
+}
+
+function nextSectionStep(fromStep){
+  var i = S.steps.indexOf(fromStep);
+  for (var k = i + 1; k < S.steps.length; k++){
+    if (S.steps[k].kind === "end" && S.steps[k].sec !== fromStep.sec) return S.steps[k];
+  }
+  return null;
+}
+function firstPointStepOf(sec){
+  for (var i = 0; i < S.steps.length; i++){
+    if (S.steps[i].kind === "point" && S.steps[i].sec === sec) return S.steps[i];
+  }
+  return null;
+}
+
+function buildEndCardHtml(st){
+  var sec = st.sec, pts = sectionPoints(sec);
+  /* ★ 原来这里统计「学了 N 个知识点 / 跑了 N 段代码 / 用了 N 分钟」——
+     进度、跑数、时长全砍了，收尾卡只描述这一节本身。 */
+  var out = [];
+  out.push('<div class="endCard">');
+  out.push('<div class="endIco">🏁</div>');
+  out.push("<h2>第 " + escapeHtml(sec.no) + " 节 走完了</h2>");
+  out.push('<p class="endStats">这一节共 ' + escapeHtml(pts.length) + " 个知识点</p>");
+  out.push('<p class="endSub">' + escapeHtml(sec.title || "") + "</p>");
+  var nxt = nextSectionStep(st);
+  out.push('<div class="endBtns">');
+  if (nxt){
+    var different = nxt.ch !== st.ch;
+    var label = "进入第 " + escapeHtml(nxt.sec.no) + " 节" +
+      (nxt.sec.title ? " " + escapeHtml(nxt.sec.title) : "") + " →";
+    if (different) label = "进入 " + escapeHtml(nxt.ch.chapter) + " 第 " + escapeHtml(nxt.sec.no) + " 节 →";
+    out.push('<button class="primary" data-act="goto" data-sec="' + attr(nxt.secKey) + '">' + label + "</button>");
+  }else{
+    out.push('<span class="endSub">🎉 所有章节都走完了，厉害。</span>');
+    out.push('<button data-act="toc">回到目录</button>');
+  }
+  out.push("</div></div>");
+  return out.join("");
+}
+
+function emptyStateHtml(){
+  var errs = S.loadErrors.length
+    ? '<ul class="errList">' + S.loadErrors.slice(0, 6).map(function(e){
+        return "<li><code>" + escapeHtml(e) + "</code></li>"; }).join("") + "</ul>"
+    : "";
+  return '<div class="emptyCard"><div class="emptyIco">📭</div>' +
+    "<h2>内容还在生成中</h2>" +
+    "<p>还没读到 <code>content/chNN.json</code>。负责内容管道的同学还在跑，<br>" +
+    "跑完之后点下面按钮（或按 F5）就有卡片了。</p>" + errs +
+    '<button class="primary" data-act="reload">🔄 重新载入</button></div>';
+}
+
+function buildCardHtml(st, railMode){
+  if (!st) return emptyStateHtml();
+  if (st.kind === "end") return buildEndCardHtml(st);
+  if (st.kind === "intro" || st.kind === "summary") return buildChapterCardHtml(st);
+  return buildPointCardHtml(st, railMode);
+}
+
+/* 图片按候选名逐个试；试不到就把缩略图标记成未就绪，不留破图 */
+function probeImage(urls, cb){
+  var i = 0;
+  function step(){
+    if (i >= urls.length){ cb(null); return; }
+    var u = urls[i++];
+    try{
+      var im = new Image();
+      im.onload = function(){ cb(u); };
+      im.onerror = function(){ step(); };
+      im.src = u;
+    }catch(e){ cb(null); }
+  }
+  step();
+}
+/* 讲义里的图片路径是相对讲义自己的（../images/x.png），本地 content\images\ 往往还没同步。
+   本地取不到时，按 source.notes_url 回落到课程站点的同一路径（和 SPEC 8.6 对 100Days 图片
+   的处置一致：联网能看，离线就是没有）。 */
+function notesBase(ch){
+  try{
+    var u = (ch && ch.source && ch.source.notes_url) || "";
+    if (!/^https?:\/\//i.test(u)) return "";
+    u = String(u).replace(/[?#].*$/, "");
+    var m = /^(https?:\/\/[^\/]+(?:\/[^?#]*)?\/)notes\/[^\/]*$/i.exec(u);
+    if (m) return m[1];
+    return u.replace(/[^\/]*$/, "");
+  }catch(e){ return ""; }
+}
+function hydrate(root, ch){
+  if (!root || typeof root.querySelectorAll !== "function") return;
+  var thumbs = root.querySelectorAll("img[data-slide-page]");
+  Array.prototype.forEach.call(thumbs, function(im){
+    var chId = im.getAttribute("data-slide-chapter") || "";
+    var pg = Number(im.getAttribute("data-slide-page"));
+    var key = chId + ":" + pg;
+    function apply(u){
+      if (u){ im.setAttribute("src", u); return; }
+      var btn = im.parentNode;
+      if (btn && btn.classList) btn.classList.add("missing");
+      var cap = btn && btn.querySelector ? btn.querySelector(".thumbCap") : null;
+      if (cap) cap.textContent = "P" + pg + "（图未就绪）";
+    }
+    if (S.slideCache[key] !== undefined){ apply(S.slideCache[key]); return; }
+    probeImage(slideCandidateUrls(chId, pg), function(u){
+      S.slideCache[key] = u || null;
+      apply(u);
+    });
+  });
+  /* 正文图片（讲义里的 <img>）：本地没有就回落课程站点，再没有就收掉，不留破图 */
+  var base = notesBase(ch);
+  var bodyImgs = root.querySelectorAll("img");
+  Array.prototype.forEach.call(bodyImgs, function(im){
+    if (im.getAttribute && im.getAttribute("data-slide-page") !== null) return;  /* 课件缩略图另一条路 */
+    im.addEventListener("error", function(){
+      var src = im.getAttribute ? (im.getAttribute("src") || "") : "";
+      if (!im.__triedRemote && base && src.indexOf("content/") === 0){
+        im.__triedRemote = true;
+        im.setAttribute("src", base + src.slice("content/".length));
+        return;
+      }
+      im.style.display = "none";
+    });
+  });
+}
+
+function renderCard(){
+  var el = $("card");
+  if (!el) return;
+  var st = stepAt(S.cur);
+  var inRail = railVisible();
+  el.innerHTML = buildCardHtml(st, inRail);
+  if (el.classList){
+    el.classList.remove("enter");
+    void el.offsetWidth;
+    el.classList.add("enter");
+  }
+  hydrate(el, st ? st.ch : null);
+  renderRail(st);
+}
+
+/* 右侧材料栏：课件原图 + 讲义行号 + 100days + 外链。只有 ≥1400px 才出现 */
+function railBodyHtml(st){
+  if (!st || st.kind !== "point"){
+    return '<div class="railHint">翻到知识点卡片时，这里会显示这一页的课件原图和参考链接。</div>';
+  }
+  var r = refsHtml(st), sl = slidesHtml(st);
+  if (!r && !sl) return '<div class="railHint">这张卡没有额外的课件页或参考资料。</div>';
+  var out = [];
+  if (r) out.push('<div class="railSec"><div class="secHead">参考</div>' + r + "</div>");
+  if (sl) out.push(sl);
+  return out.join("");
+}
+function renderRail(st){
+  var el = $("railBody");
+  if (!el) return;
+  st = st || stepAt(S.cur);
+  el.innerHTML = railBodyHtml(st);
+  if (el.scrollTop !== undefined) el.scrollTop = 0;
+  hydrate(el, st ? st.ch : null);        /* 材料栏里的课件缩略图也要解析出真实路径 */
+  if ($("railTitle")){
+    $("railTitle").textContent = (st && st.kind === "point" && st.sec)
+      ? ("第 " + st.sec.no + " 节 · 知识点 " + st.p.no) : "材料";
+  }
+}
+
+/* 内嵌面板（100 Days / 作业 / 视频目录）打开时材料栏说什么。
+   ★ 之前什么都不说：材料栏停留在**上一张知识卡片**的内容上，于是"正在看 Day11"
+     和右边的「第 1 节 · 知识点 1 / 讲义 notes.md:96-114 / 课件 P3」同时出现在屏幕上，
+     看起来像界面卡住了、或者内容错位了。这里如实说明它只跟知识卡片走。 */
+var RAIL_SURF_LABEL = { days: "100 Days 列表", reader: "100 Days 的某一天",
+                        hw: "作业列表", problem: "作业题面", videos: "视频目录" };
+function renderRailSurface(kind){
+  var el = $("railBody");
+  if (!el) return;
+  if ($("railTitle")) $("railTitle").textContent = "材料";
+  el.innerHTML = '<div class="railHint">你正在看<b>' +
+    escapeHtml(RAIL_SURF_LABEL[kind] || "另一个面板") + "</b>。" +
+    "材料栏（课件原图 / 讲义行号）只跟着知识卡片走 —— 关掉这个面板（✕ 或 Esc）就回到卡片。</div>";
+}
+function renderTop(){
+  var st = stepAt(S.cur);
+  var ch = st ? st.ch : (S.chapters[0] || null);
+  if ($("chapterTitle")){
+    $("chapterTitle").textContent = ch ? ((ch.chapter || "") + " " + (ch.title || "")).trim() : "";
+  }
+  if ($("streak")){
+    var n = computeStreak(P.days, todayStr());
+    var txt;
+    /* ★ 原来这里还会看「有没有学过任何东西」（已学标记的数量）—— 进度砍了，只剩日期 streak */
+    if (n > 0) txt = "🔥 连续 <b>" + n + "</b> 天";
+    else txt = "🔥 连续 <b>0</b> 天 · 今天翻一张卡就重新开始";
+    $("streak").innerHTML = txt;   /* 右值全部是本函数写死的字面量 + 数字，无外部串 */
+  }
+  var sec = st ? st.sec : null;
+  if ($("secLabel")){
+    if (sec){
+      $("secLabel").innerHTML = "第 " + escapeHtml(sec.no) + " 节" +
+        (sec.title ? ' <span class="secTitleInl">' + escapeHtml(sec.title) + "</span>" : "");
+    }else if (st && (st.kind === "intro" || st.kind === "summary")){
+      $("secLabel").innerHTML = '<span class="secTitleInl">' +
+        (st.kind === "intro" ? "本章开头（不算知识点）" : "本章材料（不算知识点）") + "</span>";
+    }else{
+      $("secLabel").innerHTML = "";
+    }
+  }
+  if ($("dots")){
+    var pts = sectionPoints(sec);
+    /* ★ 点阵还在（它是有用的"这一节第几个"导航），但不再有"已学"状态 */
+    var html = pts.map(function(p, i){
+      var cls = "dot" + (st && st.kind === "point" && st.pi === i ? " cur" : "");
+      return '<button class="' + cls + '" data-act="jump" data-id="' + attr(p.id) + '" title="' +
+        attr("知识点 " + p.no + " · " + (p.title || "")) + '"></button>';
+    }).join("");
+    $("dots").innerHTML = html;
+    /* ★ 这里原来写的是 pts.length，也就是「这一节共 8 个」被显示成「第 8 个」——
+       人在知识点 3 上翻卡时底下写着"第 8 个"，读起来像"你已经到第 8 个了"。
+       有当前指针就报「3 / 8」，没有（章首/章末卡）才报「共 8 个」。 */
+    var curNo = (st && st.kind === "point" && typeof st.pi === "number") ? st.pi + 1 : 0;
+    if ($("dotCount")) $("dotCount").textContent = pts.length
+      ? (curNo ? (curNo + " / " + pts.length) : ("共 " + pts.length + " 个")) : "";
+  }
+  renderResume();
+  renderFooter();
+}
+
+function renderFooter(){
+  var st = stepAt(S.cur);
+  if ($("btnPrev")) $("btnPrev").disabled = !(S.cur > 0);
+  if ($("btnNext")) $("btnNext").disabled = !(S.cur < S.steps.length - 1);
+  /* ★ 这里原来还有「✅ 学完了」按钮的状态 —— 那个按钮本身已经删了 */
+  void st;
+}
+
+/* 「继续上次」= 位置书签（不是进度）。存的是 {ch,s,p}，不是 id。 */
+function renderResume(){
+  var bar = $("resume");
+  if (!bar) return;
+  var idx = bookmarkStepIndex();
+  var cur = stepAt(S.cur);
+  var onEndCard = !!(cur && cur.kind === "end");
+  var show = !S.resumeHidden && !onEndCard && idx > 0 && S.steps[idx] && S.chapters.length > 0;
+  if (!show){ bar.hidden = true; return; }
+  var st = S.steps[idx];
+  bar.hidden = false;
+  $("btnResume").textContent = "继续上次：第 " + st.sec.no + " 节 · 知识点 " + st.p.no +
+    " " + (st.p.title || "") + " →";
+  $("btnResume").setAttribute("data-jump", String(idx));
+}
+
+/* ---------- 位置书签 ----------
+   老做法存的是知识点 id（"ch03-s05-p07"）—— 讲义一重排/id 一改就指错。
+   现在存 {ch, s, p}（章 + 节号 + 知识点号），不参与任何统计，改了最多偏一两张卡。
+   解析不出来（讲义改了、这一节没了）就老实回第 1 张卡，不崩。 */
+function bookmarkOf(st){
+  if (!st || st.kind !== "point" || !st.p || !st.ch) return null;
+  return { ch: String(st.ch.chapter || ""), s: Number(st.sec && st.sec.no), p: Number(st.p.no) };
+}
+function bookmarkStepIndex(){
+  var b = normBookmark(P.bookmark);
+  if (!b) return -1;
+  var firstOfSec = -1, i, st;
+  for (i = 0; i < S.steps.length; i++){
+    st = S.steps[i];
+    if (st.kind !== "point" || !st.ch || String(st.ch.chapter) !== b.ch) continue;
+    if (!st.sec || Number(st.sec.no) !== b.s) continue;
+    if (firstOfSec < 0) firstOfSec = i;
+    if (Number(st.p.no) === b.p) return i;
+  }
+  return firstOfSec;          /* 节还在、那个知识点没了 → 退回这一节第一个 */
+}
+
+function indexOfPointId(id){
+  for (var i = 0; i < S.steps.length; i++){
+    var st = S.steps[i];
+    if (st.kind === "point" && st.p.id === id) return i;
+  }
+  return -1;
+}
+
+function renderAll(){
+  /* ★ 翻卡/跳到某张卡 = 回到卡片流，所以内嵌面板（100 Days / 作业 / 视频目录）要让位。
+     不放这里的话，从 100 Days 里点"打开 Day11"会变成：阅读器弹层盖着，
+     而底下还留着 100 Days 面板 —— 关掉阅读器就回到那个面板，看起来像"没跳过去"。 */
+  surfaceInlineOff();
+  renderTop();
+  renderCard();
+  renderToc();
+  /* 卡片内容变了 → 常驻助教那行上下文跟着变（goto/翻卡/跳转都会走到这里）。
+     幂等、很便宜；"只在真变了时闪圆点"的逻辑在 asRefreshCtx 里。 */
+  asRefreshCtx();
+}
+
+function goto(i, opts){
+  if (!S.steps.length) return;
+  if (i < 0) i = 0;
+  if (i > S.steps.length - 1) i = S.steps.length - 1;
+  S.cur = i;
+  var st = stepAt(i);
+  if (st && st.kind === "point"){
+    P.bookmark = bookmarkOf(st);   /* ★ 书签（位置），不是进度 */
+    markToday();                   /* 只要开始翻卡就算"今天来过" */
+    saveProgress();
+  }
+  renderAll();
+  if (!opts || !opts.noScroll){
+    var m = document.querySelector ? document.querySelector("main") : null;
+    if (m && m.scrollTop !== undefined) m.scrollTop = 0;
+  }
+}
+
+function jumpToSec(secKey){
+  for (var i = 0; i < S.steps.length; i++){
+    var st = S.steps[i];
+    if (st.kind === "point" && (st.secKey === secKey || st.sec.id === secKey)){ goto(i); return true; }
+  }
+  return false;
+}
+/* ★ jumpToFirstMissing / 「回去补没学的」已删（没有"学过没学过"这回事了）。
+   jumpToSec 仍然有用：跳到某一节的第一张卡。 */
+function jumpToId(id, highlight){
+  var i = indexOfPointId(id);
+  if (i < 0) return false;
+  goto(i);
+  /* 从搜索结果跳过来时把命中的词标出来 —— 知识点动辄一两屏，只跳到卡片顶部
+     等于让用户自己再找一遍（本可以"搜到了就看见"）。 */
+  if (highlight) highlightInCard(highlight);
+  return true;
+}
+/* 在卡片正文里高亮关键词（文本节点层面替换，绝不拼 innerHTML）：
+   命中处包一层 <mark class="findmark">，第一个滚到视口中间。
+   卡片重绘（翻卡/跳转）时整段 DOM 被换掉，标记自然消失，不留痕迹。 */
+function highlightInCard(q){
+  var root = $("card");
+  q = String(q === undefined || q === null ? "" : q).trim();
+  if (!root || !q || typeof document.createTreeWalker !== "function") return 0;
+  var needle = q.toLowerCase();
+  var nodes = [], walker, n;
+  try{
+    walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: function(node){
+        var v = node.nodeValue;
+        if (!v || v.toLowerCase().indexOf(needle) < 0) return NodeFilter.FILTER_REJECT;
+        var p = node.parentNode;
+        if (p && p.closest && p.closest("script,style,textarea,mark")) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+  }catch(e){ return 0; }
+  while ((n = walker.nextNode()) && nodes.length < 240) nodes.push(n);
+  if (!nodes.length) return 0;
+  var first = null, marks = 0;
+  nodes.forEach(function(node){
+    var text = node.nodeValue, low = text.toLowerCase();
+    var from = 0, idx, hit = 0, frag = document.createDocumentFragment();
+    while ((idx = low.indexOf(needle, from)) >= 0 && marks < 300){
+      if (idx > from) frag.appendChild(document.createTextNode(text.slice(from, idx)));
+      var m = document.createElement("mark");
+      m.className = "findmark";
+      m.textContent = text.slice(idx, idx + needle.length);
+      frag.appendChild(m);
+      if (!first) first = m;
+      marks++;
+      hit++;
+      from = idx + needle.length;
+    }
+    if (!hit) return;
+    if (from < text.length) frag.appendChild(document.createTextNode(text.slice(from)));
+    if (frag.childNodes.length && node.parentNode) node.parentNode.replaceChild(frag, node);
+  });
+  if (first){
+    if (first.classList && first.classList.add) first.classList.add("here");
+    try{
+      if (first.scrollIntoView) first.scrollIntoView({ block: "center", inline: "nearest" });
+    }catch(e){}
+  }
+  return marks;
+}
+
+/* ★ 「标记学完」的动作 / 「✅ 学完了」按钮 / 已学标记 都已随进度机制删除。
+   翻卡本身就是"在读"这件事的全部 —— 不再需要用户手动标记。 */
+
+/* =====================================================================
+ * 抽屉 / 弹层
+ * =================================================================== */
+function TOC_ACT(){ toggleToc(); renderToc(); }
+function closeTocAll(){
+  S_TOcDRAWER.open = false;
+  applyChrome();
+}
+function closeToc(){ closeTocAll(); }
+function openToc(){ S_TOcDRAWER.open = true; applyChrome(); renderToc(); }
+function renderToc(){
+  var el = $("tocBody");
+  if (!el) return;
+  var keep = el.scrollTop || 0;          /* 重建时保住滚动位置（左栏常驻时很重要） */
+  var cur = stepAt(S.cur);
+  var hereId = tocHereId(cur);
+  var parts = [];
+  S.chapters.forEach(function(ch, ci){
+    var intro = chapterMd(ch, "intro_md"), summary = chapterMd(ch, "summary_md");
+    /* 章号用等宽体压暗、章名加粗：一屏 108 行，章是唯一的"大分隔"，
+       两者同粗同色的时候整列读起来是一块布 */
+    parts.push('<div class="tocCh">' +
+      (ch.chapter ? '<span class="tocChId">' + escapeHtml(ch.chapter) + "</span>" : "") +
+      escapeHtml(ch.title || "") + "</div>");
+    if (intro){
+      parts.push('<button class="tocPt tocMat' +
+        (cur && cur.kind === "intro" && cur.ci === ci ? " here" : "") +
+        '" data-act="jumpchap" data-ci="' + attr(ci) + '" data-pos="intro">🎯 本章要学什么</button>');
+    }
+    (ch.sections || []).forEach(function(sec){
+      if (!sectionPoints(sec).length) return;
+      var pts = sectionPoints(sec);
+      /* ★ 原来这里统计「已学 N/M」—— 进度砍了，只报这一节有几个知识点 */
+      /* 「第 N 节」是坐标、节名才是标题：拆开才能分别压暗 / 加粗 */
+      parts.push('<div class="tocSec"><span class="tocNo">第 ' + escapeHtml(sec.no) + " 节</span>" +
+        '<span class="tocTitle">' + escapeHtml(sec.title || "") + "</span>" +
+        '<span class="tocCnt">' + escapeHtml(pts.length) + " 个</span></div>");
+      pts.forEach(function(p){
+        var here = hereId && p.id === hereId;
+        parts.push('<button class="tocPt' + (here ? " here" : "") +
+          '" data-act="jump" data-id="' + attr(p.id) + '">' +
+          escapeHtml((p.no !== undefined ? p.no + ". " : "") + (p.title || "")) +
+          "</button>");
+      });
+    });
+    if (summary){
+      parts.push('<button class="tocPt tocMat' +
+        (cur && cur.kind === "summary" && cur.ci === ci ? " here" : "") +
+        '" data-act="jumpchap" data-ci="' + attr(ci) + '" data-pos="summary">📌 本章总结</button>');
+    }
+  });
+  el.innerHTML = parts.length ? parts.join("") : '<div class="loading">还没有内容。</div>';
+  el.scrollTop = keep;
+  scrollTocToCurrent();
+}
+/* 把当前项滚进目录视野。
+   规则：首次渲染 / 翻卡跳转 → 滚；用户自己滚过目录 → 不再自动滚（滚回当前项附近就恢复）。
+   用瞬时定位，不用 behavior:"smooth"（连续翻卡会拖影）。 */
+function tocCurrentItem(el){
+  var st = stepAt(S.cur);
+  if (!st || !el || !el.querySelector) return null;
+  var sel = null;
+  if (st.kind === "point") sel = 'button[data-act="jump"][data-id="' + st.p.id + '"]';
+  else if (st.kind === "end" && (st.points || []).length)
+    sel = 'button[data-act="jump"][data-id="' + st.points[st.points.length - 1].id + '"]';  /* 收尾卡 → 跟着本节最后一个点 */
+  else if (st.kind === "intro" || st.kind === "summary")
+    sel = 'button[data-act="jumpchap"][data-ci="' + st.ci + '"][data-pos="' + st.kind + '"]';
+  if (!sel) return null;
+  try{ return el.querySelector(sel); }catch(e){ return null; }
+}
+/* 当前该高亮哪一条（收尾卡跟着本节最后一个知识点） */
+function tocHereId(cur){
+  if (!cur) return null;
+  if (cur.kind === "point") return cur.p.id;
+  if (cur.kind === "end" && (cur.points || []).length) return cur.points[cur.points.length - 1].id;
+  return null;
+}
+function tocItemVisible(item, el){
+  var top = el.scrollTop || 0, h = el.clientHeight || 0;
+  var it = item.offsetTop || 0, ih = item.offsetHeight || 28;
+  return (it >= top - 2) && (it + ih <= top + h + 2);
+}
+function scrollTocToCurrent(){
+  var el = $("tocBody");
+  if (!el || !S.steps.length) return false;
+  if (S.tocUserScrolled) return false;                 /* 用户滚过 → 别跟他抢 */
+  var h = el.clientHeight || 0;
+  if (h <= 0) return false;                            /* 抽屉收着的时候量不到高度 */
+  var item = tocCurrentItem(el);
+  if (!item) return false;
+  if (tocItemVisible(item, el)) return false;          /* 已经看得见就不动 */
+  var it = item.offsetTop || 0, ih = item.offsetHeight || 28;
+  var top = el.scrollTop || 0;
+  S.tocAutoAt = Date.now();                            /* 自己滚的不算"用户滚" */
+  if (it < top) el.scrollTop = it;                     /* 在上方 → 顶到最上面 */
+  else el.scrollTop = it + ih - h;                     /* 在下方 → 底对齐 */
+  S.tocScrollCount = (S.tocScrollCount || 0) + 1;
+  return true;
+}
+function onTocScroll(){
+  if (S.tocAutoAt && (Date.now() - S.tocAutoAt) < 300) return;   /* 程序自己滚的，忽略 */
+  var el = $("tocBody");
+  S.tocUserScrolled = true;
+  var item = el ? tocCurrentItem(el) : null;
+  if (item && tocItemVisible(item, el)) S.tocUserScrolled = false;  /* 用户滚回当前项附近 → 恢复跟随 */
+}
+/* 目录里点「本章要学什么 / 本章总结」 */
+function jumpChapter(ci, pos){
+  for (var i = 0; i < S.steps.length; i++){
+    var st = S.steps[i];
+    if (st.ci === Number(ci) && st.kind === pos){ goto(i); return true; }
+  }
+  return false;
+}
+
+/* ==================================================================
+ * 「面板落在哪」——弹层 vs 卡片区内嵌
+ * ------------------------------------------------------------------
+ * 用户要求：「100days和作业，b站视频列表统一在卡片区展示」（以前都是弹层盖住卡片）。
+ *
+ * 做法刻意选了**改落点**而不是改这三个功能自己：
+ *   openDaysBrowser / openHomework / openVideos 全都是
+ *     openModal(kind, title, xxxPanelHtml())  +  $("modalBody").innerHTML = 重画
+ *   所以只要 openModal / modalBodyEl() 认清"这个 kind 该内嵌"，三个功能一行都不用动，
+ *   它们内部那些"数据到了再重画一次"的逻辑也照旧工作（切到新的目标元素而已）。
+ *
+ * 哪些内嵌是**功能决定**的，不是临时判断：
+ *   · 浏览/挑选类（100 Days 列表、作业列表、视频目录）—— 和知识卡片是同一类东西
+ *   · **它们点进去的内容也一样**（某一天、某一道题、讲义原文）：
+ *     用户原话「我的意思是100days的内容和作业内容也要在卡片区看的。这样视野开阔一点」
+ *     —— 之前只有"列表"内嵌，点进去又变成全屏弹层把目录和材料栏都盖掉了，
+ *        等于白做。所以 reader / problem 也内嵌。
+ *   · 而搜索/更新/AI设置/大图预览是**瞬时覆盖**交互，留在弹层更合适（不会把卡片顶掉）。
+ *
+ * ★ 内嵌的"返回上一层"自己做（SURF_BACK），不走 history：
+ *   实测 openDayFile 只 pushLayer({kind:"reader", day:N})，**没有"从 100 Days 列表来"
+ *   这条记录**，所以直接内嵌的话，关掉某一天会又回到那一天（或空面板），回不到列表。
+ *   这里用一个只记"上一层 kind"的小栈，关面板时复原那一层。
+ * ================================================================== */
+var INLINE_KINDS = { days: 1, hw: 1, videos: 1, reader: 1, problem: 1 };
+var INLINE_MIN_W = 900;      /* 比这窄就退回弹层（内嵌面板在窄屏里读起来会很难受） */
+var SURF_KIND = "";          /* 内嵌模式下当前面板的种类（弹层模式下由 #modal 的 data-kind 承载） */
+/* 盖在内嵌面板上的小弹层（自动提交的说明 / OJ 登录框）。
+   ★ 它不能用常规 openModal：那条路会 surfaceInlineOff()，把「测一测」整页关掉、
+     退回作业列表 —— 用户报的「一点自动提交就被推出作业界面」就是它。 */
+var OVERLAY_MODAL = false;
+var SURF_BACK = "";          /* 内嵌的"上一层 kind"：关掉当前面板时复原它（空 = 回到卡片） */
+
+function surfaceInlineOk(kind){
+  if (!INLINE_KINDS[kind]) return false;
+  try{ return window.innerWidth >= INLINE_MIN_W; }catch(e){ return false; }
+}
+function surfaceIsInline(){ return !!SURF_KIND; }
+/* 正文容器：两个模式下是**两个不同的元素**，所有正文写入都要走这个函数，
+   不能直接写 $("modalBody") —— 内嵌时那会写进隐藏的弹层里（肉眼看就是"点了没反应"）。
+   ★ 注意这里不能出现 $("modalBody") 之外的写法：有一次批量替换把本行也换成了
+     modalBodyEl()，结果变成无限递归。改这一行时眼睛盯住"弹层分支"。 */
+function modalBodyEl(){
+  if (OVERLAY_MODAL) return $("modalBody");
+  return surfaceIsInline() ? $("inlineBody") : $("modalBody");
+}
+/* 当前"最前面那个面板"的根元素。
+   用途：验收脚本 / 读屏要在面板范围里查东西时，不该关心落点是弹层还是内嵌 ——
+   直接查 #modalBody 会在内嵌模式下查到一个隐藏的旧容器（表现为"元素找不到"）。 */
+function surfaceRoot(){ return surfaceIsInline() ? $("inlinePanel") : $("modal"); }
+/* 当前正文容器的选择器，给"拼字符串再 querySelector"的场景用 */
+function surfaceBodySel(){ return surfaceIsInline() ? "#inlineBody" : "#modalBody"; }
+
+/* ==================================================================
+ * 图标栏的悬停提示（鼠标放上就显示这个图标是干什么的）
+ * ------------------------------------------------------------------
+ * 为什么不用原生 title：要悬停 1 秒多才弹，而且只显示一长串整句。
+ * 这里用事件委托（mouseover/mouseout 冒泡到 document），所以以后往图标栏
+ * 加按钮**不用再挂监听** —— 只要写上 data-tip 就有提示。
+ * ================================================================== */
+var SB_TIP_T = null;
+function sbTipHide(){
+  if (SB_TIP_T){ clearTimeout(SB_TIP_T); SB_TIP_T = null; }
+  var t = $("sbTip");
+  if (!t) return;
+  t.hidden = true;
+  if (t.classList) t.classList.remove("on");
+}
+function sbHoverShow(btn){
+  var t = $("sbTip");
+  if (!t || !btn) return;
+  var tip = btn.getAttribute && btn.getAttribute("data-tip");
+  if (!tip) return;
+  t.textContent = tip;
+  t.hidden = false;
+  /* 定位：贴着按钮右侧、垂直居中。量完再夹进视口，避免右边缘被切。 */
+  var r = btn.getBoundingClientRect();
+  var w = t.offsetWidth, h = t.offsetHeight;
+  var x = r.right + 10;
+  if (x + w > window.innerWidth - 8) x = Math.max(8, r.left - w - 10);   /* 放不下就翻到左边 */
+  var y = r.top + (r.height - h) / 2;
+  y = Math.max(6, Math.min(y, window.innerHeight - h - 6));
+  t.style.left = Math.round(x) + "px";
+  t.style.top = Math.round(y) + "px";
+  if (t.classList) t.classList.add("on");
+}
+/* 委托入口：mouseover / mouseout 都送到这里 */
+function sbHover(e){
+  var t = e && e.target;
+  if (!t || !t.closest) return;
+  var btn = t.closest("#sideBar .sb");
+  if (!btn){ 
+    /* 只有"离开的是图标栏按钮"时才收，避免在按钮内部移动（移到 emoji 上）误收 */
+    if (SB_TIP_T === null){ var cur = $("sbTip"); if (cur && !cur.hidden) sbTipHide(); }
+    return;
+  }
+  if (e.type === "mouseout"){
+    var to = e.relatedTarget;
+    if (to && btn.contains && btn.contains(to)) return;   /* 还在同一个按钮里 */
+    sbTipHide();
+    return;
+  }
+  sbTipHide();
+  var button = btn;
+  SB_TIP_T = setTimeout(function(){ sbHoverShow(button); }, 90);   /* 90ms：够快，又不会扫过时乱闪 */
+}
+
+function openModal(kind, title, bodyHtml, opts){
+  kind = kind || "";
+  var keep = !!(opts && opts.keepSurface);
+  OVERLAY_MODAL = false;          /* 每次开面板先复位，别把上一次的状态带进来 */
+  if (!keep && surfaceInlineOk(kind)){
+    /* ---- 内嵌到卡片区 ---- */
+    /* 记"上一层"：从列表点进内容时（days→reader、hw→problem），关掉内容要能回列表。
+       ★ 刻意**不记同层重复**（days→days 重画、hw→hw 换页签都算同层），
+         否则关一次会先回到自己。 */
+    if (surfaceIsInline() && SURF_KIND && SURF_KIND !== kind) SURF_BACK = SURF_KIND;
+    SURF_KIND = kind;
+    var p = $("inlinePanel");
+    if (p){
+      p.hidden = false;
+      p.setAttribute("data-kind", kind);
+    }
+    if ($("inlineTitle")) $("inlineTitle").innerHTML = escapeHtml(title || "");
+    var b = $("inlineBody");
+    if (b) b.innerHTML = bodyHtml || "";
+    /* 卡片让位：同一时刻卡片区只显示一个视图 */
+    if ($("card")) $("card").hidden = true;
+    /* 弹层收起来（可能正开着别的弹层） */
+    var m0 = $("modal");
+    if (m0) m0.hidden = true;
+    if ($("scrim")) $("scrim").hidden = true;
+    /* 读屏那行上下文跟着面板变（reader 要显示"📖 DayN…"） */
+    try{ asRefreshCtx(); }catch(e){}
+    /* 材料栏换成"面板模式"：别让上一张卡片的课件页留在右边（见 renderRailSurface） */
+    renderRailSurface(kind);
+    /* ★ 回到卡片区顶部：从卡片底部点进来时，不这么做会停在面板中段，
+       看起来像"打开了一个空白页"（面板很长时尤其明显）。 */
+    var mn = document.querySelector ? document.querySelector("main") : null;
+    if (mn && mn.scrollTop !== undefined) mn.scrollTop = 0;
+    /* ★ 显式同步一次外层 chrome：openModal 不走 closeModal/applyChrome 那条路，
+       而助教圆钮的显隐（asFabSync）挂在 applyChrome 里 —— 不同步的话内嵌面板开着时
+       圆钮还压在右下角，挡住面板底部。★ 和当初 openAssistant 那个 bug 同源：
+       凡是"自己改显隐状态"的函数，都要记得把外层同步叫一次。 */
+    asFabSync();
+    return;
+  }
+  /* ---- 普通弹层 ---- */
+  OVERLAY_MODAL = keep;
+  if (!keep && surfaceIsInline()) surfaceInlineOff();
+  $("modal").hidden = false;
+  $("modal").setAttribute("data-kind", kind);
+  $("modalTitle").innerHTML = escapeHtml(title || "");
+  if (keep) $("modalBody").innerHTML = bodyHtml || "";
+  else modalBodyEl().innerHTML = bodyHtml || "";
+  if ($("scrim")) $("scrim").hidden = false;
+}
+/* 收起内嵌面板、把卡片放回来（关掉/切到弹层/翻卡时都要走这里）
+   ★ restoreBack=true 时先试着复原"上一层"（内容 → 列表），没有上一层才回卡片。
+     为什么需要：实测 openDayFile 只 pushLayer({kind:"reader", day:N})，
+     **没有"从 100 Days 列表来"这条记录** —— 所以不自己记的话，
+     从列表点进某一天、再关掉，就回不到列表了（会又开一次那一天或落到空面板）。 */
+function surfaceInlineOff(restoreBack){
+  if (!surfaceIsInline()) return;
+  var back = SURF_BACK;
+  SURF_KIND = "";
+  SURF_BACK = "";
+  if (restoreBack && back){
+    if (back === "days"){ openDaysBrowser({ push: false }); return; }
+    if (back === "hw"){ openHomework({ push: false }); return; }
+    if (back === "videos"){ openVideos({ push: false }); return; }
+    /* 认不出的上一层就当没有，落到回卡片 */
+  }
+  if ($("inlinePanel")) $("inlinePanel").hidden = true;
+  if ($("inlineBody")) $("inlineBody").innerHTML = "";
+  if ($("card")) $("card").hidden = false;
+  renderRail();                      /* 材料栏回到当前知识卡片 */
+}
+function closeModal(){
+  /* 关掉"检查更新"面板时把轮询停掉。★ 只清计时器、**不清 UP 里的状态** ——
+     重建可能还在后台跑，再打开面板应该接着显示进度，而不是假装什么都没发生。 */
+  if (modalKind() === "update" && UP.polling){
+    clearInterval(UP.polling);
+    UP.polling = null;
+  }
+  UP._gen++;                    /* 作废所有在途回调（关掉后又打开别串台） */
+  /* 🤖 助教正在流式时把面板关掉：**不中断请求**（回答是花了 token 换来的），
+     只是暂时收起来；再打开面板时消息区会按 AS.msgs 重画，内容一个字节都不丢。
+     代价是生成中那个 data-assistant-busy 标记跟着 DOM 一起消失 —— 所以另给一个
+     不依赖 DOM 的判据（AS.busy / __IC__.assistantBusy()）给验收脚本用。 */
+  $("modal").hidden = true;
+  /* ★ 分两种情况，别一律 restore：
+     · 当前**就是内嵌面板**在显示 → 这才是"用户按了关闭/Esc"，要复原上一层
+       （某一天/某道题 → 它所在的列表），没有上一层才回卡片。
+     · 当前是弹层、内嵌只是顺带清掉 → **不要** restore。否则"看着某一天时点目录"
+       会莫名其妙退回 100 Days 列表（那是两件不相干的事）。
+     还要注意别先清空内嵌正文再 restore：reader 的复原靠重画，但清理顺序错了会闪一下。 */
+  if (OVERLAY_MODAL){
+    /* 盖在内嵌面板上的小弹层：只收自己，底下的「测一测」原样留着 */
+    OVERLAY_MODAL = false;
+    $("modalBody").innerHTML = "";
+  } else if (surfaceIsInline()){
+    surfaceInlineOff(true);
+  } else {
+    $("modalBody").innerHTML = "";
+  }
+  aiPanelGen();                 /* 关掉面板 = 代数 +1：在途的异步渲染自动作废 */
+  applyChrome();
+  /* ★ 关层后刷新常驻助教那行上下文：读者器（100 Days / 讲义原文）关掉之后
+     要切回底下那张卡，否则气泡一直显示"📖 Day11…"。
+     S.readerStep 从来不会被清空（只在打开时赋值），所以判断"在不在读者器里"
+     只能靠 modalKind() —— asContextPoint 里就是这么写的，这里只需触发重算。 */
+  try{ asRefreshCtx(); }catch(e){ /* 关层不能因为上下文出错而失败 */ }
+}
+function closeAll(){ closeModal(); closeTocAll(); }
+
+/* =====================================================================
+ * 层栈：每一层 = 一条 history 记录
+ *   第 0 层  卡片流（base，永远在）
+ *   第 1 层  100Days 列表 / 作业列表 / 设置 …
+ *   第 2 层  Day 阅读器 / 作业题（题面·解析·测一测）
+ *   打开一层 → pushState；关一层（✕ / Esc / 返回）→ history.back()；
+ *   popstate → 按新 state 恢复那一层。
+ *
+ *   这样自动得到三件事：
+ *     ① 关掉第 2 层回到第 1 层（不再是"露出最底下那张卡" = 用户报的"回首页"）
+ *     ② 系统/浏览器后退（含 pywebview 的 Alt+←）终于能用
+ *     ③ 以后新增一层不用再想"关掉该去哪"
+ *
+ *   ★ 和 back= 那套不冲突：back= 是【跨页面】（跳到 /tutor 再回来），
+ *     这里是【同一页面内】的层。两套都留着，而且共用同一套 URL 参数
+ *     （打开 Day 11 时 pushState 的 URL 就是 /?day=11 → 刷新还能恢复）。
+ *   ★ 侧边面板（目录抽屉 / 试一试 / 材料栏）是"同时可见"的，不是层，不进 history。
+ * =================================================================== */
+var LAYER_STACK = [];          /* 我们压过的层，最后一个是当前层 */
+var LAYER_PUSH_OK = null;      /* 环境支不支持 pushState（懒探测） */
+function layerPushSupported(){
+  if (LAYER_PUSH_OK === null){
+    LAYER_PUSH_OK = !!(window.history && typeof window.history.pushState === "function");
+  }
+  return LAYER_PUSH_OK;
+}
+/* 层 → URL。★ 参数名和 restoreFromUrl() 完全共用，一处定义两处用。 */
+function layerUrlOf(L){
+  if (!L) return "/";
+  if (L.day) return "/?day=" + encodeURIComponent(L.day);
+  if (L.days) return "/?days=1";
+  if (L.hw && L.no !== undefined && L.no !== null)
+    return "/?hw=" + encodeURIComponent(L.hw) + "&no=" + encodeURIComponent(L.no) +
+           "&tab=" + encodeURIComponent(L.tab || "stmt");
+  if (L.hw) return "/?hw=" + encodeURIComponent(L.hw);
+  if (L.hwlist) return "/?hwlist=1";            /* 作业列表（还不知道是哪本/还没加载完） */
+  if (L.ai) return "/?ai=1";
+  if (L.search) return "/?search=1";
+  if (L.assistant) return "/?assistant=1";
+  if (L.oj) return "/?oj=1";
+  if (L.update) return "/?update=1";
+  if (L.videos) return "/?videos=1";
+  return "/";
+}
+function pushLayer(L){
+  if (!L) return false;
+  if (!layerPushSupported()) return false;          /* 老壳子 → 退化成"直接开" */
+  try{
+    /* noUrl=true：这一层没有可恢复的 URL（课件大图/讲义原文/复制兜底…），
+       压记录但不改地址栏 —— 这样"关掉之后按后退"不会把栈和现实搞错位。 */
+    window.history.pushState(L, "", L.noUrl ? null : layerUrlOf(L));
+    LAYER_STACK.push(L);
+    return true;
+  }catch(e){ return false; }
+}
+/* 同一层内换了内容（比如题目换页签）→ 只改 URL，不新增记录 */
+function replaceLayerUrl(L){
+  if (!L || !layerPushSupported()) return false;
+  try{
+    window.history.replaceState(L, "", layerUrlOf(L));
+    if (LAYER_STACK.length) LAYER_STACK[LAYER_STACK.length - 1] = L;
+    return true;
+  }catch(e){ return false; }
+}
+/* 关掉最上面那一层。
+   只有"当前开着的弹层 == 我压的那一层"才走 history.back()；
+   要是上面还叠了个工具弹层（手动复制 / 课件大图），就先把它关掉。 */
+function closeLayer(){
+  var top = LAYER_STACK[LAYER_STACK.length - 1];
+  if (top && top.kind === modalKind() && layerPushSupported()){
+    try{ window.history.back(); return true; }catch(e){ /* 落到直接关 */ }
+  }
+  closeModal();
+  return false;
+}
+/* popstate：退掉的层已经不在栈里了，按新 state 恢复 */
+function applyLayerState(st){
+  st = st || {};
+  if (st.day){ openDayFile(Number(st.day), { push: false }); return; }
+  if (st.days){ openDaysBrowser({ push: false }); return; }
+  if (st.hw && st.no !== undefined && st.no !== null){
+    openProblem(st.hw, st.no, { push: false, tab: st.tab });
+    return;
+  }
+  if (st.hw){ openHomework({ push: false }); return; }
+  if (st.ai){ openAiSettings({ push: false }); return; }
+  if (st.search){ openSearch({ push: false }); return; }
+  if (st.assistant){ openAssistant({ push: false }); return; }
+  if (st.oj){ openOj({ push: false }); return; }
+  closeModal();                    /* 回到第 0 层 / 认不出的 state → 关掉 */
+  /* 层变了 → 常驻助教那行上下文跟着变（closeModal 里也会刷；这里顺手覆盖整个
+     applyLayerState，省得以后新增一层时忘了加）。成本很低：只取结构化定位。 */
+  try{ asRefreshCtx(); }catch(e){}
+}
+function onPopState(e){
+  if (LAYER_STACK.length) LAYER_STACK.pop();
+  applyLayerState(e && e.state);
+}
+function modalOpen(){ return !$("modal").hidden || surfaceIsInline(); }
+
+function toast(msg, ms){
+  var el = $("toast");
+  if (!el) return;
+  el.textContent = String(msg || "");
+  el.hidden = false;
+  el.classList.add("show");
+  clearTimeout(S.toastTimer);
+  S.toastTimer = setTimeout(function(){ el.classList.remove("show"); el.hidden = true; }, ms || 2400);
+}
+
+/* ---------- 搜索 ---------- */
+function doSearch(q){
+  q = String(q || "").trim().toLowerCase();
+  if (!q) return [];
+  var res = [];
+  for (var i = 0; i < S.steps.length; i++){
+    var st = S.steps[i];
+    if (st.kind !== "point") continue;
+    var p = st.p;
+    var hay = String(p.title || "") + "\n" + String(p.body_md || "");
+    var idx = hay.toLowerCase().indexOf(q);
+    if (idx < 0 && p.pitfall && String(p.pitfall).toLowerCase().indexOf(q) >= 0) idx = 0;
+    if (idx < 0) continue;
+    res.push({ i: i, st: st, hay: hay, idx: idx, q: q });
+    if (res.length >= 60) break;
+  }
+  return res;
+}
+function snippetHtml(hit){
+  var hay = hit.hay;
+  var low = hay.toLowerCase();
+  var idx = low.indexOf(hit.q);
+  if (idx < 0) idx = 0;
+  var a = Math.max(0, idx - 26), b = Math.min(hay.length, idx + hit.q.length + 56);
+  var raw = (a > 0 ? "…" : "") + hay.slice(a, b).replace(/\s+/g, " ") + (b < hay.length ? "…" : "");
+  var m = raw.toLowerCase().indexOf(hit.q);
+  if (m < 0) return escapeHtml(raw);
+  return escapeHtml(raw.slice(0, m)) + "<b>" + escapeHtml(raw.slice(m, m + hit.q.length)) + "</b>" +
+    escapeHtml(raw.slice(m + hit.q.length));
+}
+/* 100days/index.json 的 topic_index：键名一律当纯数据遍历，
+   不假设任何具体键存在（真键是「字符串的方法」这种带「的」的写法）。 */
+function topicIndexMap(){
+  var idx = (S.daysIndex && S.daysIndex.topic_index && typeof S.daysIndex.topic_index === "object")
+    ? S.daysIndex.topic_index : null;
+  return idx;
+}
+function searchTopics(q){
+  var idx = topicIndexMap();
+  q = String(q || "").trim().toLowerCase();
+  if (!idx || !q) return [];
+  var out = [];
+  Object.keys(idx).forEach(function(k){
+    if (String(k).toLowerCase().indexOf(q) < 0) return;
+    var days = Array.isArray(idx[k]) ? idx[k] : [];
+    out.push({ topic: String(k), days: days });
+  });
+  out.sort(function(a, b){
+    if (a.topic.length !== b.topic.length) return a.topic.length - b.topic.length;
+    return a.topic < b.topic ? -1 : 1;
+  });
+  return out.slice(0, 6);
+}
+function dayInfo(day){
+  var days = (S.daysIndex && Array.isArray(S.daysIndex.days)) ? S.daysIndex.days : [];
+  for (var i = 0; i < days.length; i++){
+    if (days[i] && Number(days[i].day) === Number(day)) return days[i];
+  }
+  return null;
+}
+function renderSearchResults(q){
+  var box = modalBodyEl() && modalBodyEl().querySelector ? modalBodyEl().querySelector(".searchResults") : null;
+  if (!box) return;
+  var key = String(q || "").trim();
+  var res = doSearch(key);
+  var topics = searchTopics(key);
+  if (!key){ box.innerHTML = '<div class="loading">输入关键词，跨全部知识点的标题和正文搜。</div>'; return; }
+
+  var parts = [];
+  if (topics.length){
+    var idxN = Object.keys(topicIndexMap() || {}).length;
+    parts.push('<div class="secHead">100Days 主题索引（共 ' + escapeHtml(idxN) + ' 个主题，命中 ' +
+      escapeHtml(topics.length) + ' 个）</div>');
+    topics.forEach(function(t){
+      var links = t.days.map(function(d){
+        var info = dayInfo(d);
+        var label = "Day" + escapeHtml(d) + (info && info.title ? " " + escapeHtml(info.title) : "");
+        return '<button class="chip" data-act="dayfile" data-day="' + attr(d) + '">📖 ' +
+          escapeHtml(label) + "</button>";
+      }).join("");
+      parts.push('<div class="topicRow"><span class="topicName">' + escapeHtml(t.topic) + "</span>" +
+        '<span class="topicDays">' + (links || '<span class="loading">（索引里没写 Day）</span>') + "</span></div>");
+    });
+    parts.push('<div class="secHead" style="margin-top:16px">知识点（' + escapeHtml(res.length) + " 条）</div>");
+  }
+  if (!res.length){
+    parts.push('<div class="loading">' + (topics.length ? "知识点里没有直接命中。" : "没找到「" + escapeHtml(key) + "」。") + "</div>");
+  }else{
+    parts.push(res.map(function(h){
+      /* ★ 命中行必须带章号：搜索是跨全部章节的，"第 5 节 · 知识点 3"在 ch02 和 ch03
+         里都存在，不写章号就分不清自己会被带到哪一章去。 */
+      var chTag = (h.st.ch && h.st.ch.chapter) ? String(h.st.ch.chapter) : "";
+      return '<button class="searchHit" data-act="jump" data-id="' + attr(h.st.p.id) + '"' +
+        ' data-q="' + attr(key) + '">' +
+        '<div class="sh">' + (chTag ? '<span class="shch">' + escapeHtml(chTag) + "</span> · " : "") +
+        escapeHtml("第 " + h.st.sec.no + " 节 · 知识点 " + h.st.p.no + " · " + (h.st.p.title || "")) + "</div>" +
+        '<div class="sn">' + snippetHtml(h) + "</div></button>";
+    }).join(""));
+  }
+  box.innerHTML = parts.join("");
+}
+function openSearch(opts){
+  opts = opts || {};
+  if (opts.push !== false) pushLayer({ kind: "search", search: 1 });
+  openModal("search", "🔍 搜索知识点",
+    '<input class="searchInput" type="text" placeholder="例：strip / 输入 / 缩进 / 类型转换" ' +
+    'autocomplete="off" spellcheck="false">' +
+    '<div class="searchResults"></div>');
+  var inp = modalBodyEl().querySelector ? modalBodyEl().querySelector(".searchInput") : null;
+  if (inp && inp.focus) inp.focus();
+  renderSearchResults("");
+}
+
+/* ---------- OpenJudge ---------- */
+/* 每个入口都把地址写成可选中的文字放在按钮下面：
+   万一新窗口被拦，用户还能自己复制到浏览器里打开，而**不会被困在 OpenJudge 里出不来**。 */
+function ojRow(label, url, cls){
+  return '<div class="ojRow">' +
+    '<button class="' + (cls || "big") + '" data-act="ojopen" data-url="' + attr(url) + '">' +
+      escapeHtml(label) + "</button>" +
+    '<div class="ojUrl"><code>' + escapeHtml(url) + "</code>" +
+      '<button class="linkbtn" data-act="copyurl" data-url="' + attr(url) + '">复制链接</button></div>' +
+    "</div>";
+}
+function openOj(opts){
+  opts = opts || {};
+  if (opts.push !== false) pushLayer({ kind: "oj", oj: 1 });
+  var html =
+    '<div class="ojNote"><b>该站点不允许内嵌。</b><br>' +
+    "实测：<code>xzmdsa.openjudge.cn</code> 和 <code>cs101.openjudge.cn</code> 的响应头都是 " +
+    "<code>X-Frame-Options: SAMEORIGIN</code>，浏览器因此拒绝把它们的页面放进别的站点里。" +
+    "所以这里不摆一个空白 iframe 装样子。</div>" +
+    '<div class="ojBtns">' +
+      ojRow("去 OpenJudge 做题（cs101 · 计算概论 B）", OJ_HOME, "primary big") +
+      ojRow("xzmdsa.openjudge.cn（小作业/练习）", OJ_XZ) +
+      ojRow("看一眼示例题 31184", OJ_SAMPLE) +
+    "</div>" +
+    '<div class="ojSmall">点了会尝试开一个新窗口。' +
+    "<b>如果没反应</b>，就点上面的「复制链接」，粘到浏览器地址栏里打开 —— " +
+    "这个学习终端本身<strong>不会</strong>被跳走，你的进度和位置都还在。</div>";
+  openModal("oj", "🧪 做题", html);
+}
+/* 新窗口打不开时的兜底：给地址让用户自己复制，绝不把当前页面导航走 */
+function showLinkFallback(url, why){
+  pushLayer({ kind: "link", noUrl: true });          /* 工具层：没有可恢复 URL，但要占一条记录 */
+  openModal("link", "🔗 这个环境不让新窗口打开",
+    '<div class="warnbar">' + escapeHtml(why || "浏览器/桌面壳把新窗口拦住了。") +
+      "<br>把下面这个地址复制到浏览器里打开就行 —— 学习终端这一页会留在原地，进度不会丢。</div>" +
+    '<div class="ojUrl big2"><code>' + escapeHtml(url) + "</code></div>" +
+    '<div class="endBtns" style="margin-top:16px">' +
+      '<button class="primary" data-act="copyurl" data-url="' + attr(url) + '">复制链接</button>' +
+      '<button data-act="closemodal">知道了</button>' +
+    "</div>");
+}
+
+/* =====================================================================
+ * 📅 100Days 浏览器
+ *   数据：content/100days/index.json 的 days[]（22 天，day 号 1~21 + 30，不连续）
+ *   打开某天复用已有的 openDayFile()，不另写一套
+ * =================================================================== */
+var DQ = "";                     /* 搜索词 */
+function daysList(){
+  var d = (S.daysIndex && Array.isArray(S.daysIndex.days)) ? S.daysIndex.days : [];
+  return d.filter(function(x){ return x && typeof x === "object" && x.day !== undefined; });
+}
+function daysTopicTotal(){
+  var n = 0;
+  daysList().forEach(function(d){ n += (Array.isArray(d.topics) ? d.topics.length : 0); });
+  return n;
+}
+/* 不重复的主题数（topic_index 的键数）—— 和上面那个"按天累加"不是一回事，两个都报出来 */
+function daysTopicUnique(){
+  var idx = (S.daysIndex && S.daysIndex.topic_index && typeof S.daysIndex.topic_index === "object")
+    ? S.daysIndex.topic_index : null;
+  return idx ? Object.keys(idx).length : 0;
+}
+function openDaysBrowser(opts){
+  opts = opts || {};
+  if (opts.push !== false) pushLayer({ kind: "days", days: 1 });
+  DQ = "";
+  openModal("days", "📅 100 Days · Python 练习", daysPanelHtml());
+  if (!S.daysIndex){
+    fetchJson(DAYS_PREFIX + "index.json").then(function(j){
+      S.daysIndex = j;
+      /* ★ 同 hwPanelRefresh：判据走 modalKind()，别读 $("modal") 的 data-kind ——
+         内嵌模式下 #modal 是隐藏的、data-kind 是陈旧值，那样写列表永远刷不出来。 */
+      if (modalKind() === "days")
+        openModal("days", "📅 100 Days · Python 练习", daysPanelHtml());
+    }, function(){
+      modalBodyEl().innerHTML = '<div class="warnbar">没有读到 <code>' +
+        escapeHtml(DAYS_PREFIX + "index.json") + "</code>，100Days 还没本地化。</div>";
+    });
+  }
+}
+/* 命中高亮：把 query 那段包成 <b>（query 已 escape，片段本身也 escape） */
+function hitMark(text, q){
+  var s = String(text === undefined || text === null ? "" : text);
+  if (!q) return escapeHtml(s);
+  var i = s.toLowerCase().indexOf(q);
+  if (i < 0) return escapeHtml(s);
+  return escapeHtml(s.slice(0, i)) + "<b>" + escapeHtml(s.slice(i, i + q.length)) + "</b>" +
+         escapeHtml(s.slice(i + q.length));
+}
+function daysPanelHtml(){
+  var list = daysList();
+  var q = String(DQ || "").trim().toLowerCase();
+  var out = [];
+  var uniq = daysTopicUnique();
+  out.push('<div class="daysBar">' +
+    '<input id="daysSearch" class="searchInput" type="search" autocomplete="off" ' +
+      'placeholder="搜索天标题、主题名或函数名（比如 字符串 / split / 正则）" value="' + attr(DQ) + '">' +
+    '<span class="aiNote">' + escapeHtml(list.length) + " 天 · " +
+      (uniq ? escapeHtml(uniq) + " 个主题" : escapeHtml(daysTopicTotal()) + " 条主题") +
+      (uniq && daysTopicTotal() !== uniq ? "（按天累加 " + escapeHtml(daysTopicTotal()) + " 条）" : "") +
+    "</span></div>");
+
+  /* 主题索引命中（主题 → 哪些天） */
+  var idx = (S.daysIndex && S.daysIndex.topic_index && typeof S.daysIndex.topic_index === "object")
+    ? S.daysIndex.topic_index : null;
+  if (q && idx){
+    var keys = [];
+    for (var k in idx){
+      if (!Object.prototype.hasOwnProperty.call(idx, k)) continue;
+      if (String(k).toLowerCase().indexOf(q) >= 0) keys.push(String(k));
+    }
+    keys.sort();
+    if (keys.length){
+      out.push('<div class="daysSec">主题索引命中（' + escapeHtml(keys.length) + ' 条）</div>');
+      keys.slice(0, 12).forEach(function(k){
+        var ds = Array.isArray(idx[k]) ? idx[k] : [];
+        out.push('<div class="topicHit"><span class="tk">' + hitMark(k, q) + "</span>" +
+          '<span class="sp"></span>' +
+          ds.map(function(d){
+            return '<button class="chip" data-act="daysopen" data-day="' + attr(d) + '">Day ' +
+              escapeHtml(String(d).padStart(2, "0")) + "</button>";
+          }).join("") + "</div>");
+      });
+      if (keys.length > 12) out.push('<div class="aiNote">…还有 ' + escapeHtml(keys.length - 12) + " 条，再打几个字缩小范围</div>");
+    }
+  }
+
+  /* 天列表（搜索时按 标题 或 主题 过滤） */
+  var rows = [];
+  list.forEach(function(d){
+    var title = String(d.title || "");
+    var topics = Array.isArray(d.topics) ? d.topics.map(String) : [];
+    var titleHit = !q || title.toLowerCase().indexOf(q) >= 0;
+    var topicHits = q ? topics.filter(function(t){ return t.toLowerCase().indexOf(q) >= 0; }) : [];
+    if (!titleHit && !topicHits.length) return;
+    rows.push({ d: d, title: title, topics: topics, titleHit: titleHit, hits: topicHits });
+  });
+  if (!rows.length){
+    out.push('<div class="emptyCard" style="padding:16px 6px"><div class="emptyIco">🔍</div>' +
+      "<h2>没有匹配</h2><p>换个词试试（天数标题、主题名、函数名都能搜）。</p></div>");
+    return out.join("");
+  }
+  out.push(q ? '<div class="daysSec">匹配的天（' + escapeHtml(rows.length) + '）</div>' : "");
+  rows.forEach(function(r){
+    out.push('<div class="dayRow">' +
+      '<span class="dayNo">Day ' + escapeHtml(String(r.d.day).padStart(2, "0")) + "</span>" +
+      '<span class="t">' + hitMark(r.title, q) +
+        (q && r.hits.length
+          ? '<div class="hit">命中主题：' + r.hits.slice(0, 3).map(function(t){ return hitMark(t, q); }).join(" · ") +
+            (r.hits.length > 3 ? " …共 " + r.hits.length + " 个" : "") + "</div>"
+          : "") +
+      "</span>" +
+      '<span class="dayMeta">' + escapeHtml(r.topics.length) + " 主题</span>" +
+      '<button class="copyMini" data-act="daysopen" data-day="' + attr(r.d.day) + '"' +
+        ' title="' + attr("打开 Day " + r.d.day + " " + r.title) + '">打开 ›</button>' +
+      "</div>");
+  });
+  return out.join("");
+}
+function daysSearch(v){
+  DQ = String(v === undefined || v === null ? "" : v);
+  var b = modalBodyEl();
+  if (!b) return;
+  b.innerHTML = daysPanelHtml();
+  var el = $("daysSearch");
+  if (el){
+    el.value = DQ;
+    if (el.focus) el.focus();
+    try{ el.selectionStart = el.selectionEnd = DQ.length; }catch(e){}
+  }
+}
+
+/* ---------- 站内读 100days / 讲义 ---------- */
+/* UTF-8 字节数（用来跟 index.json 的 bytes 对齐；不用本地 sha256 判断"新不新"） */
+function utf8Len(s){
+  var n = 0, str = String(s === undefined || s === null ? "" : s);
+  for (var i = 0; i < str.length; i++){
+    var c = str.charCodeAt(i);
+    if (c < 0x80) n += 1;
+    else if (c < 0x800) n += 2;
+    else if (c >= 0xD800 && c <= 0xDBFF){ n += 4; i++; }
+    else n += 3;
+  }
+  return n;
+}
+function openDaysMd(path, title, bytes, codeId, day){
+  openModal("reader", title, '<div class="loading">正在打开本地副本…<br><code>' + escapeHtml(path) + "</code></div>");
+  var myKind = "reader";
+  fetchText(path).then(function(txt){
+    /* ★ 异步回来先确认弹层还是我这一层：用户可能已经关了、或者换了别的层/别的天 */
+    if (modalKind() !== myKind || S.readerStep === null) return;
+    var size = utf8Len(txt);
+    var note = escapeHtml("本地副本 " + (size / 1024).toFixed(1) + " KB");
+    if (typeof bytes === "number" && bytes > 0){
+      note += escapeHtml(" · index.json 记录 " + bytes + " 字节");
+      if (size !== bytes){
+        note += ' · <b style="color:#8a6d00">⚠ 两者不一致，这份副本可能还没更新完</b>';
+      }
+    }
+    /* 100Days 的 md 里有 229 个 ```python 块 —— 按统一口径挂「▶ 可视化」+「📋 复制」 */
+    var codes = [];
+    S.readerStep = { kind: "reader", p: { id: codeId || ("days:" + path) }, _codes: codes,
+                     day: (day === undefined || day === null) ? null : Number(day),
+                     /* ★ dayTitle 是给助教认"你在看哪一天"用的（见 asContextPoint）。
+                        原来只存了 day 号，标题只写在弹层标题栏里，助教拿不到。 */
+                     dayTitle: String(title || "") };
+    /* ★ 先算 markdown（它会往 codes 里收代码），再拼头部 —— 顺序反了 codes.length 永远是 0 */
+    var mdHtml = cardMarkdown(txt, S.readerStep.p, codes);
+    modalBodyEl().innerHTML = '<div class="noteHead">' + note +
+      (codes.length ? " · <b>" + codes.length + "</b> 段可运行代码" : "") + "</div>" +
+      '<div class="md">' + mdHtml + "</div>";
+    /* 内容已进 DOM → 让常驻助教那行上下文跟着变（100 Days 打开时要显示 Day11…，
+       不是底下那张卡）。★ 放在渲染之后：asRefreshCtx 要读 S.readerStep。 */
+    asRefreshCtx();
+  }, function(e){
+    if (modalKind() !== myKind) return;
+    modalBodyEl().innerHTML = '<div class="warnbar">本地副本还没生成：<code>' + escapeHtml(path) +
+      "</code><br>100-Days 本地化跑完之后，这里就能直接离线读了。<br><span style=\"font-size:12px\">" +
+      escapeHtml(String(e && e.message ? e.message : e)) + "</span></div>";
+  });
+}
+function openDayFile(day, opts){
+  var d = dayInfo(day);
+  if (!d){
+    toast("100days/index.json 里没有 Day" + day);
+    return;
+  }
+  opts = opts || {};
+  /* Day 阅读器是【第 2 层】：关掉它要回到 100Days 列表，不是回卡片流 */
+  if (opts.push !== false) pushLayer({ kind: "reader", day: Number(day) });
+  var file = d.file || ("Day" + day + ".md");
+  openDaysMd(DAYS_PREFIX + file, "📖 Day" + day + (d.title ? " " + d.title : ""),
+    (typeof d.bytes === "number" ? d.bytes : null), "days-" + day, day);
+}
+function openDaysRef(i){
+  var st = stepAt(S.cur);
+  var r = (st && st.p && Array.isArray(st.p.refs)) ? st.p.refs[i] : null;
+  if (!r) return;
+  if (isExternal(r.url)){ openExternal(r.url); return; }
+  var path = resolveContentPath(r.url);
+  var m = /Day\s*0*(\d+)/i.exec(String(r.url || "") + " " + String(r.label || ""));
+  var d = m ? dayInfo(Number(m[1])) : null;
+  openDaysMd(path, "📖 " + (r.label || "Python-100-Days"), d ? d.bytes : null);
+}
+function openNotesRef(){
+  var st = stepAt(S.cur);
+  if (!st || st.kind !== "point") return;
+  var lines = st.p.notes_lines;
+  var path = NOTE_PREFIX + (st.ch.chapter || "") + ".md";
+  var head = "📄 讲义原文 " + (st.ch.chapter || "") + ".md:" + lines[0] + "-" + lines[1];
+  pushLayer({ kind: "reader", noUrl: true });        /* 工具层：内容靠行号取，不进 URL */
+  var myKind = "reader";
+  openModal("reader", head, '<div class="loading">正在取讲义原文…</div>');
+  fetchText(path).then(function(txt){
+    /* 异步回来先确认弹层还是我这一层（用户可能已经关了/换了别的层） */
+    if (modalKind() !== myKind) return;
+    var all = String(txt).replace(/\r\n?/g, "\n").split("\n");
+    var a = Math.max(1, Number(lines[0]) || 1), b = Math.min(all.length, Number(lines[1]) || a);
+    var seg = all.slice(a - 1, b).join("\n");
+    modalBodyEl().innerHTML = '<div class="noteHead">' + escapeHtml(path + " 第 " + a + "–" + b + " 行（讲义原稿，一字未改）") +
+      "</div><pre class=\"notesPre\">" + escapeHtml(seg) + "</pre>";
+  }, function(e){
+    if (modalKind() !== myKind) return;
+    modalBodyEl().innerHTML = '<div class="warnbar">这次没拿到本地讲义副本 <code>' + escapeHtml(path) +
+      "</code>。<br>讲义原文会由内容管道放到这个位置。<br><span style=\"font-size:12px\">" +
+      escapeHtml(String(e && e.message ? e.message : e)) + "</span></div>";
+  });
+}
+function openSlide(chapter, page){
+  var key = chapter + ":" + page;
+  var title = "课件 P" + page;
+  pushLayer({ kind: "lightbox", noUrl: true });      /* 工具层 */
+  var myKind = "lightbox";
+  openModal("lightbox", title, '<div class="loading" style="color:#c9ced6">正在取课件第 ' + escapeHtml(page) + " 页…</div>");
+  function show(u){
+    if (modalKind() !== myKind) return;              /* 弹层已经关了/换了 → 别再往里写 */
+    if (!u){
+      closeModal();
+      toast("课件图还没生成：content/slides/" + chapter + "/ 第 " + page + " 页");
+      return;
+    }
+    modalBodyEl().innerHTML = '<img class="lbImg" src="' + attr(u) + '" alt="' + attr(title) + '">';
+  }
+  if (S.slideCache[key] !== undefined){ show(S.slideCache[key]); return; }
+  probeImage(slideCandidateUrls(chapter, page), function(u){
+    S.slideCache[key] = u || null;
+    show(u);
+  });
+}
+/* ★ 外链只允许「另开窗口」。
+   绝对不能退化成 window.location.href —— 那样桌面壳会整个跳到外站，
+   用户就"进了 OpenJudge 退不出来"了（这是实测到的真事）。
+   开不出来就给地址让用户自己复制，本页原地不动。 */
+function openExternal(url){
+  if (!url) return false;
+  var w = null;
+  try{ w = window.open(url, "_blank"); }catch(e){ w = null; }
+  if (w) return true;
+  showLinkFallback(url, "新窗口没能打开（桌面壳通常不允许 window.open）。");
+  return false;
+}
+/* 外链**优先交给系统浏览器**（服务端 /open）。
+   为什么不用 openExternal：它只试 window.open，而打包壳里那句话基本必然失败
+   （这个文件里自己就写着"pywebview 里 window.open 多半不行"），于是会退到
+   "复制链接"对话框 —— 对"去 B 站看视频"这种需求等于没解决：用户要的是**能调
+   倍速的播放器**，不是一段要自己粘到浏览器里的文本。
+   /open 是服务端 os.startfile，一定能拉起默认浏览器；只有它失败（比如浏览器没装）
+   才退到复制兜底。 */
+function openExternalPreferred(url){
+  if (!url) return Promise.resolve(false);
+  if (typeof fetch !== "function"){
+    return Promise.resolve(openExternal(url));
+  }
+  return fetchJson("/open?url=" + encodeURIComponent(url)).then(function(d){
+    if (d && d.ok) return true;
+    showLinkFallback(url, (d && d.error) || "系统浏览器没能打开这个链接。");
+    return false;
+  }, function(){
+    return openExternal(url);
+  });
+}
+
+/* ---------- 「跑一下」 ---------- */
+/* 同源的 /tutor 可以退回同窗口跳转（代理 C 的包装页负责"返回卡片流"）。
+   外链走 openExternal，绝不跳走。 */
+/* ---------- 「现场」：可视化退回来要回到你离开的地方 ---------- */
+/* URL 里的页签名 ⇄ 我内部的名字 */
+var TAB_URL = { stmt: "statement", ai: "analysis", test: "test" };
+function tabToUrl(t){
+  if (t === "analysis") return "ai";
+  if (t === "test") return "test";
+  return "stmt";
+}
+function tabFromUrl(v){
+  var s = String(v === undefined || v === null ? "" : v).trim().toLowerCase();
+  if (TAB_URL[s]) return TAB_URL[s];
+  if (s === "statement" || s === "analysis" || s === "test") return s;   /* 内部名字也认 */
+  return null;                                                           /* 非法 → 调用方用默认 */
+}
+function urlParams(){
+  var out = {};
+  try{
+    var q = String((window.location && window.location.search) || "");
+    if (q.charAt(0) === "?") q = q.slice(1);
+    if (!q) return out;
+    q.split("&").forEach(function(kv){
+      if (!kv) return;
+      var i = kv.indexOf("=");
+      var k = i < 0 ? kv : kv.slice(0, i);
+      var v = i < 0 ? "" : kv.slice(i + 1);
+      try{ out[decodeURIComponent(k)] = decodeURIComponent(v.replace(/\+/g, " ")); }
+      catch(e){ out[k] = v; }
+    });
+  }catch(e){ /* 读不到就当没有 */ }
+  return out;
+}
+/* 参数只认识这几种形状；空串 / 超长一律当无效 */
+function validParam(v, maxLen){
+  if (v === undefined || v === null) return null;
+  var s = String(v);
+  if (!s || s.length > (maxLen || 120)) return null;
+  return s;
+}
+function clearUrlParams(){
+  try{
+    if (window.history && typeof window.history.replaceState === "function"){
+      window.history.replaceState(null, "", "/");
+      return true;
+    }
+  }catch(e){ /* 老壳子没有 replaceState 就算了 */ }
+  return false;
+}
+/* 当前开着的弹层是什么类型？★ 必须先看 hidden —— closeModal() 只把弹层藏起来，
+   data-kind 还留在 DOM 上（陈旧值）。不看 hidden 的话，关掉阅读器之后从卡片点 ▶
+   仍然会被当成"在阅读器里"，back 变成 /?day=11。 */
+function modalKind(){
+  try{
+    /* 内嵌面板也算"开着的一层"，所以这里的 kind 要把它一起报出来 ——
+       modalKind() 是**全项目**判断"现在在哪一层"的唯一入口（Esc、翻卡守卫、
+       screenText 的〔弹层:x〕标签、asFabSync…都读它）。 */
+    if (surfaceIsInline()) return SURF_KIND;
+    var m = $("modal");
+    if (!m || m.hidden) return "";
+    return (m.getAttribute && m.getAttribute("data-kind")) || "";
+  }catch(e){ return ""; }
+}
+/* 当前开着的是 100Days 阅读器吗？是的话返回天数 */
+function readerDay(){
+  if (modalKind() !== "reader" || !S.readerStep) return null;
+  var d = Number(S.readerStep.day);
+  return isFinite(d) && d > 0 ? d : null;
+}
+/* 从可视化点「← 回卡片流」时要回到哪儿。
+   ★ 顺序有讲究：阅读器必须排在 pointId 前面 —— 阅读器里代码块的 data-id 是 "days-11"，
+     不先拦下来的话会走 /?p=days-11（不存在的知识点 → 恢复时退回第 1 张卡，看起来就是"回主页"）。
+   作业那块按**弹层实际开着什么**判断（题目页 / 作业列表），不靠"上次开过什么"。 */
+function tutorBack(pointId){
+  var rd = readerDay();
+  if (rd) return "/?day=" + encodeURIComponent(rd);
+  if (pointId && isPointId(pointId)) return "/?p=" + encodeURIComponent(pointId);
+  var kind = modalKind();
+  if (kind === "problem" && HW.hw && HW.prob){
+    return "/?hw=" + encodeURIComponent(HW.hw.id) +
+           "&no=" + encodeURIComponent(HW.prob.no) +
+           "&tab=" + encodeURIComponent(tabToUrl(HW.tab));
+  }
+  if (kind === "problem" && HW.hw) return "/?hw=" + encodeURIComponent(HW.hw.id);
+  if (kind === "hw" && HW.hw) return "/?hw=" + encodeURIComponent(HW.hw.id);
+  if (kind === "search") return "/?search=1";
+  if (kind === "assistant") return "/?assistant=1";
+  if (kind === "update") return "/?update=1";
+  if (kind === "videos") return "/?videos=1";
+  /* 不在任何弹层里（卡片流）→ 就是主页。
+     这里【不能】因为"读过作业"就返回 /?hw=…，否则卡片流里点 🔬 可视化回来会跑去作业。 */
+  return "/";
+}
+function openTutor(code, pointId, blank, stdin){
+  /* ★ 只有真的是知识点 id 才记账 —— 阅读器里代码块的 data-id 是 "days-11" 这种，
+     记进去就是一堆永远不被统计的脏 key（和进度过滤那条规则保持一致）。 */
+  /* ★ 以前这里会给知识点记一次「跑过」。进度砍了，不再记账。 */
+  /* back 整条也要 encodeURIComponent（它自己含 ? & =） */
+  var back = encodeURIComponent(tutorBack(pointId));
+  /* blank=true → 顶栏那个「🔬 可视化」入口：开空白页，不带 ?code= */
+  var q = blank ? ("back=" + back)
+                : ("code=" + encodeURIComponent(code || "") + "&back=" + back);
+  /* 从作业题进来时把这道题的样例输入一起带过去 —— 可视化里的「程序输入」直接填好，
+     用户就不用复制粘贴了。卡片入口和空白页都不传（那边没有"这道题"的概念）。 */
+  if (!blank && typeof stdin === "string" && stdin !== "") q += "&stdin=" + encodeURIComponent(stdin);
+  var url = "/tutor?" + q;
+  /* ★★ 先把"我在哪一层、滚到哪"存下来，**而且必须无条件存**（不能只在 window.open 失败时存）。
+     这是用户反复报「从100days的可视化退出来之后保持页面一直不行」的真正根因：
+     原来 saveScrollBeforeLeave() 只在 `if (!w)` 分支里 —— 而本应用注入了**导航桥**，
+     它把同源 window.open 改写成原地跳转并 **return window（真值）**：
+         window.open = function(url){ … location.assign(url); return window; }
+     于是 app 这边 `w` 是真值 → `if (!w)` 永不进入 → **保存位置的代码从来没执行过**。
+     桥已经把页面跳走了，app 却以为"弹窗开成功了"，所以既不存也不跳。
+     （我的测试一直是"直接调 saveScrollBeforeLeave()"，所以次次全绿 —— 又是在测自己调的那条路径。）
+     修法：把保存挪到 window.open **之前**，与用哪种跳转方式无关。 */
+  saveScrollBeforeLeave();
+  var w = null;
+  try{ w = window.open(url, "_blank"); }catch(e){ w = null; }
+  if (!w){
+    /* window.open 不可用（原生宿主没有弹窗）→ 自己整页跳过去。
+       位置已经在上面存好了。 */
+    try{ window.location.href = url; return; }
+    catch(e2){ /* 落到下面 */ }
+  }
+  toast(blank ? "已打开可视化，随便写点代码试试（本页保留你的位置）"
+              : "已打开可视化（本页保留你的位置和进度）");
+}
+/* ---------- 整页跳转（去 /tutor 再回来）时的滚动位置复原 ----------
+   SPA 的内存状态在整页加载后全丢，URL 只能恢复"开到哪一层"，恢复不了"滚到哪"。
+   所以：离开前存 sessionStorage（关掉标签就没了 —— 不该跨会话记住滚动位置），
+   回来时按 URL 匹配 + 时间窗口复原，用一次就删。 */
+var SCROLL_KEY = "ic.scroll.v1";
+/* 页面滚动量。★ 注意：本应用 body 是 `overflow:hidden` 的 flex 布局，
+   **window 永远不滚**，所以这个函数对主界面基本恒返回 0（留它是为了兜底别的宿主）。 */
+function scrollNow(){
+  var y = 0;
+  try{
+    if (typeof window.scrollY === "number") y = window.scrollY;
+    else if (document.documentElement && document.documentElement.scrollTop) y = document.documentElement.scrollTop;
+    else if (document.body && document.body.scrollTop) y = document.body.scrollTop;
+  }catch(e){ y = 0; }
+  return y || 0;
+}
+/* ★★ 真正在滚的那个盒子。
+   原来这里只存/取 #modalBody + window，在"阅读器还是弹层"的年代够用
+   （那时 #modalBody 自己有 overflow:auto）。但阅读器改成**内嵌**之后，
+   滚动容器变成了 `main`（只有它有 overflow-y:auto），于是：
+       实测 main.scrollTop=2771 时，window.scrollY=0、#inlineBody.scrollTop=0、
+       #modalBody.scrollTop=0 —— 存下来全是 0，恢复成 0，用户看到的就是"退出来直接回顶"。
+   （用户报的原话：「从100days的可视化退出来之后的保持页面一直不行」）
+   所以三个容器**都存、都恢复**：main（卡片/内嵌面板）、#modalBody（窄屏弹层）、window（兜底）。 */
+function paneEl(){
+  try{ return document.querySelector ? document.querySelector("main") : null; }catch(e){ return null; }
+}
+function paneScrollNow(){
+  var m = paneEl();
+  return m ? (m.scrollTop || 0) : 0;
+}
+function saveScrollBeforeLeave(){
+  try{
+    var mb = modalBodyEl();
+    sessionStorage.setItem(SCROLL_KEY, JSON.stringify({
+      url: location.pathname + location.search,        /* 例如 "/?day=11" */
+      layer: modalOpen() ? modalKind() : null,
+      modalTop: mb ? (mb.scrollTop || 0) : 0,
+      paneTop: paneScrollNow(),        /* ★ main 的滚动量 —— 内嵌面板/卡片流的真正滚动容器 */
+      winTop: scrollNow(),
+      t: Date.now()
+    }));
+  }catch(e){ /* 没有 sessionStorage 就算了：降级不能影响跳转本身 */ }
+}
+/* 这两个地址算不算"同一个地方"？
+   ★ 不能直接比字符串。实测过的坑：用户从「day=11 的阅读器」里点可视化时，地址栏
+     还是 "/"（阅读器是 SPA 内部叠的一层，没写进 URL），于是存的 url="/"；而回来
+     时 bootUrl 是 "/?day=11" —— 两边一比就不相等，复原被守卫条件直接拒掉，
+     表现就是**回到那个 Day 的最上面**。
+   所以按"路径 + 参数集合"比：参数名和值都一样就算同一个地方，顺序和多余的
+   空参数不影响。 */
+function samePlace(a, b){
+  a = String(a || ""); b = String(b || "");
+  if (a === b) return true;
+  function split(u){
+    var q = u.indexOf("?");
+    var path = q < 0 ? u : u.slice(0, q);
+    var ps = {};
+    if (q >= 0){
+      u.slice(q + 1).split("&").forEach(function(kv){
+        if (!kv) return;
+        var i = kv.indexOf("=");
+        var k = decodeURIComponent(i < 0 ? kv : kv.slice(0, i));
+        var v = i < 0 ? "" : decodeURIComponent(kv.slice(i + 1));
+        if (k) ps[k] = v;
+      });
+    }
+    return { path: path || "/", ps: ps };
+  }
+  var x = split(a), y = split(b);
+  if (x.path !== y.path) return false;
+  var kx = Object.keys(x.ps), ky = Object.keys(y.ps);
+  if (kx.length !== ky.length) return false;
+  for (var i = 0; i < kx.length; i++){
+    if (!Object.prototype.hasOwnProperty.call(y.ps, kx[i])) return false;
+    if (String(x.ps[kx[i]]) !== String(y.ps[kx[i]])) return false;
+  }
+  return true;
+}
+/* 回来时复原。★ 必须在"内容渲染进 DOM 之后"设 scrollTop，否则元素还没高度，设了也白设 ——
+   而阅读器的内容是 fetch 回来才填的，所以这里按几个时间点重复设（幂等，最后一次生效）。 */
+/* 存下来的位置多久之内还算数。
+   ★★ 这里原来是 **2 分钟**，那个值对真实用法根本不够，而且**验收给过假绿灯**：
+      验收脚本的往返是 1.7 秒，所以每次都通过；而真实用法是"读一会儿 → 点可视化 →
+      在里面看几分钟 → 点返回"，超过 2 分钟后这条守卫直接把位置丢掉 → 回顶部。
+      用户报的"100days 里可视化退出来直接回顶"，根因就是它。
+   为什么可以放得很宽：这份记录存在 **sessionStorage**（关掉标签就没了），
+   键是 SCROLL_KEY，全项目只有 saveScrollBeforeLeave 写、restoreScrollAfterLayer 读，
+   读到就删。所以"过期"防的是**同一个标签页里很久以前的一次跳转**，
+   而不是"别人的脏数据" —— 半小时足够覆盖任何一次真实的学习往返。 */
+var SCROLL_MAX_AGE_MS = 30 * 60 * 1000;
+function restoreScrollAfterLayer(bootUrl){
+  var raw = null;
+  try{ raw = sessionStorage.getItem(SCROLL_KEY); }catch(e){ return; }
+  if (!raw) return;
+  try{ sessionStorage.removeItem(SCROLL_KEY); }catch(e){}     /* 用一次就删，别污染下一次 */
+  var s = null;
+  try{ s = JSON.parse(raw); }catch(e){ return; }
+  if (!s || typeof s !== "object") return;
+  /* ★ 两种"同一个地方"都算：
+     · bootUrl —— 整页加载进来的原始地址（例如 /?day=11）。★ 必须由调用方在
+       restoreFromUrl() 之前抓好，因为后面 clearUrlParams() 会把地址栏 replaceState 成 "/"。
+     · 当前地址 —— 启动时本来就是 /?day=11（用户刷新的那种）时会变成 "/"。
+     两边都按"路径 + 参数集合"比（见 samePlace），不然阅读器那层永远匹配不上。 */
+  var here = location.pathname + location.search;
+  var bu = String(bootUrl || here);
+  if (!samePlace(s.url, bu) && !samePlace(s.url, here)) return;
+  if (Date.now() - (Number(s.t) || 0) > SCROLL_MAX_AGE_MS) return;   /* 见上面 SCROLL_MAX_AGE_MS 的说明 */
+  function applyScroll(){
+    try{
+      var mb = modalBodyEl();
+      if (s.layer && mb) mb.scrollTop = Number(s.modalTop) || 0;
+      /* ★ main 的滚动量：内嵌面板（reader/problem/days…）和卡片流都靠它。
+         不加这一句就是用户报的那个"退出来直接回顶"（见 paneEl 上面的说明）。 */
+      var m = paneEl();
+      if (m && s.paneTop !== undefined) m.scrollTop = Number(s.paneTop) || 0;
+      if (s.winTop && window.scrollTo) window.scrollTo(0, Number(s.winTop) || 0);
+    }catch(e){ /* 忽略 */ }
+  }
+  if (typeof window.requestAnimationFrame === "function"){
+    window.requestAnimationFrame(function(){ setTimeout(applyScroll, 0); });
+  }else{
+    setTimeout(applyScroll, 16);
+  }
+  [80, 240, 600, 1200].forEach(function(ms){ setTimeout(applyScroll, ms); });  /* 异步内容回来后再兜几次 */
+}
+/* 启动时按 URL 还原现场：URL 优先于 localStorage（用户是从可视化退回来的，意图明确） */
+function restoreFromUrl(){
+  var q = urlParams();
+  /* 参数"出现过"就算数（哪怕值是空的）—— 空值也要把地址栏抹干净，别留个 ?day= 挂在那儿 */
+  var hadAny = false;
+  ["p", "hw", "hwlist", "no", "tab", "day", "days", "ai", "search", "assistant", "oj", "update", "videos"].forEach(function(k){
+    if (q[k] !== undefined) hadAny = true;
+  });
+  if (!hadAny) return Promise.resolve(false);
+  var pId = validParam(q.p), hwId = validParam(q.hw),
+      noRaw = validParam(q.no, 12), tabRaw = validParam(q.tab, 16), dayRaw = validParam(q.day, 6);
+  var daysFlag = validParam(q.days, 4), aiFlag = validParam(q.ai, 4),
+      seFlag = validParam(q.search, 4), ojFlag = validParam(q.oj, 4), hwListFlag = validParam(q.hwlist, 4),
+      asFlag = validParam(q.assistant, 4),
+      upFlag = validParam(q.update, 4), vidFlag = validParam(q.videos, 4);
+  var done = function(){ clearUrlParams(); return true; };
+  /* 全是无效值（?day= / ?hw= 这种）→ 安静退化，只把地址栏清干净 */
+  if (!pId && !hwId && dayRaw === null && !daysFlag && !aiFlag && !seFlag && !ojFlag && !hwListFlag
+      && !asFlag && !upFlag && !vidFlag)
+    return Promise.resolve(done());
+
+  /* ① 知识点：/?p=ch03-s05-p07 */
+  if (pId){
+    var i = -1;
+    for (var k = 0; k < S.steps.length; k++){
+      if (S.steps[k].kind === "point" && S.steps[k].p && S.steps[k].p.id === pId){ i = k; break; }
+    }
+    S.cur = (i >= 0) ? i : 0;             /* 不存在 → 安静退回第 1 张卡 */
+    renderAll(); renderToc(); scrollTocToCurrent();
+    return Promise.resolve(done());
+  }
+
+  /* ② 简单层：/?days=1 /?ai=1 /?search=1 /?oj=1 /?hwlist=1
+     ★ 这些是 pushState 的 URL，刷新后能回到同一层（两处共用一套参数） */
+  if (daysFlag || aiFlag || seFlag || ojFlag || hwListFlag || asFlag || upFlag || vidFlag){
+    if (daysFlag) openDaysBrowser({ push: false });
+    else if (aiFlag) openAiSettings({ push: false });
+    else if (seFlag) openSearch({ push: false });
+    else if (asFlag) openAssistant({ push: false });
+    else if (ojFlag) openOj({ push: false });
+    else if (hwListFlag) openHomework({ push: false });
+    else if (upFlag) openUpdate({ push: false });
+    else if (vidFlag) openVideos({ push: false });
+    return Promise.resolve(done());
+  }
+
+  /* ② 100Days 阅读器：/?day=11
+     ★ 天号是 1~21 + 30，不连续 —— 一律以 index.json 的 days[] 为准，别用区间判断。
+     非法 / 不存在 → 什么都不开（安静退化），不白屏不报错。 */
+  if (dayRaw !== null){
+    var dn = /^\d+$/.test(dayRaw) ? Number(dayRaw) : NaN;
+    var dd = isFinite(dn) ? dayInfo(dn) : null;
+    if (dd) openDayFile(dn, { push: false });
+    return Promise.resolve(done());
+  }
+
+  /* ③ 作业题：/?hw=hw1&no=1&tab=ai */
+  /* ③ 作业题：/?hw=hw1&no=1&tab=ai */
+  return loadHomework().then(function(){
+    var hw = null;
+    for (var j = 0; j < HW.list.length; j++) if (HW.list[j].id === hwId) hw = HW.list[j];
+    /* 从 URL 进来的一律不压层（用户是从外面来的，没有"上一层"可回） */
+    if (!hw){ openHomework({ push: false }); return done(); }          /* 作业不存在 → 作业列表 */
+    HW.hw = hw;
+    var prob = null;
+    if (noRaw !== null && /^\d+$/.test(noRaw)){
+      for (var m = 0; m < hw.problems.length; m++){
+        if (String(hw.problems[m].no) === String(Number(noRaw))){ prob = hw.problems[m]; break; }
+      }
+    }
+    if (!prob){ HW.prob = null; openHomework({ push: false }); return done(); }   /* 题号无效 → 作业列表 */
+    HW.prob = prob;
+    HW.tab = tabFromUrl(tabRaw) || "statement";
+    saveHwPos();
+    renderProblem();
+    return done();
+  }, function(){ openHomework({ push: false }); return done(); });
+}
+/* 剪贴板：优先 navigator.clipboard，失败就给一个可手动选中的框 */
+function copyText(text, label){
+  text = String(text === undefined || text === null ? "" : text);
+  if (!text) return;
+  if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){ toast((label || "内容") + "已复制"); },
+      function(){ showCopyFallback(text, label); });
+  }else{
+    showCopyFallback(text, label);
+  }
+}
+function copyRun(pointId){
+  var st = stepAt(S.cur);
+  var code = (st && st.kind === "point" && st.p.run) ? st.p.run : "";
+  copyText(code, "代码");
+  void pointId;
+}
+function showCopyFallback(text, label){
+  pushLayer({ kind: "copy", noUrl: true });          /* 工具层 */
+  openModal("copy", "手动复制" + (label || ""),
+    '<div class="loading">这个环境不给剪贴板权限，手动选中复制吧。</div>' +
+    '<pre class="notesPre"><code>' + escapeHtml(text) + "</code></pre>");
+}
+
+/* =====================================================================
+ * 🐍 内置 Python 终端（REPL）
+ *   会话是持久的（a = 1 之后 a + 1 得 2）—— 这是它和「▶ 可视化」的本质区别。
+ *   服务端：POST /repl {code} → {ok,out,err,error_cn}；POST /repl/reset
+ *   服务端做步数守卫和输出上限，所以这里不需要防护，只要能把中文提示显示好。
+ * =================================================================== */
+var R = { items: [], history: [], hi: -1, busy: false, cont: false };
+
+function postJson(url, body){
+  return new Promise(function(resolve, reject){
+    if (typeof fetch !== "function"){ reject(new Error("这个环境没有 fetch")); return; }
+    var p;
+    try{
+      p = fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+                       body: JSON.stringify(body || {}) });
+    }catch(e){ reject(e); return; }
+    Promise.resolve(p).then(function(r){
+      if (!r || r.ok === false || (r.status && r.status >= 400)){
+        var err = new Error("HTTP " + ((r && r.status) || "?"));
+        err.status = (r && r.status) || 0;
+        /* 服务端 400/500 会带 {"ok":false,"error":"中文原因"} —— 把那句中文捞出来给用户看 */
+        if (r && r.text){
+          return r.text().then(function(t){
+            try{ var j = JSON.parse(t); if (j && j.error) err.message = String(j.error); }catch(e2){}
+            throw err;
+          });
+        }
+        throw err;
+      }
+      return r.text().then(function(t){ return JSON.parse(t); });
+    }).then(function(j){ if (j !== undefined && j !== null) resolve(j); })
+      .catch(function(e){ reject(e); });
+  });
+}
+
+function replItemHtml(it){
+  if (it.kind === "in"){
+    return '<div class="rl rl-in"><span class="rp">&gt;&gt;&gt;</span>' +
+      escapeHtml(it.text) + "</div>";
+  }
+  if (it.kind === "out"){
+    return it.text ? '<pre class="rl rl-out">' + escapeHtml(it.text) + "</pre>" : "";
+  }
+  if (it.kind === "note"){
+    return '<div class="rl rl-note">' + it.text + "</div>";
+  }
+  /* 报错：有 error_cn 就中文卡片优先，英文原文折叠在下面；没有就老实显示原文 */
+  var cn = it.error_cn, out = ['<div class="rl rl-err">'];
+  if (cn && (cn.title || cn.detail || cn.hint)){
+    out.push('<div class="cnTitle">' + escapeHtml(cn.title || "出错了") + "</div>");
+    if (cn.detail) out.push('<div class="cnDetail">' + inline(cn.detail) + "</div>");
+    if (cn.hint) out.push('<div class="cnHint">💡 ' + inline(cn.hint) + "</div>");
+    if (it.err) out.push('<details class="cnRaw"><summary>Python 原文</summary><pre>' +
+      escapeHtml(it.err) + "</pre></details>");
+  }else{
+    out.push('<pre class="cnRawPlain">' + escapeHtml(it.err || "(没有输出)") + "</pre>");
+  }
+  out.push("</div>");
+  return out.join("");
+}
+function replRender(){
+  var el = $("replOut");
+  if (!el) return;
+  if (!R.items.length){
+    el.innerHTML = '<div class="rl rl-note">在下面敲一行 Python 试试，比如 <code>1 + 1</code>、' +
+      "<code>\"abc\".upper()</code> 或者 <code>[x*x for x in range(5)]</code>。</div>";
+    return;
+  }
+  el.innerHTML = R.items.map(replItemHtml).join("");
+  if (el.scrollTop !== undefined && typeof el.scrollHeight === "number") el.scrollTop = el.scrollHeight;
+}
+function replBusy(on){
+  R.busy = !!on;
+  if ($("replHint")) $("replHint").textContent = on
+    ? "正在跑…" : "这是一个真的 Python 3.13，变量会留在会话里";
+  if ($("replPrompt")) $("replPrompt").textContent = R.cont ? "... " : ">>> ";
+  if ($("replIn")){
+    $("replIn").disabled = !!on;
+    $("replIn").placeholder = R.cont
+      ? "块还没输完，继续敲（Shift+Enter 换行）" : "敲一行 Python，回车执行（Shift+Enter 换行，↑/↓ 翻历史）";
+  }
+}
+function replHistory(dir){
+  if (!R.history.length) return null;
+  if (R.hi < 0 || R.hi > R.history.length) R.hi = R.history.length;
+  R.hi += dir;
+  if (R.hi < 0) R.hi = 0;
+  if (R.hi >= R.history.length){ R.hi = R.history.length; return ""; }
+  return R.history[R.hi];
+}
+function replSubmit(code){
+  code = String(code === undefined || code === null ? "" : code);
+  if (!code.trim() || R.busy) return Promise.resolve(false);
+  /* ★ 多行块必须**一次性** POST：服务端是在一次请求里按行 push 的，
+     拆成两次会把第二行当独立顶层语句（IndentationError）。这里整段发过去。 */
+  var opensBlock = /:\s*$/.test(code) && code.indexOf("\n") < 0;
+  R.history.push(code);
+  R.hi = R.history.length;
+  R.items.push({ kind: "in", text: code });
+  R.items.push({ kind: "note", text: "运行中…" });
+  replBusy(true); replRender();
+  return postJson("/repl", { code: code }).then(function(d){
+    R.items.pop();
+    if (!d || typeof d !== "object") throw new Error("返回的不是合法 JSON");
+    if (d.out) R.items.push({ kind: "out", text: String(d.out).replace(/\n+$/, "") });
+    if (d.err || d.error_cn || d.ok === false){
+      if (d.err || d.error_cn) R.items.push({ kind: "err", err: d.err || "", error_cn: d.error_cn || null });
+      else R.items.push({ kind: "note", text: "执行没有成功，服务端没给出原因。" });
+      R.cont = false;
+    }else if (opensBlock && !d.out){
+      /* 只敲了个块开头（for/if/while… 以冒号结尾），服务端会缓冲住：给个续行提示，
+         但**不当作失败**，用户敲的内容已经在上面留着了。 */
+      R.cont = true;
+      R.items.push({ kind: "note", text: "这一行开了个块，还没输完 —— 继续敲（Shift+Enter 换行），" +
+        "整段一起提交；或者再敲一行空内容结束。" });
+    }else{
+      R.cont = false;
+    }
+    replBusy(false); replRender();
+    replFocus();          /* 运行结束 → 焦点还回输入框，接着敲下一行不用再点一下 */
+    return true;
+  }, function(e){
+    R.items.pop();
+    R.items.push({ kind: "note", text: "终端服务还没就绪（" +
+      escapeHtml(String(e && e.message ? e.message : e)) +
+      "）。等桌面端把 /repl 打开之后再来试。" });
+    replBusy(false); replRender();
+    replFocus();          /* 出错也别让输入框丢焦点 —— 用户多半想马上改一行重试 */
+    return false;
+  });
+}
+function replReset(){
+  R.items = [{ kind: "note", text: "会话已清空，之前定义的变量都没了。" }];
+  R.history = []; R.hi = -1;
+  replRender();
+  return postJson("/repl/reset", {}).then(function(){ return true; }, function(){ return false; });
+}
+/* =====================================================================
+ * REPL 代码补全
+ *   后端 POST /repl/complete {text} → {ok,candidates[],prefix,kind}
+ *   （那边是活的 InteractiveConsole，所以 os.pa → path、刚定义的变量也能补上）
+ *   老构建没有这个接口 → 自己兜一份静态词表，功能照样可用（只是没有属性和变量）
+ * =================================================================== */
+var COMP_STATIC = [
+  "print","len","range","input","int","str","float","bool","list","dict","set","tuple","frozenset",
+  "enumerate","zip","sorted","sum","min","max","abs","round","type","help","dir","id","repr","format",
+  "map","filter","reversed","isinstance","issubclass","open","ord","chr","divmod","pow","any","all",
+  "hash","vars","callable","iter","next","slice","bytes","bytearray","complex","hex","oct","bin",
+  "True","False","None","and","or","not","if","elif","else","for","while","def","return","import",
+  "from","class","try","except","finally","with","as","in","is","lambda","pass","break","continue",
+  "global","nonlocal","yield","assert","del","raise","async","await","self","__name__"
+];
+var COMP_MAX = 8;              /* 后端最多给 50 条，前端自己截 */
+var C = { on: false, items: [], sel: 0, prefix: "", kind: "", navigated: false,
+          reqId: 0, timer: null, lastText: null };
+
+/* 光标前那段「词」（不含点，用来替换）：os.pa → "pa" */
+function replWordAtCaret(el){
+  el = el || $("replIn");
+  if (!el) return { word: "", pos: 0, dot: false, text: "" };
+  var v = String(el.value || "");
+  var pos = (typeof el.selectionStart === "number") ? el.selectionStart : v.length;
+  var i = pos;
+  while (i > 0 && /[A-Za-z0-9_]/.test(v.charAt(i - 1))) i--;
+  return { word: v.slice(i, pos), pos: pos, dot: v.charAt(i - 1) === ".", text: v.slice(0, pos) };
+}
+function compOpen(){ return C.on && C.items.length > 0; }
+function compClose(){
+  C.on = false; C.items = []; C.sel = 0; C.navigated = false;
+  var el = $("replComp");
+  if (el){ el.hidden = true; el.innerHTML = ""; }
+}
+function compStatic(word){
+  if (!word) return [];
+  var low = word.toLowerCase();
+  var out = [];
+  for (var i = 0; i < COMP_STATIC.length && out.length < 50; i++){
+    if (COMP_STATIC[i].toLowerCase().indexOf(low) === 0) out.push(COMP_STATIC[i]);
+  }
+  return out;
+}
+/* 弹面板（空结果就不弹） */
+function compShowCandidates(cands, prefix, kind){
+  var el = $("replComp");
+  if (!el) return false;
+  var items = [];
+  for (var i = 0; i < cands.length && items.length < COMP_MAX; i++){
+    var c = String(cands[i] === undefined || cands[i] === null ? "" : cands[i]);
+    if (c) items.push(c);
+  }
+  if (!items.length){ compClose(); return false; }
+  C.on = true; C.items = items; C.sel = 0; C.prefix = prefix || ""; C.kind = kind || "";
+  C.navigated = false;
+  compRender();
+  return true;
+}
+/* 候选的显示形态：rlcompleter 会给 print( / os.getcwd() 这种「可调用」记号（stdlib 行为，不是 bug）。
+   ★ 只对显示剥尾括号，插入一律用原候选（剥了会插错）。 */
+function compDisplay(c){
+  var s = String(c === undefined || c === null ? "" : c);
+  if (/\(\)$/.test(s)) return s.slice(0, -2);
+  if (/\($/.test(s)) return s.slice(0, -1);
+  return s;
+}
+function compRender(){
+  var el = $("replComp");
+  if (!el || !C.on) return;
+  var pre = C.prefix || "";
+  var html = C.items.map(function(c, i){
+    var disp = compDisplay(c);
+    /* 高亮按后端给的 prefix（可能是 "os.pa" 这种整条点链），在显示形态上比 */
+    var head = (pre && disp.slice(0, pre.length) === pre)
+      ? '<b>' + escapeHtml(pre) + "</b>" + escapeHtml(disp.slice(pre.length))
+      : escapeHtml(disp);
+    var callable = (disp !== c) ? ' title="' + attr("插入：" + c) + '"' : ' title="' + attr(c) + '"';
+    return '<button class="ci' + (i === C.sel ? " on" : "") + '" data-act="compick" data-i="' + i + '"' +
+      callable + ">" + head + "</button>";
+  }).join("");
+  html += '<div class="cfoot">↑↓ 选 · Tab/Enter 补 · Esc 关' +
+    (C.navigated ? "" : "（Enter 仍然执行）") + "</div>";
+  el.innerHTML = html;
+  el.hidden = false;
+}
+/* 问后端；老构建 404 → 静态词表兜底；其它失败 → 静默 */
+function compRequest(opts){
+  opts = opts || {};
+  var el = $("replIn");
+  if (!el) return Promise.resolve(false);
+  var w = replWordAtCaret(el);
+  var text = w.text;
+  if (!text.trim()){ compClose(); return Promise.resolve(false); }
+  var myId = ++C.reqId;                       /* 取消上一个未完成的：id 不一致就丢弃 */
+  return postJson("/repl/complete", { text: text }).then(function(d){
+    if (myId !== C.reqId) return false;       /* 已经有更新的请求了 */
+    var cands = (d && Array.isArray(d.candidates)) ? d.candidates : [];
+    var pre = (d && typeof d.prefix === "string") ? d.prefix : w.word;
+    return compShowCandidates(cands, pre, d && d.kind);
+  }, function(e){
+    if (myId !== C.reqId) return false;
+    var st = e && e.status;
+    if (st === 404 || st === 405 || /HTTP 40[45]/.test(String(e && e.message))){
+      /* 老构建没有这个接口 → 自己兜（绝不给用户弹错） */
+      return compShowCandidates(compStatic(w.word), w.word, "static");
+    }
+    compClose();                              /* 网络失败：静默 */
+    return false;
+  });
+}
+/* 输入变化：只有「刚敲了点号」或「词长 ≥2」才自动弹（别让正常打字一直弹） */
+function onReplInput(){
+  autoGrowRepl();
+  var el = $("replIn");
+  if (!el) return;
+  compClose();
+  if (el.disabled) return;
+  var w = replWordAtCaret(el);
+  if (!(w.dot || w.word.length >= 2)) return;
+  if (C.timer && typeof clearTimeout === "function") clearTimeout(C.timer);
+  C.timer = setTimeout(function(){ C.timer = null; compRequest(); }, 250);
+}
+/* Ctrl+Space 手动触发（永远可靠） */
+function compManual(){
+  var el = $("replIn");
+  if (!el || el.disabled) return Promise.resolve(false);
+  if (C.timer && typeof clearTimeout === "function"){ clearTimeout(C.timer); C.timer = null; }
+  return compRequest();
+}
+function compMove(dir){
+  if (!compOpen()) return false;
+  var next = C.sel + dir;
+  if (next < 0){ compClose(); return "close"; }        /* 在第一项还按 ↑ → 关掉，交回历史 */
+  if (next >= C.items.length) return true;             /* 到底就不动 */
+  C.sel = next;
+  C.navigated = true;
+  compRender();
+  return true;
+}
+/* 接受候选：用**后端返回的 prefix**（可能是 "os.pa" 这种整条点链）整段替换光标前那段。
+   ★ 关键：绝不能用本地那个 replWordAtCaret()（它故意不含点）——
+     真后端 prefix="os.pa"、candidate="os.path"，只删 "pa" 会插出 "osos.path"。
+     取不到 prefix 时才退回本地裸词（静态兜底那条路，候选也是裸名，两边配套）。
+   候选里的括号是 rlcompleter 的"可调用"记号，插入时原样带上（显示才剥）。 */
+function compAccept(){
+  if (!compOpen()) return null;
+  var el = $("replIn");
+  var cand = C.items[C.sel];
+  if (!el || cand === undefined) return null;
+  var v = String(el.value || "");
+  var pos = (typeof el.selectionStart === "number") ? el.selectionStart : v.length;
+  var pre = C.prefix || "";
+  var start = Math.max(0, pos - pre.length);
+  el.value = v.slice(0, start) + cand + v.slice(pos);
+  try{ el.selectionStart = el.selectionEnd = start + String(cand).length; }catch(e){}
+  compClose();
+  autoGrowRepl();
+  return cand;
+}
+function compPickIdx(i){
+  if (!compOpen()) return null;
+  if (i < 0 || i >= C.items.length) return null;
+  C.sel = i; C.navigated = true;
+  return compAccept();
+}
+
+function onReplKey(e){
+  var el = $("replIn");
+  if (!el || !e) return;
+  /* ---- 补全面板优先吃掉这几个键（面板没开就完全不管，原行为不变） ---- */
+  if (compOpen()){
+    if (e.key === "ArrowUp" || e.key === "ArrowDown"){
+      var r = compMove(e.key === "ArrowUp" ? -1 : 1);
+      if (r !== "close"){ if (e.preventDefault) e.preventDefault(); return; }
+      /* r === "close"：面板关了，这一下 ↑ 交回给命令历史 */
+    }else if (e.key === "Tab"){
+      if (e.preventDefault) e.preventDefault();
+      compAccept();
+      return;
+    }else if (e.key === "Escape"){
+      if (e.preventDefault) e.preventDefault();
+      compClose();
+      return;
+    }else if (e.key === "Enter" && !e.shiftKey){
+      /* ★ 裁决：只有「用户主动用 ↑↓ 选过」才让 Enter 变成补全，否则 Enter 一律执行。
+         这样敲完完整代码回车永远不会被面板吃掉。 */
+      if (C.navigated){
+        if (e.preventDefault) e.preventDefault();
+        compAccept();
+        return;
+      }
+      compClose();          /* 没导航过 → 关掉面板，走下面的执行路径 */
+    }
+  }
+  if (e.key === "Enter" && !e.shiftKey){
+    if (e.preventDefault) e.preventDefault();
+    var v = el.value;
+    el.value = "";
+    autoGrowRepl();
+    replSubmit(v);
+    return;
+  }
+  if (el.value && el.value.indexOf("\n") >= 0) return;     /* 多行编辑时不动历史 */
+  if (e.key === "ArrowUp"){
+    var h = replHistory(-1);
+    if (h !== null){ el.value = h; if (e.preventDefault) e.preventDefault(); autoGrowRepl(); }
+  }else if (e.key === "ArrowDown"){
+    var h2 = replHistory(1);
+    if (h2 !== null){ el.value = h2; if (e.preventDefault) e.preventDefault(); autoGrowRepl(); }
+  }
+}
+/* 多行输入时让输入框自己长高（拿不到 scrollHeight 的环境就保持一行） */
+function autoGrowRepl(){
+  var el = $("replIn");
+  if (!el || !el.style || typeof el.scrollHeight !== "number") return;
+  el.style.height = "auto";
+  el.style.height = Math.min(132, Math.max(24, el.scrollHeight)) + "px";
+}
+/* ★ 把焦点还给 REPL 输入框（用户报："回车完了光标还要再点一下"）。
+   为什么必须显式还：replBusy(true) 会把 textarea 置为 disabled，而**浏览器在元素
+   被 disable 的那一刻就让它失焦了**。请求回来后 replBusy(false) 只把 disabled 去掉，
+   焦点并不会自己回来 —— 于是每敲完一行回车，都得再用鼠标点一下输入框。
+   guarded 的原因（三条都是"不要抢用户的东西"）：
+     · 面板没开（ui.repl !== "1"）→ 不碰
+     · 用户正开着某个弹层（AI 设置/作业/100Days…）→ 别把焦点从他那儿抢走
+     · 焦点已经落在另一个可输入元素上（比如他在搜索框里打字）→ 不动
+   另外**不要去碰 selectionStart/End**：那是用户正在编辑的位置，光标自然在末尾就够。 */
+function replFocus(){
+  try{
+    if (!replOpen()) return false;
+    var el = $("replIn");
+    if (!el || el.disabled || typeof el.focus !== "function") return false;
+    if (typeof modalKind === "function" && modalKind()) return false;
+    var ae = document.activeElement;
+    if (ae && ae !== el && (/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName || "")
+        || (ae.isContentEditable === true))) return false;
+    el.focus();
+    return true;
+  }catch(e){ return false; }
+}
+function startReplResize(e){
+  if (!e) return;
+  var startY = e.clientY, startH = ui.replh, self = this;
+  function move(ev){ setReplHeight(startH - (ev.clientY - startY)); }
+  function up(){
+    if (document.removeEventListener){
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseup", up);
+    }
+  }
+  if (document.addEventListener){
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", up);
+  }
+  if (e.preventDefault) e.preventDefault();
+  void self;
+}
+
+/* =====================================================================
+ * 📝 作业 + AI 解析
+ *   数据：/health.homework.local（内嵌层 + 可写层合并后的真实清单）；老后端没有这个
+ *   字段才回退 content/homework/index.json → hw1..hw9 逐个探测。所有失败都优雅降级
+ *   AI：  GET /ai/status · GET /ai/models · POST /ai/config
+ *         POST /ai/explain（SSE 流式）· POST /run（跑样例）
+ *   模型名一律从 /ai/models 动态取，不写死。
+ * =================================================================== */
+var HWDIR = "content/homework/";
+var HW = {
+  list: [], errors: [], loaded: false,
+  hw: null, prob: null, tab: "statement",
+  ai: {},          /* "hw1:1" -> {text,reasoning,verify:{},blocks:[],...} */
+  test: {},        /* "hw1:1" -> {code,stdin,expected,why,out,err,ran,busy} */
+  aiTimer: null,
+  available: null,     /* GET /homework/available 的原始返回 */
+  checkError: null,    /* 检查/抓取失败的中文原因 */
+  checking: false,     /* 正在检查 */
+  fetching: null       /* 正在抓取的 slug */
+};
+var HW_PROBE = ["hw1.json","hw2.json","hw3.json","hw4.json","hw5.json","hw6.json","hw7.json","hw8.json","hw9.json"];
+var AI = { status: null, models: [], loaded: false, error: null };
+
+/* ---------------- 本地留痕：代码草稿 / 自己的提交结果 / AI 用例缓存 ----------------
+ * 为什么要有：作业是"用得最多"的功能，但代码只存在 HW.test 里，是**纯内存** ——
+ * 点「▶ 可视化」是整页跳转，回来代码就没了；关掉窗口更没。草稿落 localStorage，
+ * 按 "hwId:no" 存，最多留 80 条（先删最旧的）。 */
+var HW_DRAFT_KEY = "ic.hwdraft.v1";
+var HW_MARK_KEY = "ic.hwmark.v1";
+var hwDraftTimer = null;
+var HW_CASES = {};       /* "hw2:1" -> {cases, busy, err, loaded, source} */
+var HW_ALL = { busy: false, done: 0, total: 0, cancel: false, confirm: false };
+
+function hwStoreGet(key){
+  try{
+    var o = JSON.parse(localStorage.getItem(key) || "{}");
+    return (o && typeof o === "object") ? o : {};
+  }catch(e){ return {}; }
+}
+function hwStoreSet(key, obj){
+  try{ localStorage.setItem(key, JSON.stringify(obj)); return true; }
+  catch(e){ return false; }
+}
+function hwDraftGet(key){
+  var d = hwStoreGet(HW_DRAFT_KEY)[key];
+  return (d && typeof d === "object") ? d : null;
+}
+function hwDraftSaveNow(){
+  if (!HW.prob) return;
+  var t = HW.test[hwKey()];
+  if (!t) return;
+  var map = hwStoreGet(HW_DRAFT_KEY);
+  map[hwKey()] = { code: String(t.code || "").slice(0, 200000),
+                   caseIdx: t.caseIdx, caseIn: String(t.stdin || ""), at: Date.now() };
+  var keys = Object.keys(map);
+  if (keys.length > 80){
+    keys.sort(function(a, b){ return (map[a] && map[a].at || 0) - (map[b] && map[b].at || 0); });
+    for (var i = 0; i < keys.length - 80; i++) delete map[keys[i]];
+  }
+  hwStoreSet(HW_DRAFT_KEY, map);
+}
+function hwDraftTouch(){
+  if (hwDraftTimer) clearTimeout(hwDraftTimer);
+  hwDraftTimer = setTimeout(function(){ hwDraftTimer = null; hwDraftSaveNow(); }, 350);
+}
+/* 自己的提交结果（AC / WA）：只给"我"看，和 OJ 上的通过率不是一回事 */
+function hwMarkOf(hwId, no){
+  var v = hwStoreGet(HW_MARK_KEY)[String(hwId) + ":" + String(no)];
+  return (v === "ac" || v === "wa") ? v : "";
+}
+function hwSetMark(v){
+  if (!HW.hw || !HW.prob) return;
+  var m = hwStoreGet(HW_MARK_KEY);
+  var k = String(HW.hw.id) + ":" + String(HW.prob.no);
+  if (!v || m[k] === v) delete m[k]; else m[k] = v;
+  hwStoreSet(HW_MARK_KEY, m);
+}
+/* AI 生成的边界用例：按题缓存在前端；真正的数据在后端 homework-cases/*.json */
+function hwCasesState(){
+  var k = hwKey();
+  if (!HW_CASES[k]) HW_CASES[k] = { cases: [], busy: false, err: null, loaded: false, source: "" };
+  return HW_CASES[k];
+}
+
+/* ---------------- 数据 ---------------- */
+function hwFilesFrom(idx){
+  if (!idx || typeof idx !== "object") return [];
+  var arr = Array.isArray(idx) ? idx
+          : Array.isArray(idx.homeworks) ? idx.homeworks
+          : Array.isArray(idx.list) ? idx.list : [];
+  return arr.map(function(x){
+    if (typeof x === "string") return x;
+    if (x && typeof x === "object") return x.file || (x.id ? (x.id + ".json") : null);
+    return null;
+  }).filter(Boolean);
+}
+/* /health.homework.local —— C 的合并语义（内嵌 + 可写层），比逐个探测准。
+   字段缺失/形状不对一律返回 null，调用方回退。 */
+function hwIdsFromHealth(j){
+  if (!j || typeof j !== "object") return null;
+  var h = j.homework;
+  if (!h || typeof h !== "object") return null;
+  var arr = h.local;
+  if (!Array.isArray(arr)) return null;
+  var out = arr.map(function(x){
+    if (typeof x === "string") return x;                              /* "hw1" */
+    if (x && typeof x === "object") return x.id || x.slug || x.name || null;
+    return null;
+  }).filter(Boolean);
+  return out.length ? out : null;
+}
+/* 顺便把 X-Asset-Root 打出来，方便排查"这份文件来自哪一层" */
+var ASSET_ROOT_LOGGED = false;
+function fetchJsonMeta(url){
+  return new Promise(function(resolve){
+    var none = { json: null, assetRoot: null };
+    if (typeof fetch !== "function"){ resolve(none); return; }
+    var p; try{ p = fetch(url); }catch(e){ resolve(none); return; }
+    Promise.resolve(p).then(function(r){
+      if (!r || r.ok === false){ resolve(none); return; }
+      var ar = null;
+      try{ ar = (r.headers && r.headers.get) ? r.headers.get("X-Asset-Root") : null; }catch(e){ ar = null; }
+      if (ar && !ASSET_ROOT_LOGGED){
+        ASSET_ROOT_LOGGED = true;
+        try{ if (typeof console !== "undefined" && console.log) console.log("[ic] X-Asset-Root = " + ar); }catch(e){}
+      }
+      return r.text().then(function(t){
+        var j = null; try{ j = JSON.parse(t); }catch(e){ j = null; }
+        resolve({ json: j, assetRoot: ar });
+      });
+    }, function(){ resolve(none); });
+  });
+}
+function loadHomework(){
+  HW.errors = [];
+  /* /health.homework.local 是"内嵌层 + 可写层"合并后的真实清单，最准。
+     有它就别再试 content/homework/index.json —— 内容管道从来不生成那个文件，
+     每个新用户第一次开作业面板都会白吃一个 404（控制台红字）。
+     只有后端不认这个字段（老版本）时才回退到 index.json → hw1..hw9 探测。 */
+  return fetchJsonMeta("/health").then(function(h){
+    HW.healthLocal = hwIdsFromHealth(h && h.json);
+    HW.assetRoot = (h && h.assetRoot) || HW.assetRoot || null;
+    if (HW.healthLocal) return { idx: null, files: HW.healthLocal.slice(), probed: false };
+    return fetchJson(HWDIR + "index.json").then(function(j){ return { idx: j, files: [], probed: false }; },
+      function(e){
+        HW.errors.push(String(e && e.message ? e.message : e));
+        return { idx: null, files: HW_PROBE.slice(), probed: true };
+      });
+  }).then(function(r){
+    var idx = r.idx;
+    var files = hwFilesFrom(idx);
+    var inline = (idx && Array.isArray(idx.problems)) ? idx : null;
+    /* 优先 health 给的 id 列表，读不到才逐个探测 hw1…hw9 */
+    if (!files.length && !inline && r.files.length) files = r.files.slice();
+    if (!files.length && !inline){
+      files = HW_PROBE.slice();
+      HW.probed = true;
+    }else HW.probed = !!r.probed;
+    return Promise.all(files.map(function(f){
+      var p = /^content\//.test(f) ? f : HWDIR + (/\.[a-z]+$/i.test(f) ? f : (f + ".json"));
+      return fetchJson(p).then(function(j){ return j; },
+        function(e){ HW.errors.push(String(e && e.message ? e.message : e)); return null; });
+    })).then(function(arr){
+      if (inline) arr.unshift(inline);
+      return arr;
+    });
+  }).then(function(arr){
+    HW.list = arr.filter(function(x){ return x && Array.isArray(x.problems) && x.problems.length; });
+    /* 排序：作业在前、小测在后；组内按 id 里的数字排（保证「作业一」在「作业二」前面）。
+       ★ 原来只认 hw(\d+)，小测的 testN 一律落到兜底值再按字符串比 —— 那样
+       test11 会排到 test2 前面。这里改成先分组、再比数字。 */
+    function hwOrd(o){
+      var id = String((o && o.id) || "");
+      var m = /(\d+)/.exec(id.replace(/^[a-z]+/i, "")) || /(\d+)/.exec(id);
+      return [hwIsQuiz(o) ? 1 : 0, m ? Number(m[1]) : 999, id];
+    }
+    HW.list.sort(function(a, b){
+      var x = hwOrd(a), y = hwOrd(b);
+      if (x[0] !== y[0]) return x[0] - y[0];
+      if (x[1] !== y[1]) return x[1] - y[1];
+      return x[2].localeCompare(y[2]);
+    });
+    HW.loaded = true;
+    /* 恢复上次看的那本作业 */
+    var want = hwCache().hwId;
+    var pick = null;
+    if (want) for (var i = 0; i < HW.list.length; i++) if (HW.list[i].id === want) pick = HW.list[i];
+    if (!pick && (!HW.hw || HW.list.indexOf(HW.hw) < 0)) pick = HW.list[0] || null;
+    if (pick) HW.hw = pick;
+    return HW;
+  });
+}
+function loadAiStatus(){
+  return Promise.all([
+    fetchJson("/ai/status").then(function(j){ return j; }, function(){ return null; }),
+    fetchJson("/ai/models").then(function(j){ return j; }, function(){ return null; })
+  ]).then(function(r){
+    AI.status = (r[0] && r[0].ok !== false) ? r[0] : null;
+    AI.models = (r[1] && Array.isArray(r[1].models)) ? r[1].models : [];
+    AI.loaded = true;
+    /* ★ 状态到得比面板晚 → 面板上那句"还没配置 API Key"是**假的**（渲染时 AI.status 还是 null）。
+       原来没有任何东西在状态到达后重绘，所以用户从可视化整页回来会一直看到那句假提示
+       （报障截图就是这个）。这里主动把当前那一层重画一次。 */
+    try{
+      var _k = modalKind();
+      if (_k === "problem") renderProblem();
+      else if (_k === "hw") openModal("hw", "📝 作业 / 🧪 小测", hwPanelHtml());
+    }catch(e){ /* 重绘失败不能影响状态本身 */ }
+    return AI;
+  });
+}
+function aiConfigured(){ return !!(AI.status && AI.status.configured); }
+function hwCache(){
+  var c = null;
+  try{ c = JSON.parse(localStorage.getItem("ic.hw.v1") || "null"); }catch(e){ c = null; }
+  return (c && typeof c === "object") ? c : {};
+}
+function saveHwPos(){
+  try{
+    var c = hwCache();
+    c.hwId = HW.hw ? HW.hw.id : null;
+    c.no = HW.prob ? HW.prob.no : null;
+    c.tab = HW.tab;
+    localStorage.setItem("ic.hw.v1", JSON.stringify(c));
+  }catch(e){ /* 忽略 */ }
+}
+function hwKey(){ return (HW.hw ? HW.hw.id : "?") + ":" + (HW.prob ? HW.prob.no : 0); }
+/* ---------------- 解析结果的本地留存 ----------------
+ * ★ 为什么需要（用户报障）：「作业ai解析可视化退出来是这个界面」——
+ *   点可视化是一次**整页跳转**（导航桥把同源 window.open 改写成 location.assign），
+ *   回来时整页重载。而解析结果存在 `HW.ai`（`var HW = { ai: {}, … }`）里，**纯内存**，
+ *   一重载就归零 → 用户看到的是"还没有解析"，刚生成的东西不见了。
+ *   会话里已经有同样的做法（AS_KEY / assistantSave / assistantLoad），这里照抄一份：
+ *   存 sessionStorage（只活在这个标签页，关掉就没了 —— 解析本来也不该跨会话留着）。
+ *   只留**完整**的（跳过 busy / 半截 / 报错的），最多 ANA_MAX 题，别把配额撑爆。
+ */
+var ANA_KEY = "ic.ana.v1";
+var ANA_MAX = 40;
+var ANA_LOADED = false;
+
+function anaSave(){
+  try{
+    var keep = {}, n = 0;
+    for (var k in HW.ai){
+      if (!Object.prototype.hasOwnProperty.call(HW.ai, k)) continue;
+      var a = HW.ai[k];
+      if (!a || !a.text || a.busy || a.error) continue;      /* 半截的/失败的不留 */
+      keep[k] = { text: a.text, reasoning: a.reasoning || "", verify: a.verify || {},
+                  blocks: a.blocks || [], cached: !!a.cached, done: true,
+                  builtin: !!a.builtin, retry: "", error: null, partial: false,
+                  busy: false, mode: a.mode };
+      if (++n >= ANA_MAX) break;
+    }
+    sessionStorage.setItem(ANA_KEY, JSON.stringify(keep));
+  }catch(e){ /* 存不下就算了 —— 留存失败绝不能影响生成本身 */ }
+}
+
+function anaEnsureLoaded(){
+  if (ANA_LOADED) return;
+  ANA_LOADED = true;
+  try{
+    var j = JSON.parse(sessionStorage.getItem(ANA_KEY) || "null");
+    if (j && typeof j === "object"){
+      for (var k in j){
+        if (!Object.prototype.hasOwnProperty.call(j, k)) continue;
+        /* 内存里已经有更新的（比如这一轮刚生成完）就不覆盖 */
+        if (!HW.ai[k]) HW.ai[k] = j[k];
+      }
+    }
+  }catch(e){ /* 忽略 */ }
+}
+/* 题目的全局 id：带上作业前缀，两个作业的"第 1 题"不会串 */
+function hwItemId(hwId, no){ return hwId + "-" + no; }
+function aiState(){ return HW.ai[hwKey()] || null; }
+
+/* ---------------- 🔄 检查新作业 / 抓取 ---------------- */
+function deriveHwId(slug, taken){
+  var s = String(slug || "");
+  /* 小测单独一套编号（test1 / test2 …）：
+     ① 不能混进 hwN，否则它会被 loadHomework 的排序规则和「当前作业」当成作业一/二；
+     ② 本地 JSON 没有 group 字段，id 是后来 hwIsQuiz 认小测的最后一道兜底。
+     序号取 slug 里**最后一串数字**（2026citest1 → 1、2026citest11 → 11）。 */
+  if (HW_QUIZ_RE.test(s)){
+    var mq = /(\d+)(?!.*\d)/.exec(s);
+    var cand = mq ? ("test" + mq[1]) : "";
+    if (cand && !taken[cand]) return cand;
+    for (var k = 1; k < 99; k++) if (!taken["test" + k]) return "test" + k;
+    return "test" + (Object.keys(taken).length + 1);
+  }
+  var m = /hw(\d+)/i.exec(s);
+  if (m && !taken["hw" + m[1]]) return "hw" + m[1];
+  for (var i = 1; i < 99; i++) if (!taken["hw" + i]) return "hw" + i;
+  return "hw" + (Object.keys(taken).length + 1);
+}
+function hwTakenIds(){
+  var t = {};
+  HW.list.forEach(function(h){ t[h.id] = 1; });
+  (HW.available && Array.isArray(HW.available.all) ? HW.available.all : []).forEach(function(a){
+    if (a && a.have && a.slug) t[a.slug] = 1;
+  });
+  return t;
+}
+function hwNewList(){
+  var d = HW.available;
+  if (!d) return [];
+  return Array.isArray(d["new"]) ? d["new"] : [];
+}
+/* ---------------- 🧪 作业 vs 小测 ----------------
+ * 小测和作业在 OpenJudge 上**是同一类东西**：同一个班下的题集、同一个解析器、
+ * 一样不需要登录。所以这里不新开一套面板，只是按 slug 分成两组显示。
+ * ⚠️ 判据必须和后端 app/main.py 里的 `HW_QUIZ_RE` 保持一致。
+ *
+ * 本地已抓回来的那份 JSON **没有 `group` 字段**（它和 hw1.json 完全同 schema），
+ * 所以只能从 `oj_url` 里的 slug 认；再退一步认 id（抓的时候小测编成 testN）。
+ */
+var HW_QUIZ_RE = /test|quiz/i;
+function hwSlugOf(o){
+  var m = /openjudge\.cn\/([^\/?#]+)/i.exec(String((o && o.oj_url) || ""));
+  return m ? m[1] : "";
+}
+function hwIsQuiz(o){
+  if (!o) return false;
+  var slug = hwSlugOf(o);
+  if (slug) return HW_QUIZ_RE.test(slug);
+  return HW_QUIZ_RE.test(String(o.id || ""));
+}
+/* 本地还没有的小测（后端 quizzes 里 have=false 的那些）。
+   不筛 kind —— 小测的截止时间都过了，一律 past，按 current 筛就一个都剩不下。 */
+function hwQuizList(){
+  var d = HW.available;
+  var q = (d && Array.isArray(d.quizzes)) ? d.quizzes : [];
+  q = q.filter(function(a){ return a && !a.have && a.slug; });
+  /* 同一个 OJ 班里既有计概也有数算的题集（实测 38 个题集里有 25 个小测）。
+     不排一下，用户得在 25 条里自己认哪几个是自己这门课的。判据：slug 和本地作业
+     slug 的最长公共前缀 ≥ 5 个字符 —— 2026ci13hw1 ↔ 2026citest1 是 "2026ci"
+     （6 个字符，同一门课）；2026ci13hw1 ↔ 2026dsaquiz1 只有 "2026"（4 个，不算）。 */
+  var locals = HW.list.map(function(h){ return hwSlugOf(h) || String(h.id || ""); });
+  function prio(slug){
+    for (var i = 0; i < locals.length; i++){
+      var a = locals[i], n = 0;
+      while (n < a.length && n < slug.length && a.charAt(n) === slug.charAt(n)) n++;
+      if (n >= 5) return 0;
+    }
+    return 1;
+  }
+  q.sort(function(x, y){
+    var px = prio(x.slug), py = prio(y.slug);
+    if (px !== py) return px - py;
+    return String(y.slug).localeCompare(String(x.slug));        /* 新的在前 */
+  });
+  return q;
+}
+/* cache_age_s 是追加字段，缺了也要能跑 */
+function hwCacheAgeText(d){
+  if (!d || typeof d !== "object") return "";
+  if (typeof d.cache_age_s !== "number" || !isFinite(d.cache_age_s)) return "";
+  var s = d.cache_age_s;
+  var t = s < 60 ? (Math.round(s) + " 秒前")
+        : s < 3600 ? (Math.round(s / 60) + " 分钟前")
+        : (Math.round(s / 3600) + " 小时前");
+  return "（缓存结果，" + t + "检查过）";
+}
+function hwCheckNew(){
+  if (HW.checking) return Promise.resolve(false);
+  HW.checking = true; HW.checkError = null;
+  hwPanelRefresh();
+  /* 用户是主动要检查 → 带 ?refresh=1，不吃缓存 */
+  return fetchJson("/homework/available?refresh=1").then(function(d){
+    HW.checking = false;
+    if (!d || d.ok === false || !(Array.isArray(d.all) || Array.isArray(d.have) || Array.isArray(d["new"]))){
+      HW.checkError = "作业服务返回了看不懂的内容。";
+      hwPanelRefresh();
+      return false;
+    }
+    HW.available = d;
+    var nw = hwNewList();
+    var qz = hwQuizList();
+    if (!nw.length && !qz.length){
+      var n = Array.isArray(d.all) ? d.all.length : (Array.isArray(d.have) ? d.have.length : 0);
+      toast("已是最新，共 " + n + " 个题集" + hwCacheAgeText(d));
+    }else if (qz.length && !nw.length){
+      toast("发现有 " + qz.length + " 个小测可以抓");
+    }
+    hwPanelRefresh();
+    return true;
+  }, function(e){
+    HW.checking = false;
+    HW.checkError = "连不上 OpenJudge，检查网络（" + String(e && e.message ? e.message : e) + "）";
+    hwPanelRefresh();
+    return false;
+  });
+}
+function hwFetchNew(slug, title){
+  if (HW.fetching) return Promise.resolve(false);
+  var taken = hwTakenIds();
+  var id = deriveHwId(slug, taken);
+  taken[id] = 1;
+  HW.fetching = slug; HW.checkError = null;
+  hwPanelRefresh();
+  return postJson("/homework/fetch", { slug: slug, id: id, title: title || "" }).then(function(d){
+    if (!d || d.ok === false) throw new Error((d && d.error) || "服务端没有返回成功");
+    HW.fetching = null;
+    HW.loaded = false;
+    return loadHomework();
+  }).then(function(){
+    HW.fetching = null;
+    /* 抓完重新检查一次，好把「新」标记刷掉（内容目录变了，也带 refresh） */
+    return fetchJson("/homework/available?refresh=1").then(function(d2){ if (d2) HW.available = d2; },
+      function(){ return null; });
+  }).then(function(){
+    hwPanelRefresh();
+    toast("抓取完成");
+    return true;
+  }, function(e){
+    HW.fetching = null;
+    HW.checkError = "抓取失败：" + String(e && e.message ? e.message : e);
+    hwPanelRefresh();
+    return false;
+  });
+}
+function hwPanelRefresh(){
+  /* ★ 判据必须走 modalKind()，不能读 $("modal") 的 data-kind：
+     内嵌模式下正文写在 #inlineBody，#modal 是 hidden 的、data-kind 还是上一次弹层的陈旧值，
+     于是这个函数在图标栏打开的面板里**永远不刷新** —— 表现就是点「🔄 检查新作业」
+     或抓取结束后列表一动不动（抓成功了却看不到）。modalKind() 已经把内嵌一起算进去了。 */
+  if (modalKind() === "hw") openModal("hw", "📝 作业 / 🧪 小测", hwPanelHtml());
+}
+
+/* ---------------- 检查更新 / 一键重建 ----------------
+ * 后端接口（都不动用户的 API key 与进度）：
+ *   GET  /update/check              快路：HEAD 比 ETag/Last-Modified/长度，秒级
+ *   GET  /update/check?deep=1       启动后台深检（真下整份算 sha256），立刻返回
+ *   GET  /update/status             深检进度；同时也带 rebuild 段（重建进度）
+ *   GET  /update/rebuild            重建能力与状态
+ *   POST /update/rebuild?chapter=chNN   后台重建（不传 chapter = 重建"确证变过"的那几章）
+ * ★ 为什么"下载核对"要单独一步：fast 只比 HEAD 的元信息，**长度一样时判不出内容是否
+ *   相同**（后端会如实回 state=unknown 并置 deep_needed）。要下 15~30MB 的整份 PDF 才能
+ *   确定，所以这一步做成用户可选的，不偷偷跑。
+ */
+var UP = { checkedAt: null, data: null, rebuild: null, deepPending: false, deepProgress: null,
+           checking: false, running: false, polling: null, _gen: 0 };
+
+function openUpdate(opts){
+  opts = opts || {};
+  UP._gen++;                    /* 新一次打开 → 作废上一次面板留下的在途回调 */
+  if (opts.push !== false) pushLayer({ kind: "update" });
+  openModal("update", "🔄 检查更新", updatePanelHtml());
+  loadRebuildStatus();
+}
+
+function upsertCard(){
+  if (modalKind() !== "update") return;
+  openModal("update", "🔄 检查更新", updatePanelHtml());
+}
+
+function upAll(){ return (UP.data && UP.data.changed) || {}; }
+function upChangedList(){
+  var c = upAll(), out = [];
+  for (var ch in c){
+    if (!Object.prototype.hasOwnProperty.call(c, ch)) continue;
+    if (!c[ch] || c[ch].same !== false) continue;
+    var chs = UP.data && UP.data.chapters ? UP.data.chapters : [];
+    var pos = chs.indexOf(ch);
+    var arts = c[ch].changed_artifacts || [];
+    var names = arts.map(function(k){ return k === "notes" ? "讲义" : "课件"; });
+    out.push({
+      ch: ch,
+      title: (UP.data && UP.data.titles && UP.data.titles[ch]) || "",
+      no: (pos >= 0 ? pos + 1 : "?"),
+      total: chs.length,
+      arts: names.join(" + ")
+    });
+  }
+  return out;
+}
+function upUnchanged(){
+  var c = upAll(), n = 0;
+  for (var ch in c) if (Object.prototype.hasOwnProperty.call(c, ch) && c[ch] && c[ch].same === true) n++;
+  return n;
+}
+
+function updateReportHtml(){
+  if (!UP.data) return "";
+  var out = [];
+  if (UP.data.ok === false){
+    out.push('<div class="warnbar err">⚠️ ' + escapeHtml(UP.data.error || "检查失败") +
+      (UP.data.detail ? "：" + escapeHtml(UP.data.detail) : "") + "</div>");
+    return out.join("");
+  }
+  var list = upChangedList();
+  var news = UP.data.new_chapters || [];
+  var when = upWhenText(UP.data.checked_at);
+
+  /* ★★ 先报"站上新增的整章"，再接"已认识章节的变化"。
+     为什么这条必须单独做（用户报障原话）：
+        「现在网站上已经更新新一周资料了，怎么按检查更新按钮不行呢」
+     根因：检查器原来只遍历**本地注册表**里的章（ch01/ch02/ch03），
+     站上新增的第四章**不在它的视野里** —— 它老老实实比完那三章、回报"没发现变化"。
+     所以"没发现变化"和"有个新章你根本不知道"是两件完全不同的事，不能再混在一起说。 */
+  if (news.length){
+    out.push('<div class="warnbar info"><b>课程站上有 ' + escapeHtml(news.length) +
+      ' 个新章节</b>　' + escapeHtml(when) +
+      '。这几章本地还没有，所以之前只看已装章节的检查会报"没发现变化"。</div>');
+    for (var k = 0; k < news.length; k++){
+      var N = news[k];
+      out.push('<div class="newHwRow"><code>' + escapeHtml(N.id) + "</code>" +
+        (N.title ? "　" + escapeHtml(N.title) : "") +
+        '　<span class="setHint">新章节 · ' +
+        escapeHtml((N.artifacts && N.artifacts.length) ? N.artifacts.join(" + ") : "资料") +
+        "已发布</span>" +
+        '<span class="sp"></span>' +
+        /* 「安装这一章」走的就是 /update/rebuild?chapter=chNN —— 后端按"在不在
+           本地登记表里"自动分流：不在 = 安装（会登记 + 纳入 id 基线 + 落盘到可写层）。 */
+        '<button class="primary" data-act="upinstall" data-chapter="' + attr(N.id) + '"' +
+        (UP.running ? " disabled" : "") + ">⬇ 安装这一章</button></div>");
+    }
+    out.push('<div class="setHint" style="margin-top:6px">安装 = 下讲义和课件 + 渲染整章 + ' +
+      "登记进章节表（约 1~4 分钟，课件 15~30MB）。装完<b>下次请求就生效，不用重启</b>。" +
+      "已装的章不受影响。</div>");
+  }
+  if (!list.length && !news.length){
+    var n = upUnchanged();
+    out.push('<div class="warnbar info"><b>没有发现变化</b>　' +
+      escapeHtml(when) + "。");
+    if (UP.data.deep_result){
+      out.push("已下载核对过（" + escapeHtml(UP.data.deep_result.detail || "") + "）");
+    } else if (UP.data.deep_needed){
+      out.push("当前只比对了站点的修改时间与长度 —— <b>长度相同的内容变化判不出来</b>，" +
+        "需要一次「下载核对」才能确定。");
+    }
+    if (UP.data.remote_note){
+      out.push("（课程目录没读到：" + escapeHtml(UP.data.remote_note) +
+        " —— 所以<b>新章节没法发现</b>，只能比对已装的章）");
+    }
+    out.push("</div>");
+    return out.join("");
+  }
+  if (!list.length) return out.join("");       /* 只有新章节：上面已经说完了 */
+  out.push('<div class="warnbar info"><b>课程站上有 ' + escapeHtml(list.length) +
+    " 处更新</b>　" + escapeHtml(when) + "。重建只重跑变过的章，没变的章一个字节都不动。</div>");
+  for (var i = 0; i < list.length; i++){
+    var L = list[i];
+    out.push('<div class="newHwRow"><code>' + escapeHtml(L.ch) + "</code>" +
+      (L.title ? "　" + escapeHtml(L.title) : "") +
+      '　<span class="setHint">第 ' + escapeHtml(L.no) + "/" + escapeHtml(L.total) +
+      " 章 · " + escapeHtml(L.arts) + "变了</span>" +
+      '<span class="sp"></span>' +
+      '<button data-act="uprebuild" data-chapter="' + attr(L.ch) +
+      '"' + (UP.running ? " disabled" : "") + ">重建这一章</button></div>");
+  }
+  out.push('<div class="setHint" style="margin-top:6px">重建要下课件（15~30MB）并用 ' +
+    "PDFium 重渲染整章，约 1~3 分钟。产物直接写进内容目录，<b>下一次请求就生效，不用重启、不用重装</b>。</div>");
+  return out.join("");
+}
+
+/* 重建能力 + 进度。能力是后端**实测**出来的（探 pypdfium2 + 流水线 + 可写层），
+   探不到就如实说做不到，而不是给一个点了必然失败的按钮。 */
+function updateStatusHtml(){
+  if (!UP.rebuild) return "";
+  var r = UP.rebuild, out = [];
+  if (!r.rebuild_supported){
+    out.push('<div class="warnbar err">这个版本不支持一键重建：' +
+      escapeHtml(r.reason || "缺少重建组件") + "。" +
+      "把新的 content\\ 放到 exe 旁边（便携层）也能立刻生效。</div>");
+    return out.join("");
+  }
+  if (r.pending){
+    var p = r.progress || {};
+    out.push('<div class="warnbar info">⏳ <b>' +
+      escapeHtml(p.phase || "重建中") + "</b>　" + escapeHtml(p.current || "") +
+      "　（" + escapeHtml(p.done || 0) + "/" + escapeHtml(p.total || "?") +
+      "）别关窗口，重建是在后台跑的。</div>");
+    return out.join("");
+  }
+  if (r.result){
+    var day = r.result;
+    if (day.ok){
+      out.push('<div class="warnbar info">✅ 重建完成（' + escapeHtml(day.elapsed_s) + " 秒）：" +
+        escapeHtml(day.detail || "") + "。产物已生效，翻到对应章节看看。</div>");
+    }else{
+      out.push('<div class="warnbar err">⚠️ 重建失败：' +
+        escapeHtml(day.detail || r.error || "未知原因") + "</div>");
+    }
+  }
+  return out.join("");
+}
+
+function updatePanelHtml(){
+  var out = [];
+  var ready = !!(UP.rebuild && UP.rebuild.rebuild_supported);
+  var running = !!(UP.rebuild && UP.rebuild.pending);
+  out.push('<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><b>检查课程站上的讲义与课件有没有更新</b><span class="sp"></span>');
+  out.push('<button class="primary" data-act="upcheck"' + ((UP.checking || running) ? " disabled" : "") + ">" +
+    (UP.checking ? "检查中…" : "检查更新") + "</button>");
+  out.push('<button data-act="updeep"' + ((UP.checking || UP.deepPending || running) ? " disabled" : "") + ">" +
+    (UP.deepPending ? "核对中…" : "下载核对") + "</button>");
+  out.push("</div>");
+  if (!UP.data && !UP.checking){
+    out.push('<div class="aiNote">从未检查过。快路只发 HEAD 请求（秒级）；' +
+      "「下载核对」才需要下整份课件，用来抓出<strong>长度相同但内容变了</strong>的情况。</div>");
+  }
+  out.push(updateStatusHtml());
+  if (UP.deepPending){
+    out.push('<div class="warnbar info">⏳ 正在下载整份课件逐字节核对（通常 1~3 分钟），进度见下。</div>');
+  }
+  if (UP.deepProgress){
+    var dp = UP.deepProgress;
+    out.push('<div class="aiNote" style="margin-bottom:10px">深检进度：' +
+      escapeHtml(dp.done || 0) + "/" + escapeHtml(dp.total || "?") +
+      (dp.current ? "　当前 " + escapeHtml(dp.current) : "") + "</div>");
+  }
+  out.push(updateReportHtml());
+  if (ready && upChangedList().length){
+    out.push('<div style="margin-top:6px"><button class="primary" data-act="uprebuildall"' +
+      (running ? " disabled" : "") + ">重建全部变过的章</button></div>");
+  }
+  return out.join("");
+}
+
+function loadRebuildStatus(){
+  var gen = UP._gen;
+  return fetchJson("/update/rebuild").then(function(d){
+    if (!d || gen !== UP._gen) return;
+    UP.rebuild = d;
+    if (d.pending || d.result) upsertCard();
+  }, function(){ return null; });
+}
+
+function upStatusTick(){
+  if (modalKind() !== "update") return;
+  var gen = UP._gen;
+  fetchJson("/update/status").then(function(d){
+    if (!d || gen !== UP._gen || modalKind() !== "update") return;
+    var rb = d.rebuild || {};
+    UP.rebuild = rb;
+    var pending = !!rb.pending;
+
+    /* 深检（下载核对）：/update/status 顶层那一段是它的进度与结果 */
+    if (UP.deepPending){
+      if (d.pending){
+        UP.deepProgress = d.progress || null;
+        upsertCard();
+      }else{
+        UP.deepPending = false;
+        applyDeepResult(d.result);
+        if (!UP.running && UP.polling){ clearInterval(UP.polling); UP.polling = null; }
+        upsertCard();
+      }
+    }
+
+    /* 重建：只要它在跑/刚跑完就刷新面板 */
+    if (pending){
+      UP.running = true;
+      upsertCard();
+    }else if (UP.running){
+      UP.running = false;
+      if (!UP.deepPending && UP.polling){ clearInterval(UP.polling); UP.polling = null; }
+      toast(rb.result && rb.result.ok ? "重建完成，已生效" : "重建结束");
+      upsertCard();
+      loadRebuildStatus();
+    }
+  }, function(){ return null; });
+}
+
+function upEnsurePolling(){
+  if (UP.polling) return;
+  UP.polling = setInterval(upStatusTick, 1200);
+}
+
+function upDeepPoll(){
+  /* 深检跑在后台线程里，这里只等它。wait=1 会占住一个 worker 几分钟，不用它。 */
+  return new Promise(function(resolve){
+    var tries = 0;
+    (function step(){
+      tries++;
+      fetchJson("/update/status").then(function(d){
+        if (!d) return resolve(null);
+        if (d.pending){
+          UP.deepProgress = d.progress || null;
+          upsertCard();
+          if (tries < 600) return setTimeout(step, 1000);
+        }
+        UP.deepProgress = null;      /* 跑完就把进度条收掉，别留一行陈旧数字 */
+        resolve(d.result || null);
+      }, function(){ resolve(null); });
+    })();
+  });
+}
+
+function applyDeepResult(res){
+  if (!res) return;
+  if (UP.data && res.changed) {
+    UP.data.changed = res.changed;
+    UP.data.detail = res.detail;
+    UP.data.deep_result = res;
+    UP.data.deep_needed = false;
+  }
+}
+
+function upCheckStart(opts){
+  if (UP.checking || (UP.rebuild && UP.rebuild.pending)) return Promise.resolve(false);
+  opts = opts || {};
+  UP.checking = true;
+  upsertCard();
+  var url = "/update/check?refresh=1";
+  return fetchJson(url).then(function(d){
+    if (!d || d.ok === false){
+      UP.checking = false;
+      UP.data = { ok: false, error: (d && d.error) || "检查失败",
+                  detail: (d && d.detail) || "" };
+      upsertCard();
+      return false;
+    }
+    UP.data = d;
+    UP.checkedAt = new Date();
+    UP.checking = false;
+    if (d.deep_pending){
+      /* 上一轮的深检还在跑 → 直接接上它的进度 */
+      UP.deepPending = true;
+      upEnsurePolling();
+      upsertCard();
+      return upDeepPoll().then(function(res){
+        UP.deepPending = false;
+        applyDeepResult(res);
+        upsertCard();
+        return true;
+      });
+    }
+    if (d.deep_result){ applyDeepResult(d.deep_result); }
+    upsertCard();
+    if (opts.silent !== true && !upChangedList().length) toast("已是最新");
+    if (opts.thenDeep && d.deep_needed){ return upDeepStart(); }
+    return true;
+  }, function(e){
+    UP.checking = false;
+    UP.data = { ok: false, error: "连不上课程站点，检查网络",
+                detail: String(e && e.message ? e.message : e) };
+    upsertCard();
+    return false;
+  });
+}
+
+function upDeepStart(){
+  if (UP.deepPending || (UP.rebuild && UP.rebuild.pending)) return Promise.resolve(false);
+  UP.deepPending = true;
+  UP.deepProgress = null;
+  upsertCard();
+  upEnsurePolling();
+  return fetchJson("/update/check?deep=1").then(function(d){
+    if (d && d.ok === false){
+      UP.deepPending = false;
+      UP.data = { ok: false, error: (d && d.error) || "深检启动失败",
+                  detail: (d && d.detail) || "" };
+      upsertCard();
+      return false;
+    }
+    return upDeepPoll().then(function(res){
+      UP.deepPending = false;
+      applyDeepResult(res);
+      if (!UP.running && UP.polling){ clearInterval(UP.polling); UP.polling = null; }
+      upsertCard();
+      if (res) toast(upChangedList().length ? "核对完成：有更新" : "核对完成：已是最新");
+      return true;
+    });
+  }, function(e){
+    UP.deepPending = false;
+    UP.data = { ok: false, error: "连不上课程站点，检查网络",
+                detail: String(e && e.message ? e.message : e) };
+    upsertCard();
+    return false;
+  });
+}
+
+function upRebuild(chapter, label){
+  var body = chapter ? { chapter: chapter } : {};
+  UP.running = true;
+  upsertCard();
+  return postJson("/update/rebuild" + (chapter ? "?chapter=" + encodeURIComponent(chapter) : ""), body)
+    .then(function(d){
+      if (!d || d.ok === false){
+        UP.running = false;
+        UP.data = UP.data || {};
+        UP.rebuild = UP.rebuild || {};
+        UP.rebuild.error = (d && d.reason) || (label ? (label + "没能启动") : "重建没能启动");
+        upsertCard();
+        return false;
+      }
+      if (d.pending) UP.running = true;
+      upEnsurePolling();
+      upsertCard();
+      /* label 让"安装新章"和"重建已装的章"说人话分清 —— 两者的后端路径其实是同一条
+         （/update/rebuild?chapter=chNN，后端按"在不在登记表里"自动分流）。 */
+      toast(chapter ? ((label || "开始重建") + " " + chapter) : "开始重建变过的章");
+      return true;
+    }, function(e){
+      UP.running = false;
+      UP.rebuild = UP.rebuild || {};
+      UP.rebuild.error = String(e && e.message ? e.message : e);
+      upsertCard();
+      return false;
+    });
+}
+
+function upWhenText(iso){
+  if (!iso) return "刚刚";
+  var t = Date.parse(iso);
+  if (!isFinite(t)) return String(iso);
+  var s = Math.max(0, Math.round((Date.now() - t) / 1000));
+  if (s < 60) return "刚刚检查过";
+  if (s < 3600) return Math.round(s / 60) + " 分钟前检查过";
+  if (s < 86400) return Math.round(s / 3600) + " 小时前检查过";
+  return Math.round(s / 86400) + " 天前检查过";
+}
+
+/* ---------------- 作业面板 ---------------- */
+function rateOf(p){
+  var s = p.stats || {};
+  var tried = Number(s.tried) || 0, passed = Number(s.passed) || 0;
+  if (!tried) return null;
+  return Math.round(passed * 100 / tried);
+}
+function rateHtml(p){
+  var r = rateOf(p);
+  if (r === null) return "—";
+  return '通过率 <b' + (r < 60 ? ' class="low"' : "") + ">" + r + "%</b>";
+}
+/* ---------------- 通过率实时化 ----------------
+ * 通过率存在每道题的 OJ 页面上，抓题时抄进 json 的只是一份快照。
+ * 这里按需重抓（后端 15 秒缓存、并发 4 个），面板打开期间每 30 秒自己刷一次。 */
+var HW_STATS_INTERVAL = 30000;
+var hwStatsTimer = null;
+function hwStatsNote(){
+  if (HW.statsBusy) return "通过率更新中…";
+  if (HW.statsErr) return "通过率获取失败 · 点我重试";
+  if (!HW.statsAt) return "通过率：实时";
+  var s = Math.round((Date.now() - HW.statsAt) / 1000);
+  var when = s < 5 ? "刚刚更新" : (s < 60 ? s + " 秒前更新" : Math.round(s / 60) + " 分钟前更新");
+  return "通过率：" + when + " · 点我刷新";
+}
+function hwUpdateStatsNote(){
+  var el = document.querySelector ? document.querySelector("[data-stats-at]") : null;
+  if (el) el.textContent = hwStatsNote();
+}
+function hwUpdateRateCells(){
+  var nodes = document.querySelectorAll ? document.querySelectorAll(".hwRate[data-rate]") : [];
+  Array.prototype.forEach.call(nodes, function(el){
+    var key = String(el.getAttribute("data-rate") || "");
+    var cut = key.lastIndexOf(":");
+    if (cut < 0) return;
+    var hwId = key.slice(0, cut), no = key.slice(cut + 1);
+    var hw = null;
+    (HW.list || []).forEach(function(x){ if (x.id === hwId) hw = x; });
+    if (!hw) return;
+    var p = (hw.problems || []).filter(function(x){ return String(x.no) === no; })[0];
+    if (p) el.innerHTML = rateHtml(p);
+  });
+  hwUpdateStatsNote();
+}
+/* 把服务端返回的 {hwId: {stats:{no:{...}}, at}} 合并进 HW.list，并原地更新那几格 */
+function hwApplyStats(sets){
+  if (!sets || typeof sets !== "object") return 0;
+  var n = 0;
+  (HW.list || []).forEach(function(hw){
+    var one = sets[hw.id];
+    if (!one || !one.stats) return;
+    (hw.problems || []).forEach(function(p){
+      var st = one.stats[String(p.no)];
+      if (!st) return;
+      p.stats = { submitted: st.submitted, tried: st.tried, passed: st.passed };
+      n++;
+    });
+    if (HW.hw && HW.hw.id === hw.id && one.at){
+      var t = Date.parse(one.at);
+      if (!isNaN(t)) HW.statsAt = t;     /* 用服务端的抓取时间，别用"收到响应的时间" */
+    }
+  });
+  hwUpdateRateCells();
+  return n;
+}
+function hwRefreshStats(force, all){
+  if (HW.statsBusy) return Promise.resolve(false);
+  var hw = HW.hw;
+  if (!all && !hw) return Promise.resolve(false);
+  if (!force && !all && HW.statsAt && (Date.now() - HW.statsAt) < 15000) return Promise.resolve(false);
+  HW.statsBusy = true;
+  hwUpdateStatsNote();
+  var url = "/homework/stats?hw=" + encodeURIComponent(all ? "all" : hw.id) + (force ? "&force=1" : "");
+  return fetchJson(url).then(function(d){
+    HW.statsBusy = false;
+    if (!d || d.ok === false){
+      HW.statsErr = String((d && d.error) || "获取失败");
+      hwUpdateStatsNote();
+      return false;
+    }
+    HW.statsErr = null;
+    HW.legacyStats = false;
+    hwApplyStats(d.sets || {});
+    hwUpdateStatsNote();
+    return true;
+  }, function(e){
+    HW.statsBusy = false;
+    var msg = String(e && e.message ? e.message : e);
+    var m = /HTTP (\d{3})/.exec(msg);
+    if (m && m[1] === "404"){
+      /* 老壳子（9 月打的 exe）没有这个路由：继续显示快照，别把面板变成一片红 */
+      HW.legacyStats = true;
+      HW.statsErr = "";
+    }else{
+      HW.legacyStats = false;
+      HW.statsErr = msg;
+    }
+    hwUpdateStatsNote();
+    return false;
+  });
+}
+function hwStatsTick(){
+  if (modalKind() !== "hw"){
+    if (hwStatsTimer){ clearInterval(hwStatsTimer); hwStatsTimer = null; }
+    return;
+  }
+  if (!HW.statsAt || (Date.now() - HW.statsAt) > HW_STATS_INTERVAL) hwRefreshStats(false, false);
+  else hwUpdateStatsNote();
+}
+function openHomework(opts){
+  opts = opts || {};
+  var L = { kind: "hw" };
+  if (HW.hw) L.hw = HW.hw.id; else L.hwlist = 1;
+  if (opts.push !== false) pushLayer(L);
+  openModal("hw", "📝 作业 / 🧪 小测", hwPanelHtml());
+  if (!AI.loaded) loadAiStatus().then(function(){ if (modalOpen()) openModal("hw", "📝 作业 / 🧪 小测", hwPanelHtml()); });
+  hwRefreshStats(false, true);          /* 面板一开就把所有题集的通过率刷成实时的 */
+  if (!hwStatsTimer) hwStatsTimer = setInterval(hwStatsTick, 5000);
+  if (!HW.loaded){
+    loadHomework().then(function(){
+      if (modalOpen()) openModal("hw", "📝 作业 / 🧪 小测", hwPanelHtml());
+      hwRefreshStats(false, true);
+      /* 作业数据到了 → 把这一层的 URL 换成更准的 /?hw=hw1（仍是同一条记录） */
+      if (HW.hw && modalKind() === "hw") replaceLayerUrl({ kind: "hw", hw: HW.hw.id });
+    });
+  }
+}
+function hwPanelHtml(){
+  var out = [];
+  /* 检查新作业的结果块（成功/失败/抓取中都在这里说清楚） */
+  out.push(hwAvailableHtml());
+  if (HW.checkError){
+    out.push('<div class="warnbar err" style="margin-bottom:12px">⚠️ ' + escapeHtml(HW.checkError) + "</div>");
+  }
+  if (!HW.list.length){
+    out.push('<div class="emptyCard" style="padding:18px 6px"><div class="emptyIco">📭</div>' +
+      "<h2>作业数据还在生成中</h2>" +
+      "<p>还没读到 <code>" + escapeHtml(HWDIR) + "hw1.json</code>。" +
+      "点下面的「🔄 检查新作业」可以从 OpenJudge 抓一份回来。</p>" +
+      (HW.errors.length ? '<ul class="errList">' + HW.errors.slice(0, 4).map(function(e){
+        return "<li><code>" + escapeHtml(e) + "</code></li>"; }).join("") + "</ul>" : "") +
+      '<div class="endBtns" style="margin-top:16px">' +
+      '<button class="primary" data-act="hwcheck">🔄 检查新作业</button>' +
+      '<button data-act="hwreload">重新载入本地文件</button>' +
+      '<button data-act="oj">🧪 做题（OpenJudge）</button>' +
+      "</div></div>");
+    return out.join("");
+  }
+  /* 顶部一行：所有题集的通过率是一起刷的，所以状态只标一次 */
+  out.push('<div class="hwStatsBar"><button class="linkbtn hwStats" data-act="hwstats" data-stats-at="1"' +
+    ' title="通过率来自每道题的 OJ 统计页面（提交次数 / 尝试人数 / 通过人数）">' +
+    escapeHtml(hwStatsNote()) + "</button></div>");
+  /* 一份题集一整块 —— 作业和小测**共用这段**，它们的 JSON schema 完全一样。 */
+  function blockHtml(hw){
+    var cur = HW.hw && HW.hw.id === hw.id;
+    var n = hw.problems.length;
+    out.push('<div class="hwHead"><span class="hwTitle">' + escapeHtml(hw.title || hw.id) + "</span>" +
+      (hw.deadline ? '<span class="hwDeadline">⏰ 截止 ' + escapeHtml(hw.deadline) + "</span>" : "") +
+      (cur ? '<span class="vfy skip">当前</span>' : '<button class="linkbtn" data-act="hwset" data-hw="' + attr(hw.id) + '">设为当前</button>') +
+      '<span class="aiNote">' + escapeHtml(hw.id) + " · " + escapeHtml(n) + " 题</span>" +
+      "</div>");
+    out.push('<div class="hwList">');
+    hw.problems.forEach(function(p){
+      var r = rateOf(p);
+      var mk = hwMarkOf(hw.id, p.no);
+      out.push('<button class="hwRow" data-act="hwopen" data-hw="' + attr(hw.id) + '" data-no="' + attr(p.no) + '">' +
+        '<span class="hwNo">' + escapeHtml(p.no) + "</span>" +
+        (mk ? '<span class="markDot ' + mk + '" title="' + attr(mk === "ac" ? "我 AC 了" : "我 WA 了") + '"></span>' : "") +
+        '<span class="t">' + escapeHtml(p.title || "") + "</span>" +
+        '<span class="hwRate" data-rate="' + attr(hw.id + ":" + p.no) + '">' + rateHtml(p) + "</span>" +
+        '<span class="hwGo">打开 ›</span></button>');
+    });
+    out.push("</div>");
+    if (cur){
+      out.push('<div class="hwActions">' +
+        hwCheckBtnHtml() +
+        '<button class="primary" data-act="hwall">✨ 全部生成解析</button>' +
+        (hw.oj_url ? '<button data-act="ojopen" data-url="' + attr(hw.oj_url) + '">🔗 去 OJ</button>' : "") +
+        '<button data-act="aiset">⚙️ AI 设置</button>' +
+        '<span class="sp"></span>' +
+        (aiConfigured()
+          ? '<span class="aiNote">AI 已就绪' + (AI.status.key_tail ? "（key 末 4 位 " + escapeHtml(AI.status.key_tail) + "）" : "") +
+            (AI.status.model ? " · " + escapeHtml(AI.status.model) : "") + "</span>"
+          : '<span class="aiNote">还没配置 API Key —— 点「⚙️ AI 设置」填一个；不配也能看每题内置的解析。</span>') +
+        "</div>");
+    }
+  }
+  /* 分两组渲染：📝 作业 / 🧪 小测（判据见 hwIsQuiz）。小测那组为空时告诉用户怎么弄出来。 */
+  var hwGroup = [], qzGroup = [];
+  HW.list.forEach(function(hw){ (hwIsQuiz(hw) ? qzGroup : hwGroup).push(hw); });
+  /* ★ 每份题集包一层 .hwBlock：以前各块是平铺的，上一块的「AI 已就绪（key 末4位…）」
+     紧贴着下一块的标题（.hwHead 只有 2px 上边距），看上去像是下一块的说明文字。
+     包一层之后由 CSS 给「块与块之间」加分隔线，谁也不挨着谁。 */
+  hwGroup.forEach(function(hw, i){
+    if (i === 0) out.push('<div class="hwGroupHead first">📝 作业<span class="n">' + hwGroup.length + " 份</span></div>");
+    out.push('<div class="hwBlock">'); blockHtml(hw); out.push("</div>");
+  });
+  if (qzGroup.length){
+    qzGroup.forEach(function(hw, i){
+      if (i === 0) out.push('<div class="hwGroupHead">🧪 小测<span class="n">' + qzGroup.length + " 份</span></div>");
+      out.push('<div class="hwBlock">'); blockHtml(hw); out.push("</div>");
+    });
+  }else{
+    out.push('<div class="hwGroupHead">🧪 小测<span class="n">还没抓过</span></div>' +
+      '<div class="aiNote" style="margin-top:6px">小测和作业在同一个 OpenJudge 班里（同一套抓取管线），' +
+      "点上面的「🔄 检查新作业」就能看到能抓的小测 —— 包括已经考过的，拿来复习正好。</div>");
+  }
+  return out.join("");
+}
+function hwCheckBtnHtml(){
+  if (HW.checking) return '<button disabled>🔄 正在检查…</button>';
+  return '<button data-act="hwcheck">🔄 检查新作业</button>';
+}
+/* 顶部那一段：有哪些新的可以抓（作业 + 小测） */
+function hwAvailableHtml(){
+  var nw = hwNewList();
+  var qz = hwQuizList();
+  var out = [];
+  if (HW.fetching){
+    out.push('<div class="warnbar info" style="margin-bottom:12px">⏳ 正在抓取 <code>' +
+      escapeHtml(HW.fetching) + "</code> 的题面和样例……6 道题大概要几秒，别关窗口。</div>");
+  }
+  /* 一行「slug + 标题 + 抓取按钮」—— 作业和小测共用同一段（同一条抓取管线）。 */
+  function fetchRow(slug, title){
+    var busy = HW.fetching === slug;
+    return '<div class="newHwRow"><code>' + escapeHtml(slug) + "</code>" +
+      (title ? "　" + escapeHtml(title) : "") +
+      '<span class="sp"></span>' +
+      (busy ? '<button disabled>抓取中…</button>'
+            : '<button class="primary" data-act="hwfetch" data-slug="' + attr(slug) +
+              '" data-title="' + attr(title) + '"' + (HW.fetching ? " disabled" : "") + ">抓取</button>") +
+      "</div>";
+  }
+  if (nw.length){
+    out.push('<div class="warnbar info" style="margin-bottom:12px"><b>发现 ' + escapeHtml(nw.length) +
+      " 个新作业可以抓：</b>");
+    nw.forEach(function(a){ out.push(fetchRow((a && a.slug) || "", (a && a.title) || "")); });
+    out.push('<div class="setHint" style="margin-top:6px">抓回来的只有题面和样例，' +
+      "解析可以让 AI 现场生成。抓完会自动刷新列表。</div></div>");
+  }
+  if (qz.length){
+    out.push('<div class="warnbar info" style="margin-bottom:12px">' +
+      "<b>🧪 有 " + escapeHtml(qz.length) + " 个小测在 OpenJudge 上、本地还没有：</b>" +
+      '<div class="setHint" style="margin:4px 0 0">小测的截止时间都过了，所以不会当成「新作业」提示；' +
+      "这里列出来是给你复习用的，想抓哪个抓哪个。</div>");
+    qz.slice(0, 12).forEach(function(a){ out.push(fetchRow(a.slug, a.title || "")); });
+    if (qz.length > 12){
+      out.push('<div class="aiNote" style="margin-top:6px">……另外还有 ' + escapeHtml(qz.length - 12) +
+        " 个小测（早年课次 / 别的班），需要的话可以单独抓。</div>");
+    }
+    out.push("</div>");
+  }
+  if (!nw.length && !qz.length && HW.available && !HW.checking){
+    var all = Array.isArray(HW.available.all) ? HW.available.all : [];
+    out.push('<div class="aiNote" style="margin-bottom:10px">已是最新，共 ' + escapeHtml(all.length || HW.list.length) +
+      " 个题集（作业 + 小测）" + escapeHtml(hwCacheAgeText(HW.available)) +
+      (HW.available.current && HW.available.current.length
+        ? "（OJ 上当前：" + escapeHtml(HW.available.current.join("、")) + "）" : "") + "。</div>");
+  }
+  return out.join("");
+}
+
+/* ---------------- 题目页 ---------------- */
+function openProblem(hwId, no, opts){
+  opts = opts || {};
+  var hw = null;
+  for (var i = 0; i < HW.list.length; i++) if (HW.list[i].id === hwId) hw = HW.list[i];
+  if (!hw) hw = HW.list[0];
+  if (!hw) return;
+  HW.hw = hw;
+  HW.prob = null;
+  for (var k = 0; k < hw.problems.length; k++) if (String(hw.problems[k].no) === String(no)) HW.prob = hw.problems[k];
+  if (!HW.prob) HW.prob = hw.problems[0];
+  if (opts.tab && tabFromUrl(opts.tab)) HW.tab = tabFromUrl(opts.tab);
+  saveHwPos();
+  /* 题目是【第 2 层】：关掉它要回到作业列表 */
+  if (opts.push !== false) pushLayer(problemLayer());
+  renderProblem();
+}
+/* 当前题目层对应的 state */
+function problemLayer(){
+  return { kind: "problem", hw: HW.hw ? HW.hw.id : undefined,
+           no: HW.prob ? HW.prob.no : undefined, tab: tabToUrl(HW.tab) };
+}
+/* 题目页里换页签 → 只更新这一层的 URL（不新增记录），刷新后页签还是对的 */
+function syncProblemUrl(){
+  if (modalKind() !== "problem" || !HW.prob) return;
+  var top = LAYER_STACK[LAYER_STACK.length - 1];
+  if (top && top.kind === "problem") replaceLayerUrl(problemLayer());
+}
+function renderProblem(){
+  if (!HW.prob) return;
+  var p = HW.prob;
+  var lim = p.limits || {};
+  var title = "第 " + p.no + " 题　" + (p.title || "");
+  var head = '<div class="probHead">' +
+    (lim.time || lim.memory ? '<span class="lim">' + escapeHtml([lim.time, lim.memory].filter(Boolean).join(" · ")) + "</span>" : "") +
+    (p.global_id ? '<span class="lim">OJ #' + escapeHtml(p.global_id) + "</span>" : "") +
+    '<span class="sp"></span>' +
+    (HW_ALL.busy ? '<button class="tb" data-act="hwallcancel">⏹ 停止（' + HW_ALL.done + " / " + HW_ALL.total + "）</button>" : "") +
+    (p.oj_url ? '<button class="primary subBtn" data-act="hwautosubmit" title="' + attr(hwSubmitHint()) + '">🚀 自动提交</button>' : "") +
+    (p.oj_url ? '<button class="tb" data-act="hwsubmit" title="复制代码并打开提交页（手动交）">📤 复制并去提交</button>' : "") +
+    '<button class="tb" data-act="hwback">‹ 回作业列表</button>' +
+    "</div>";
+  var tabs = [["statement", "题面"], ["analysis", "解析"], ["test", "测一测"]];
+  var bar = '<div class="tabBar">' + tabs.map(function(t){
+    return '<button class="tab' + (HW.tab === t[0] ? " on" : "") + '" data-act="hwtab" data-tab="' + t[0] + '">' +
+      escapeHtml(t[1]) + "</button>";
+  }).join("") + "</div>";
+  var body = HW.tab === "analysis" ? hwAnalysisHtml()
+           : HW.tab === "test" ? hwTestHtml()
+           : hwStatementHtml();
+  openModal("problem", title, head + bar + body);
+  /* ★ 代码框必须紧跟渲染马上填上：stashProbCode() 是无条件把 textarea 的值抄回 state 的，
+     要是渲染完 textarea 是空的，用户存的代码就被空串覆盖了。 */
+  if (HW.tab === "test"){ fillProbCode(); hwLoadCases(); }
+}
+function renderProblemBody(){
+  if (!HW.prob || !modalOpen()) return;
+  renderProblem();
+}
+function hwStatementHtml(){
+  var p = HW.prob, out = [];
+  out.push(hwSampleHtml(p));
+  out.push('<div class="body">' + renderMarkdown(p.statement_md || "（这道题还没有题面）") + "</div>");
+  if (Array.isArray(p.pitfalls) && p.pitfalls.length){
+    /* ★ 点坑存的是纯文本，但里面**带反引号**（"光有 `a % 4 == 0` 不够"）。
+       以前走 escapeHtml 直接印出来，用户看到的就是一串光秃秃的 ` ——
+       和旁边的题面（markdown 渲染过）明显不是一套。这里改走 inline()，
+       反引号变 <code>、**粗体**变 <b>，其余照旧按文本转义（不会因为放宽而注入 HTML）。 */
+    out.push('<div class="warnbar pitfall"><b>⚠️ 点坑</b><div>' +
+      p.pitfalls.map(function(x){ return "<div>· " + inline(x) + "</div>"; }).join("") + "</div></div>");
+  }
+  out.push(hwPointChips(p));
+  return out.join("");
+}
+/* 样例/用例的值 + 一个「📋 复制」。
+   样例是**数据**不是代码 —— 所以只给复制，不给「▶ 可视化」。
+   按钮常驻可见（不做悬停才显形）：触屏和键盘用户也得能看见、能 Tab 到。 */
+function preCopyHtml(text, act, key, label, idx){
+  return '<div class="preRow"><pre>' + escapeHtml(text === undefined || text === null ? "" : text) + "</pre>" +
+    '<button class="copyMini" data-act="' + attr(act) + '" data-key="' + attr(key) + '"' +
+    (idx === undefined ? "" : ' data-i="' + attr(idx) + '"') +
+    ' title="' + attr("复制" + (label || "")) + '" aria-label="' + attr("复制" + (label || "")) + '">📋 复制</button></div>';
+}
+/* 多组样例拆开：OJ 有些题一屏放好几组，抓下来时「样例输入1」这种标签也进了正文。
+   不拆的话，样例测试会把标签当数据读进去（hw3 第 7 题）。 */
+function samplePairs(p){
+  var si = String((p && p.sample_in) || ""), so = String((p && p.sample_out) || "");
+  function blocks(text, kind){
+    var re = new RegExp("^[ \\t]*样例" + kind + "[ \\t]*\\d*[ \\t]*$", "m");
+    var parts = String(text).replace(/\r\n?/g, "\n").split(re);
+    if (parts.length <= 1) return null;
+    var out = [];
+    parts.forEach(function(x){
+      var t = x.replace(/^\n+/, "").replace(/\n+$/, "");
+      if (t.trim()) out.push(t);
+    });
+    return out.length ? out : null;
+  }
+  var ins = blocks(si, "输入"), outs = blocks(so, "输出");
+  if (ins && outs && ins.length === outs.length){
+    var pairs = [];
+    for (var i = 0; i < ins.length; i++) pairs.push({ in: ins[i], out: outs[i] });
+    return pairs;
+  }
+  return [{ in: si, out: so }];
+}
+/* 样例：放最显眼的位置（它是唯一权威），带规范化说明和特殊情况提示 */
+function hwSampleHtml(p){
+  var pairs = samplePairs(p);
+  if (!pairs.length) return "";
+  var multi = pairs.length > 1;
+  var out = ['<div class="resBox" style="margin:0 0 16px"><div class="resHead">📋 样例' +
+    (multi ? '<span class="vfy skip">共 ' + pairs.length + " 组</span>" : "") +
+    (tabExpandedSample(p) ? '<span class="vfy skip">对齐空格＝制表符</span>' : "") + "</div>"];
+  pairs.forEach(function(pr, i){
+    if (multi) out.push('<div class="setHint" style="padding:7px 12px 0">样例 ' + (i + 1) + "</div>");
+    out.push('<div class="resGrid">' +
+      '<div class="k">输入</div>' + preCopyHtml(pr.in, "copysample", "in", "样例输入", i) +
+      '<div class="k">输出</div>' + preCopyHtml(pr.out, "copysample", "out", "样例输出", i) +
+      "</div>");
+  });
+  out.push(sampleHintHtml(p) + "</div>");
+  return out.join("");
+}
+function hwPointChips(p){
+  if (!Array.isArray(p.points) || !p.points.length) return "";
+  var out = ['<div class="ptChips"><span class="caseLbl">相关知识点</span>'];
+  p.points.forEach(function(id){
+    var st = null;
+    for (var i = 0; i < S.steps.length; i++){
+      if (S.steps[i].kind === "point" && S.steps[i].p.id === id){ st = S.steps[i]; break; }
+    }
+    out.push(st
+      ? '<button class="chip" data-act="hwjump" data-id="' + attr(id) + '">📖 第 ' + escapeHtml(st.sec.no) +
+        " 节 · " + escapeHtml(st.p.title || "") + "</button>"
+      : '<span class="chip more" title="讲义里没有这个 id">' + escapeHtml(id) + "</span>");
+  });
+  out.push("</div>");
+  return out.join("");
+}
+
+/* ---------------- 代码块工具栏 ---------------- */
+/* 哪些围栏算「能跑的 Python」：只认显式标记。
+   无语言标记的一律不挂（讲义里那些 ``` 裸块其实是样例输入输出/REPL 记录）。
+   取第一个词，`python title=x` 这种也认。 */
+function isPythonLang(lang){
+  var l = String(lang === undefined || lang === null ? "" : lang).trim().toLowerCase()
+            .split(/[\s,;:]/)[0];
+  return l === "python" || l === "py" || l === "python3" || l === "py3";
+}
+function vfyBadgeHtml(v){
+  if (!v) return "";
+  var d = v.detail || {};
+  var actual = String(d.actual === undefined || d.actual === null ? "" : d.actual);
+  /* ★ 运行器被步数上限中止（代码里有大循环）—— 这不是代码错，别冤枉它 */
+  if (/aborted|步数|max_steps|超过 5000/i.test(actual) || d.aborted){
+    return '<details class="vfy bad"><summary>⚠️ 无法自动验证（代码里有大循环，运行器中止了）—— 请自己确认</summary>' +
+      '<div class="vfyBox">' + escapeHtml("运行器的步数上限是 5000，这段代码跑超了，所以没跑完。\n" +
+        "这不代表代码写错了 —— 用「▶ 可视化」自己看一眼，或者换个小一点的输入。") + "</div></details>";
+  }
+  if (v.status === "ok"){
+    return '<span class="vfy ok" title="' + attr("已用" + (v.phase === "extra" ? "补充用例" : "样例") + "验证通过") +
+      '">✅ 已用样例验证</span>';
+  }
+  if (v.status === "fail"){
+    if (d.stage === "syntax"){
+      return '<details class="vfy bad"><summary>⚠️ 这段代码有语法错误</summary>' +
+        '<div class="vfyBox">' + escapeHtml(String(d.actual || d.expected || "").trim()) + "</div></details>";
+    }
+    var tip = "输入：" + String(d.case || "").trim() + "　期望：" + String(d.expected || "").trim() +
+              "　实际：" + String(d.actual || "").trim();
+    return '<details class="vfy bad" title="' + attr(tip) + '"><summary>⚠️ 这段没过样例</summary>' +
+      '<div class="vfyBox">用例（' + escapeHtml(v.phase === "extra" ? "补充用例" : "样例") + "）\n" +
+      escapeHtml(String(d.case || "").trim()) +
+      "\n期望 <b>" + escapeHtml(String(d.expected || "").trim()) + "</b>" +
+      "\n实际 <b class=\"bad\">" + escapeHtml(actual.trim()) + "</b></div></details>";
+  }
+  if (v.status === "skipped") return '<span class="vfy skip">未验证</span>';
+  return "";
+}
+/* 「你的代码在样例上怎么样」——review 模式服务端会推 phase:"student" 的 verify */
+function studentVfyHtml(a){
+  var v = a && a.studentVerify;
+  if (!v) return "";
+  var d = v.detail || {};
+  var passed = v.status === "ok";
+  return '<div class="' + (passed ? "warnbar info" : "aiErr") + '" style="margin-bottom:12px">' +
+    (passed ? "✅ 服务端在本地跑了你的代码：<b>样例通过</b>" : "❌ 服务端在本地跑了你的代码：<b>样例没过</b>") +
+    '<div style="margin-top:6px;font:12.5px/1.7 var(--font-mono);white-space:pre-wrap">' +
+    escapeHtml("输入：" + String(d.case || "").trim() + "\n期望：" + String(d.expected || "").trim() +
+               "\n实际：" + String(d.actual || "").trim()) + "</div></div>";
+}
+/* 每个 python 代码块下方挂一条工具栏；非 python 语言（text/bash/输出…）不挂 */
+function codeToolbarHtml(idx, a){
+  var v = (a && a.verify) ? a.verify[idx] : null;
+  return '<div class="codeBar">' + vfyBadgeHtml(v) + '<span class="sp"></span>' +
+    '<button class="tb" data-act="codeviz" data-idx="' + idx + '" title="' + attr(VIZ_TITLE) + '">▶ 可视化</button>' +
+    '<button class="tb" data-act="codetest" data-idx="' + idx + '">🧪 用样例测</button>' +
+    '<button class="tb" data-act="codecopy" data-idx="' + idx + '">📋 复制</button>' +
+    "</div>";
+}
+function aiMarkdown(md, a){
+  a = a || { blocks: [] };
+  a.blocks = [];
+  return renderMarkdown(md, {
+    codeBlock: function(info){
+      var pre = '<pre class="md-pre"><code>' + escapeHtml(info.code) + "</code></pre>";
+      if (!isPythonLang(info.lang)) return pre;          /* text/bash/输出 → 只当普通代码块 */
+      var idx = a.blocks.length;
+      a.blocks.push({ code: info.code, lang: info.lang });
+      if (!info.closed) return pre;                      /* 还在流式、代码块没闭合 → 先不挂按钮 */
+      return '<div class="codeBlock">' + pre + codeToolbarHtml(idx, a) + "</div>";
+    }
+  });
+}
+
+/* ---------------- 解析页签 ---------------- */
+/* 内置解析也要有个 state（否则它里面的代码块工具栏点了会说"代码找不到了"） */
+function aiEnsure(){
+  anaEnsureLoaded();      /* ★ 先补上整页重载丢掉的那份（见 anaSave 上面的说明） */
+  var key = hwKey();
+  var a = HW.ai[key];
+  if (!a && HW.prob && typeof HW.prob.analysis_md === "string" && HW.prob.analysis_md.trim()){
+    a = HW.ai[key] = { text: HW.prob.analysis_md, reasoning: "", verify: {}, blocks: [],
+                       cached: false, retry: "", error: null, partial: false,
+                       busy: false, done: true, builtin: true };
+  }
+  return a || null;
+}
+function hwAnalysisHtml(){
+  var p = HW.prob, a = aiEnsure(), out = [];
+  var builtin = !!(a && a.builtin);
+  /* 自动提交的结果放最上面 —— 从「解析」页签直接交题时，结果不能只长在「测一测」里 */
+  if (testState() && testState().sub) out.push(hwSubmitResultHtml(testState().sub));
+  out.push('<div class="aiBar">');
+  if (a && a.busy){
+    out.push('<button class="primary" disabled>✨ 正在生成…</button>');
+  }else if (a && !builtin){
+    out.push('<button class="primary" data-act="aigen" data-nocache="1">🔄 重新生成</button>');
+  }else{
+    out.push('<button class="primary" data-act="aigen">✨ 让 AI 生成解析</button>');
+  }
+  out.push('<button class="tb" data-act="aiset">⚙️ AI 设置</button>');
+  if (!builtin){
+    if (a && a.cached) out.push('<span class="vfy ok">已缓存</span>');
+    if (a && a.done && !a.error) out.push('<span class="aiNote">生成完毕</span>');
+  }
+  out.push("</div>");
+
+  /* ★ 必须等 AI.loaded —— 否则状态还没拉回来就先渲染，会**误报"还没配置 API Key"**。
+     用户从可视化整页回来时就是这个现象：面板先画出来（AI.status 还是 null），
+     而 /ai/status 是异步的，加载完又没有任何东西重绘。
+     （loadAiStatus 现在会在状态到达后主动重绘当前层，见那里的注释。） */
+  if (AI.loaded && !aiConfigured()){
+    out.push('<div class="aiErr"><b>还没配置 API Key。</b><br>' +
+      "点「⚙️ AI 设置」填一个 DeepSeek key 就能让 AI 现场讲解这道题。" +
+      "（key 只存在本机，界面上只显示末 4 位）</div>");
+  }
+  if (a && a.retry) out.push('<div class="warnbar info">🔁 ' + escapeHtml(a.retry) + "</div>");
+  out.push(studentVfyHtml(a));
+  if (a && a.error){
+    out.push('<div class="aiErr"><b>' + escapeHtml(a.error) + "</b>" +
+      (a.partial ? "<br>下面保留的是已经收到的部分。" : "") +
+      '<div style="margin-top:8px"><button data-act="aigen" data-nocache="1">重试</button></div></div>');
+  }
+  if (a && a.reasoning){
+    out.push('<details class="aiReason"><summary>💭 思考过程（' + escapeHtml(String(a.reasoning.length)) +
+      " 字）</summary><pre>" + escapeHtml(a.reasoning) + "</pre></details>");
+  }
+  if (builtin){
+    out.push('<div class="aiNote" style="margin-bottom:10px">这是<b>内置解析</b>（离线兜底）' +
+      verifiedBadgeHtml(p) + "<br>点上面的「✨ 让 AI 生成解析」可以让 AI 现场讲一遍。</div>");
+  }
+  if (a && a.text){
+    out.push('<div class="aiStream" data-ai-stream="1">' + aiMarkdown(a.text, a) +
+      ((a.done || builtin) ? "" : '<span class="cursor"></span>') + "</div>");
+  }else if (a && a.busy){
+    out.push('<div class="aiStream"><div class="loading">正在等 AI 的第一个字…</div></div>');
+  }else{
+    out.push('<div class="loading">还没有解析。点「✨ 让 AI 生成解析」，' +
+      "AI 会先给一句话思路、再给可直接运行的参考代码，并用样例验算一遍。</div>");
+  }
+  out.push(hwPointChips(p));
+  return out.join("");
+}
+
+/* ---------------- 流式 ---------------- */
+function sseHandleLine(line, onEvent){
+  line = String(line).replace(/\r$/, "");
+  if (!line || line.charAt(0) === ":") return;
+  if (line.indexOf("data:") !== 0) return;
+  var payload = line.slice(5).trim();
+  if (!payload || payload === "[DONE]") return;
+  var obj = null;
+  try{ obj = JSON.parse(payload); }catch(e){ return; }
+  if (obj && typeof obj === "object" && obj.type) onEvent(obj);
+}
+function sseFeed(chunk, buf, onEvent){
+  buf.v += chunk;
+  var i;
+  while ((i = buf.v.indexOf("\n")) >= 0){
+    var line = buf.v.slice(0, i);
+    buf.v = buf.v.slice(i + 1);
+    sseHandleLine(line, onEvent);
+  }
+}
+/* POST 一个 SSE 流：优先用 ReadableStream 边收边渲染，没有就退化成整段读回来再切行 */
+function streamPost(url, body, onEvent){
+  return new Promise(function(resolve, reject){
+    if (typeof fetch !== "function"){ reject(new Error("这个环境没有 fetch")); return; }
+    var p;
+    try{
+      p = fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+                       body: JSON.stringify(body || {}) });
+    }catch(e){ reject(e); return; }
+    Promise.resolve(p).then(function(r){
+      if (!r || r.ok === false || (r.status && r.status >= 400)){
+        var err = new Error("HTTP " + ((r && r.status) || "?"));
+        err.status = (r && r.status) || 0;
+        if (r && r.text) return r.text().then(function(t){
+          try{ var j = JSON.parse(t); if (j && j.error) err.message = String(j.error); }catch(e2){}
+          throw err;
+        });
+        throw err;
+      }
+      if (r.body && typeof r.body.getReader === "function" && typeof TextDecoder !== "undefined"){
+        var reader = r.body.getReader(), dec = new TextDecoder(), buf = { v: "" };
+        function pump(){
+          return reader.read().then(function(res){
+            if (res.done){ if (buf.v) sseFeed("\n", buf, onEvent); return; }
+            sseFeed(dec.decode(res.value, { stream: true }), buf, onEvent);
+            return pump();
+          });
+        }
+        return pump();
+      }
+      return r.text().then(function(t){ sseFeed(t + "\n", { v: "" }, onEvent); });
+    }).then(resolve, reject);
+  });
+}
+function aiRender(){
+  if (!HW.prob || HW.tab !== "analysis") return;
+  /* 同一类静默失败：原写法在窗口关掉时直接 return，回答就"凭空消失"了
+     —— 用户只看到点了没反应，其实流已经跑完（实测 text len=566、done=true）。
+     AI 回答是花了 token 换来的，既然还在往解析页签写，就把题目窗口重新打开。
+     ★ 但如果用户正开着**别的**面板（比如 100Days 阅读器），就别抢他的屏幕：
+       关着的题目窗口我们重新开；开着别的就不动，等他回到题目页再渲染。 */
+  if (modalOpen() && modalKind() !== "problem") return;
+  renderProblem();
+}
+function scheduleAiRender(now){
+  if (now){ if (HW.aiTimer){ clearTimeout(HW.aiTimer); HW.aiTimer = null; } aiRender(); return; }
+  if (HW.aiTimer) return;
+  HW.aiTimer = setTimeout(function(){ HW.aiTimer = null; aiRender(); }, 90);
+}
+function onAiEvent(key, ev){
+  var a = HW.ai[key];
+  if (!a) return;
+  if (ev.type === "delta"){ a.text += String(ev.text || ""); scheduleAiRender(); }
+  else if (ev.type === "reasoning"){ a.reasoning += String(ev.text || ""); scheduleAiRender(); }
+  else if (ev.type === "verify"){
+    /* review 模式下服务端会推一个 phase:"student" —— 它真跑过用户的代码，单独收着 */
+    if (ev.phase === "student"){ a.studentVerify = ev; }
+    else if (typeof ev.code_index === "number") a.verify[ev.code_index] = ev;
+    scheduleAiRender(true);
+  }
+  else if (ev.type === "retry"){ a.retry = String(ev.reason || "正在重试"); scheduleAiRender(true); }
+  else if (ev.type === "cached"){ a.cached = true; scheduleAiRender(true); }
+  else if (ev.type === "error"){
+    a.error = String(ev.message || "AI 返回了错误");
+    a.partial = !!a.text;
+    a.done = true; a.busy = false;
+    scheduleAiRender(true);
+  }
+  else if (ev.type === "done"){ a.done = true; a.busy = false; scheduleAiRender(true); }
+}
+/* 发给 AI 的题面（不含我们自己的 analysis_md / solution_code，避免"抄自己"） */
+function problemPayload(p, extra){
+  var o = {
+    no: p.no, title: p.title, global_id: p.global_id || null,
+    limits: p.limits || null, statement_md: p.statement_md || "",
+    sample_in: p.sample_in || "", sample_out: p.sample_out || "",
+    extra_cases: Array.isArray(p.extra_cases) ? p.extra_cases : []
+  };
+  if (extra) for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra, k)) o[k] = extra[k];
+  return o;
+}
+function aiExplain(noCache, mode){
+  var p = HW.prob;
+  if (!p) return Promise.resolve(false);
+  if (!aiConfigured()){
+    openAiSettings();
+    toast("先去 AI 设置里填 API Key");
+    return Promise.resolve(false);
+  }
+  /* ★ 用户报过的 bug：按钮长在「测一测」页签里，可 AI 的回答是渲染在「解析」页签的
+     （aiRender() 第一行就是 `if (HW.tab !== "analysis") return`，而且窗口得开着）。
+     于是点完之后**流跑完了、字数也对、屏幕上却一个字都没有** —— 看起来就是"没输出"。
+     实测：ai.text len=566、done=true、err=null，但 .aiStream 节点不存在。
+     所以这里必须把用户带到能看见结果的地方，否则等于白跑一次（还花了 token）。
+     顺序照抄既有的 hwtab 分支：先把代码框里的内容抄回 state，再换页签、存位置、重渲染。
+     ★ 只切一次，而且不锁死 —— 流还在跑的时候用户可以自己翻回「测一测」接着改代码，
+       渲染由事件驱动，回到解析页签时已有内容会补上。 */
+  if (HW.tab !== "analysis"){
+    stashProbCode();                 /* 别让切页签丢掉刚写的代码 */
+    HW.tab = "analysis";
+    saveHwPos();
+    renderProblem();
+    syncProblemUrl();
+    toast("AI 的回答在「解析」页签里，已经帮你切过去了");
+  }
+  var key = hwKey();
+  var old = HW.ai[key];
+  HW.ai[key] = {
+    text: "", reasoning: "", verify: {}, blocks: [], cached: false, retry: "",
+    error: null, partial: false, busy: true, done: false, mode: mode || "explain"
+  };
+  aiRender();
+  var body = { problem: problemPayload(p, mode === "review" ? { run_result: reviewContext() } : null),
+               mode: mode || "explain", no_cache: !!noCache };
+  if (mode === "review"){
+    var t = testState();
+    body.code = t.code || "";
+  }
+  var label = (mode === "review") ? "AI 正在看你的代码……" : "正在让 AI 生成解析……";
+  toast(label);
+  return streamPost("/ai/explain", body, function(ev){ onAiEvent(key, ev); }).then(function(){
+    var a = HW.ai[key];
+    if (a && !a.done){ a.done = true; a.busy = false; }        /* 流断在半路也要收尾 */
+    anaSave();          /* ★ 生成完就落盘：整页跳去可视化再回来还看得见 */
+    scheduleAiRender(true);
+    return true;
+  }, function(e){
+    var a = HW.ai[key];
+    if (a){
+      a.busy = false; a.done = true;
+      var msg = String(e && e.message ? e.message : e);
+      if (/Failed to fetch|NetworkError|network|ERR_/i.test(msg)) msg = "连不上 API，检查网络或 base_url（" + msg + "）";
+      a.error = msg;
+      a.partial = !!a.text;
+    }
+    anaSave();          /* 失败时也存：有部分内容的话下次回来还在（anaSave 会跳过 error 项，故意） */
+    scheduleAiRender(true);
+    void old;
+    return false;
+  });
+}
+function reviewContext(){
+  var t = testState();
+  if (!t.ran) return null;
+  var act = t.err ? ("（运行报错：" + t.err + "）") : (t.out === null ? "" : t.out);
+  return { case: t.stdin, expected: t.expected, actual: act, passed: sameOutput(t.out, t.expected, HW.prob) && !t.err };
+}
+
+/* ---------------- 测一测 ---------------- */
+function testState(){
+  var key = hwKey();
+  if (!HW.test[key]){
+    var p = HW.prob || {};
+    /* ★ 代码框**不再预填参考解**：打开「测一测」就看见答案，练习变看答案。
+       参考解挪到下面的折叠块里了（见 hwTestHtml 的 .refSol）。 */
+    var sp0 = samplePairs(p)[0] || { in: "", out: "" };
+    var t = { code: "", stdin: sp0.in || "", expected: sp0.out || "",
+              why: "题目样例", caseIdx: 0, out: null, err: null, ran: false, busy: false,
+              all: null };
+    /* 恢复草稿：代码 + 上次选中的用例。用例优先按"输入内容"对回去 ——
+       AI 用例重新生成后顺序可能变，按下标会指到别的题上。 */
+    var d = hwDraftGet(key);
+    if (d){
+      if (typeof d.code === "string") t.code = d.code;
+      var cs = caseList(p), idx = -1, i;
+      if (typeof d.caseIn === "string" && d.caseIn){
+        for (i = 0; i < cs.length; i++){ if (cs[i].in === d.caseIn){ idx = i; break; } }
+      }
+      if (idx < 0 && typeof d.caseIdx === "number" && d.caseIdx > 0 && d.caseIdx < cs.length){
+        idx = d.caseIdx;
+      }
+      if (idx > 0){
+        t.caseIdx = idx; t.stdin = cs[idx].in; t.expected = cs[idx].out;
+        t.why = cs[idx].why || cs[idx].label;
+      }
+    }
+    HW.test[key] = t;
+  }
+  return HW.test[key];
+}
+/* 和后端一致的规范化：统一换行、去行尾空格、去末尾空行；**行内空格保留**
+   expandTabs=true 时先把 \t 按 8 列展开（内容层实测：第 3 题的样例就是 expandtabs(8) 的字面量） */
+function expandTabs8(s){
+  var out = "", str = String(s === undefined || s === null ? "" : s);
+  for (var i = 0; i < str.length; i++){
+    var c = str.charAt(i);
+    if (c === "\t"){
+      var n = 8 - (out.length % 8);
+      while (n-- > 0) out += " ";
+    }else out += c;
+  }
+  return out;
+}
+function normOut(s, expandTabs){
+  return String(s === undefined || s === null ? "" : s)
+    .replace(/\r\n?/g, "\n")
+    .split("\n").map(function(l){
+      if (expandTabs) l = expandTabs8(l);
+      return l.replace(/[ \t]+$/, "");
+    }).join("\n")
+    .replace(/\n+$/, "");
+}
+/* 严格比对；只要任一侧出现制表符，再给一次「制表符 vs 空格」的机会
+   （不影响 `5  10` vs `5 10` 这种纯空格差异 → 仍然判不一致） */
+function sameOutput(actual, expected, p){
+  if (normOut(actual, false) === normOut(expected, false)) return true;
+  var both = String(actual === undefined || actual === null ? "" : actual) +
+             String(expected === undefined || expected === null ? "" : expected);
+  if (both.indexOf("\t") >= 0) return normOut(actual, true) === normOut(expected, true);
+  void p;
+  return false;
+}
+/* 样例输出是不是「制表符被展开成空格」的样子（第 3 题就是） */
+function tabExpandedSample(p){
+  if (!p) return false;
+  var texts = samplePairs(p).map(function(x){ return x.out; })
+    .concat((Array.isArray(p.extra_cases) ? p.extra_cases : []).map(function(c){ return c && c.out; }));
+  return texts.some(function(t){
+    var lines = String(t === undefined || t === null ? "" : t).split("\n"), n = 0;
+    lines.forEach(function(l){ if (/\S {2,}\S/.test(l)) n++; });
+    return n >= 2;
+  });
+}
+/* 「输出」小节是不是等于没写（格式只能从样例推 —— 第 4 题就是） */
+function outputSpecMissing(p){
+  if (!p) return false;
+  var md = String(p.statement_md || "");
+  var m = md.match(/^(#{2,4})\s*输出\s*$/m);
+  if (!m) return false;
+  var rest = md.slice(m.index + m[0].length);
+  var stop = rest.search(/^#{2,4}\s/m);
+  var body = (stop >= 0 ? rest.slice(0, stop) : rest).replace(/<!--[\s\S]*?-->/g, "").trim();
+  var FMT = /每行|一行|格式|空格|保留|换行|分隔|升序|降序|依次|精确|分别|按照|之间|个数|大小写/;
+  return body.length < 40 && !FMT.test(body);
+}
+/* 样例下面那行说明：样例是唯一权威；有特殊情况就额外提示 */
+function sampleHintHtml(p){
+  var out = ['<div class="setHint" style="padding:6px 12px 10px">' +
+    "ⓘ <b>样例是最权威的输出格式说明，以它为准。</b>（OJ 比对会忽略行尾空格）"];
+  if (outputSpecMissing(p)){
+    out.push('<br>ⓘ 本题的「<b>输出</b>」栏没写清格式，只能从样例推 —— 照上面的样例来。');
+  }
+  if (tabExpandedSample(p)){
+    out.push('<br>ⓘ 上面的对齐空格原本是<b>制表符（\\t）</b>，这里按 8 列展开显示了。' +
+      "你的代码用 <code>\\t</code> 或空格都能对齐，<b>别为了凑这些空格纠结</b>；" +
+      "「🧪 用样例测」对这道题会把制表符和空格视作等价。");
+  }
+  out.push("</div>");
+  return out.join("");
+}
+/* 内容层实测过的绿标（verified 字段） */
+function verifiedBadgeHtml(p){
+  var v = (p && p.verified) || null;
+  if (!v || v.sample !== "pass") return "";
+  var et = Number(v.extra_total) || 0, ep = Number(v.extra_passed) || 0;
+  var txt = "✅ 内置解析，代码已实测通过全部用例";
+  if (et) txt += "（边界用例 " + ep + "/" + et + "）";
+  return '<span class="vfy ok" style="margin-left:8px">' + escapeHtml(txt) + "</span>";
+}
+function caseList(p){
+  var out = [];
+  var sampleList = samplePairs(p);
+  var multiSample = sampleList.length > 1;
+  sampleList.forEach(function(pr, i){
+    out.push({ label: multiSample ? "样例" + (i + 1) : "样例", in: pr.in, out: pr.out, why: "题目样例" });
+  });
+  (Array.isArray(p.extra_cases) ? p.extra_cases : []).forEach(function(c){
+    if (!c || c.in === undefined) return;
+    var first = String(c.in).replace(/\r\n?/g, "\n").split("\n")[0];
+    out.push({ label: first.length > 10 ? first.slice(0, 10) + "…" : first, in: c.in, out: c.out || "", why: c.why || "" });
+  });
+  /* AI 生成的边界用例接在后面：输入是模型出的，期望输出是**本机跑参考解算出来的** */
+  var st = (HW.prob && HW.hw) ? HW_CASES[hwKey()] : null;
+  if (st && Array.isArray(st.cases)){
+    st.cases.forEach(function(c, i){
+      if (!c || typeof c.in !== "string") return;
+      out.push({ label: "AI-" + (i + 1), in: c.in, out: c.out || "",
+                 why: c.why || "AI 生成的边界用例", ai: true });
+    });
+  }
+  return out;
+}
+function hwTestHtml(){
+  var p = HW.prob, t = testState(), cs = hwCasesState(), out = [];
+  out.push('<div class="setLabel" style="width:auto;margin-bottom:6px">你的代码：</div>');
+  out.push('<textarea class="probCode" id="probCode" spellcheck="false"></textarea>');
+  /* 参考解只放在折叠块里：★ 绝不预填进代码框 —— 打开「测一测」就看见答案，练习变抄 */
+  if (String(p.solution_code || "").trim()){
+    out.push('<details class="refSol"><summary>📖 参考代码（先自己做，卡住再看）</summary>' +
+      '<pre class="refCode">' + escapeHtml(p.solution_code) + "</pre>" +
+      '<div class="refActions">' +
+        '<button class="tb" data-act="hwrefcopy">📋 复制</button>' +
+        '<button class="tb" data-act="hwrefviz">▶ 可视化</button>' +
+      "</div></details>");
+  }
+  var cases = caseList(p);
+  out.push('<div class="caseRow"><span class="caseLbl">用例</span>' + cases.map(function(c, i){
+    return '<button class="caseChip' + (t.caseIdx === i ? " on" : "") + (c.ai ? " ai" : "") +
+      '" data-act="hwcase" data-i="' + i + '" title="' + attr(c.why || "") + '">' +
+      escapeHtml(c.label) + "</button>";
+  }).join("") + "</div>");
+  out.push('<div class="caseOps">' +
+    '<button class="tb" data-act="hwgencases"' + (cs.busy ? " disabled" : "") + ">" +
+      (cs.busy ? "🤖 正在出题…" : (cs.cases.length ? "🤖 重新生成边界用例" : "🤖 生成边界用例")) + "</button>" +
+    (cases.length > 1
+      ? '<button class="tb" data-act="hwrunall"' + (t.all && t.all.busy ? " disabled" : "") + ">🏁 全跑一遍</button>"
+      : "") +
+    '<span class="caseHint">AI 出输入 · 标准答案由本机跑参考解算出</span>' +
+    "</div>");
+  if (cs.err) out.push('<div class="aiErr" style="margin:8px 0 0">' + escapeHtml(cs.err) + "</div>");
+  out.push('<div class="hwActions" style="margin-top:10px;border-top:0;padding-top:0">' +
+    '<button class="primary" data-act="hwrun"' + (t.busy ? " disabled" : "") + ">🧪 " +
+      (t.busy ? "跑着…" : "跑这个用例") + "</button>" +
+    '<button data-act="testviz" title="' + attr(VIZ_TITLE) + '">▶ 可视化</button>' +
+    '<button data-act="aireview">📝 让 AI 看看我的代码</button>' +
+    '<span class="sp"></span>' +
+    '<button class="tb markBtn' + (hwMarkOf(HW.hw && HW.hw.id, p.no) === "ac" ? " on ac" : "") +
+      '" data-act="hwmark" data-v="ac" title="我自己在 OJ 上提交过，而且 AC 了">✅ AC</button>' +
+    '<button class="tb markBtn' + (hwMarkOf(HW.hw && HW.hw.id, p.no) === "wa" ? " on wa" : "") +
+      '" data-act="hwmark" data-v="wa" title="我自己提交过，但没过">❌ WA</button>' +
+    "</div>");
+  if (t.ran){
+    var passed = !t.err && sameOutput(t.out, t.expected, p);
+    var tabHint = "";
+    if (!passed && !t.err){
+      var both = String(t.out || "") + String(t.expected || "");
+      tabHint = (both.indexOf("\t") >= 0 || tabExpandedSample(p))
+        ? "可能是「制表符 vs 空格」的差别 —— 这道题的样例本来就是对不齐的制表符，我已按 8 列展开比对过；还是不一致的话，检查每列的<b>顺序</b>和<b>行尾</b>。"
+        : "";
+    }
+    out.push('<div class="resBox"><div class="resHead">结果' +
+      '<span class="verdict ' + (passed ? "pass" : "fail") + '">' +
+      (passed ? "✅ 一致" : (t.err ? "❌ 跑不出来" : "❌ 不一致")) + "</span>" +
+      (tabExpandedSample(p) ? '<span class="vfy skip">制表符≡空格</span>' : "") + "</div>" +
+      '<div class="resGrid">' +
+      '<div class="k">输入</div>' + preCopyHtml(t.stdin, "copycase", "in", "这次跑的输入") +
+      '<div class="k">期望</div>' + preCopyHtml(t.expected, "copycase", "exp", "期望输出") +
+      '<div class="k">实际</div>' + preCopyHtml(t.err ? ("[报错] " + t.err) : (t.out === null ? "" : t.out),
+        "copycase", "act", "实际输出") +
+      '<div class="k">说明</div><div class="why">' + escapeHtml(t.why || "") +
+        (tabHint ? '<div style="margin-top:4px;color:#8a6d00">ⓘ ' + tabHint + "</div>" : "") + "</div>" +
+      "</div></div>");
+  }
+  if (t.sub) out.push(hwSubmitResultHtml(t.sub));
+  if (t.all && t.all.results && t.all.results.length) out.push(hwAllResultHtml(t.all));
+  out.push('<div class="setHint" style="margin-top:12px">比对规则：统一换行、去行尾空格、去末尾空行；' +
+    "<b>行内空格保留</b>（和后端一致）。" +
+    (p.extra_cases && p.extra_cases.length > 8
+      ? "<br>ⓘ 后端自动验证只用前 8 个补充用例（这题有 " + p.extra_cases.length + " 个）。" : "") +
+    "</div>");
+  out.push(hwPointChips(p));
+  return out.join("");
+}
+/* 自动提交的结果：AC 绿、其它红、"没读到"灰 */
+function hwSubmitResultHtml(s){
+  if (s.busy){
+    return '<div class="resBox" style="margin-top:14px"><div class="resHead">🚀 自动提交' +
+      '<span class="vfy skip">提交中… 等 OJ 评测（最长约 40 秒）</span></div></div>';
+  }
+  if (s.error){
+    return '<div class="aiErr" style="margin-top:14px">提交失败：' + escapeHtml(s.error) + "</div>";
+  }
+  var cls = s.verdict === "AC" ? "pass" : (s.verdict ? "fail" : "skip");
+  var txt = s.verdict ? (s.verdict + (s.verdictCn ? " · " + s.verdictCn : "")) : (s.message || "已提交");
+  var out = ['<div class="resBox" style="margin-top:14px"><div class="resHead">🚀 自动提交' +
+    '<span class="vfy skip">' + (s.from === "ai" ? "AI 代码" : "我的代码") + "</span>" +
+    '<span class="verdict ' + cls + '">' + escapeHtml(txt) + "</span>" +
+    (s.mem ? '<span class="vfy skip">' + escapeHtml(s.mem) + (s.time ? " · " + escapeHtml(s.time) : "") + "</span>" : "") +
+    "</div>"];
+  var note = s.message || "";
+  if (note || s.url){
+    out.push('<div class="setHint" style="padding:8px 12px">' + escapeHtml(note) +
+      (s.url ? ' <button class="linkbtn" data-act="ojopen" data-url="' + attr(s.url) + '">去 OJ 看</button>' : "") +
+      "</div>");
+  }
+  out.push("</div>");
+  return out.join("");
+}
+/* 「全跑一遍」的汇总：只把**没过的**展开，过的折成一行计数 */
+function hwAllResultHtml(all){
+  var total = all.results.length, pass = 0;
+  all.results.forEach(function(r){ if (r.passed) pass++; });
+  var out = ['<div class="resBox" style="margin-top:14px"><div class="resHead">🏁 全跑一遍' +
+    '<span class="verdict ' + (pass === total ? "pass" : "fail") + '">' + pass + " / " + total + " 组一致</span>" +
+    (all.busy ? '<span class="vfy skip">正在跑第 ' + Math.min(all.done + 1, total) + " / " + total + " 组…</span>"
+              : "") + "</div>"];
+  all.results.forEach(function(r){
+    if (r.passed) return;
+    out.push('<div class="allCase"><div class="allHead">❌ ' + escapeHtml(r.label) +
+      (r.why ? '<span class="why">' + escapeHtml(r.why) + "</span>" : "") + "</div>" +
+      '<div class="resGrid">' +
+      '<div class="k">输入</div><pre class="miniPre">' + escapeHtml(r.in) + "</pre>" +
+      '<div class="k">期望</div><pre class="miniPre">' + escapeHtml(r.expected) + "</pre>" +
+      '<div class="k">实际</div><pre class="miniPre bad">' + escapeHtml(r.actual) + "</pre>" +
+      "</div></div>");
+  });
+  if (pass === total && !all.busy){
+    out.push('<div class="allOk">全部一致。AI 用例只是参考，最终仍以 OJ 评测为准。</div>');
+  }
+  out.push("</div>");
+  return out.join("");
+}
+/* 代码框内容直接从状态里回填 —— 不往 HTML 里塞数据块
+   （塞一个 type="application/json" 的脚本块会让页面自己的脚本提前闭合） */
+function fillProbCode(){
+  var ta = $("probCode");
+  if (!ta) return;
+  ta.value = testState().code || "";
+}
+function stashProbCode(){
+  var ta = $("probCode");
+  if (ta) testState().code = ta.value;
+  hwDraftSaveNow();          /* 切页签 / 开跑 / 去可视化 之前先落盘 */
+}
+function hwUseCase(i){
+  stashProbCode();
+  var p = HW.prob, t = testState(), cs = caseList(p);
+  var c = cs[i] || cs[0];
+  t.caseIdx = i; t.stdin = c.in; t.expected = c.out; t.why = c.why || c.label;
+  t.out = null; t.err = null; t.ran = false;
+  hwDraftSaveNow();
+  renderProblemBody(); fillProbCode();
+}
+/* ---------------- 边界用例 / 全跑 / 提交助手 ----------------
+ * 这一组都在「测一测」页签里，目标是回答一个问题：**现在这份代码能不能交**。
+ * 单跑一个样例只能证明"样例过"；AI 用例 + 全跑一遍，才是在提交前把已知陷阱都踩一遍。
+ */
+
+/* 打开「测一测」时读一次后端缓存（peek，不调 AI、不花 token） */
+function hwLoadCases(){
+  var cs = hwCasesState();
+  if (cs.loaded || cs.busy || !HW.prob || !HW.hw) return;
+  cs.busy = true;
+  postJson("/homework/cases", { hw: HW.hw.id, no: HW.prob.no, peek: 1 }).then(function(d){
+    cs.busy = false;
+    cs.loaded = true;
+    if (d && d.ok !== false && Array.isArray(d.cases)) cs.cases = d.cases.slice();
+    if (cs.cases.length){
+      hwRestoreDraftCase();          /* AI 用例是后到的，恢复选中项要等它们 */
+      if (HW.tab === "test" && modalKind() === "problem"){ renderProblemBody(); fillProbCode(); }
+    }
+  }, function(){
+    cs.busy = false;
+    cs.loaded = true;          /* 读不到就当没有，别每次渲染都再打一次 */
+  });
+}
+
+/* AI 出用例：输入是模型给的，**期望输出是后端用本机跑它的参考解算出来的** */
+function hwGenCases(refresh){
+  var cs = hwCasesState();
+  if (cs.busy || !HW.prob || !HW.hw) return;
+  if (!aiConfigured()){ openAiSettings(); toast("先去 AI 设置里填一个 API Key"); return; }
+  stashProbCode();
+  cs.busy = true; cs.err = null;
+  renderProblemBody(); fillProbCode();
+  toast("正在出边界用例：先让 AI 写参考解，再在本机跑它算标准答案…");
+  postJson("/homework/cases", { hw: HW.hw.id, no: HW.prob.no, refresh: refresh ? 1 : 0 }).then(function(d){
+    cs.busy = false;
+    if (!d || d.ok === false){
+      cs.err = String((d && d.error) || "生成失败");
+    }else{
+      cs.cases = (d.cases || []).slice();
+      cs.loaded = true;
+      var tt = HW.test[hwKey()];
+      if (tt && tt.caseIdx > 0 && tt.caseIdx >= caseList(HW.prob).length){
+        var sp2 = samplePairs(HW.prob)[0] || { in: "", out: "" };
+        tt.caseIdx = 0; tt.stdin = sp2.in || ""; tt.expected = sp2.out || "";
+        tt.why = "题目样例"; tt.out = null; tt.err = null; tt.ran = false;
+      }
+      toast("出了 " + cs.cases.length + " 组边界用例" +
+            (d.dropped ? "（丢弃 " + d.dropped + " 组：参考解跑不出来）" : ""));
+    }
+    renderProblemBody(); fillProbCode();
+  }, function(e){
+    cs.busy = false;
+    var msg = String(e && e.message ? e.message : e);
+    if (e && e.status === 404) msg = "这个版本的桌面壳还不支持边界用例（接口 /homework/cases 不存在）—— 重新打包后可用";
+    cs.err = msg;
+    renderProblemBody(); fillProbCode();
+  });
+}
+
+/* 全跑一遍：依次把当前代码喂给每一组用例（/run-raw，不追踪、无步数上限） */
+/* 草稿里存了"上次在看哪组用例"。打开题目时 AI 用例还没到（peek 是异步的），
+   所以 testState() 那会儿对不上；等用例到了再补一次。只补"还在样例上"的情况，
+   不覆盖用户已经手动点过的选择。 */
+function hwRestoreDraftCase(){
+  var t = HW.prob ? HW.test[hwKey()] : null;
+  var d = hwDraftGet(hwKey());
+  if (!t || !d || !d.caseIn || t.caseIdx > 0) return false;
+  var cs = caseList(HW.prob);
+  for (var i = 1; i < cs.length; i++){
+    if (cs[i].in === d.caseIn){
+      t.caseIdx = i; t.stdin = cs[i].in; t.expected = cs[i].out;
+      t.why = cs[i].why || cs[i].label;
+      return true;
+    }
+  }
+  return false;
+}
+function hwRunAll(){
+  var p = HW.prob, t = testState();
+  if (!p || (t.all && t.all.busy)) return;
+  var cases = caseList(p);
+  if (!cases.length) return;
+  stashProbCode();
+  if (!String(t.code || "").trim()){ toast("先在上面写代码"); return; }
+  t.all = { busy: true, done: 0, total: cases.length, results: [] };
+  renderProblemBody(); fillProbCode();
+  var i = 0;
+  function finish(){
+    t.all.busy = false;
+    renderProblemBody(); fillProbCode();
+    var pass = 0;
+    t.all.results.forEach(function(r){ if (r.passed) pass++; });
+    toast("全跑完：" + pass + " / " + t.all.results.length + " 组一致");
+  }
+  function step(){
+    if (i >= cases.length){ finish(); return; }
+    var c = cases[i];
+    hwRunOnce(t.code, c.in).then(function(d){
+      var act = runStdout(d), err = runError(d);
+      t.all.results.push({ label: c.label, in: c.in, expected: c.out,
+                           actual: err ? ("[报错] " + err) : act,
+                           passed: !err && sameOutput(act, c.out, p), why: c.why || "" });
+      i++; t.all.done = i;
+      renderProblemBody(); fillProbCode();
+      setTimeout(step, 0);
+    }, function(e){
+      t.all.results.push({ label: c.label, in: c.in, expected: c.out,
+                           actual: "[请求失败] " + String(e && e.message ? e.message : e),
+                           passed: false, why: c.why || "" });
+      i++; t.all.done = i;
+      renderProblemBody(); fillProbCode();
+      setTimeout(step, 0);
+    });
+  }
+  step();
+}
+
+function hwSubmitUrl(p){
+  var u = String((p && p.oj_url) || "");
+  if (!u) return "";
+  if (/\/submit\/?$/.test(u)) return u;
+  return u.replace(/\/?$/, "/") + "submit/";
+}
+/* 复制代码 + 打开**提交页**（系统浏览器）。提交这一步仍然留给人 —— 
+   脚本代交在课程 OJ 上算违规，而且失败是静默的。 */
+function hwSubmit(){
+  var p = HW.prob;
+  if (!p || !p.oj_url) return;
+  stashProbCode();
+  var code = String(testState().code || "");
+  if (!code.trim()){ toast("先把代码写进「测一测」"); return; }
+  copyText(code, "代码");
+  openExternal(hwSubmitUrl(p));
+  toast("代码已复制 — 在提交页粘贴后点 Submit");
+}
+
+/* ---------------- 自动提交（用你自己的 OJ 账号） ----------------
+ * 链路：POST /homework/submit → 后端用登录态 POST 表单 → 轮询公开状态页拿"结果"列。
+ * 密码只随这一次登录发给 OJ，**不落盘**；本机只留 session cookie（已 icacls 收紧）。 */
+/* 自动提交交哪一份代码：
+   · 在「解析」页签、且有 AI 生成的代码 → 交 AI 的（解析完直接交）
+   · 否则「测一测」里有代码 → 交你自己的
+   · 都没有 → 提示 */
+function hwSubmitCode(){
+  var t = testState();
+  var mine = String(t.code || "");
+  var ai = String(aiFinalCode() || "");
+  if (HW.tab === "analysis" && ai.trim()) return { code: ai, from: "ai" };
+  if (mine.trim()) return { code: mine, from: "mine" };
+  if (ai.trim()) return { code: ai, from: "ai" };
+  return { code: "", from: "" };
+}
+function hwSubmitHint(){
+  var pick = hwSubmitCode();
+  if (pick.from === "ai"){
+    return aiFinalCodeIndex() > 0 ? "提交「解析」里 AI 修正后的代码" : "提交「解析」里 AI 写的那份代码";
+  }
+  if (pick.from === "mine") return "提交「测一测」里你自己的代码";
+  return "用你自己的 OJ 账号直接提交这道题，并读回评测结果";
+}
+function hwAutoSubmit(){
+  var p = HW.prob;
+  if (!p || !p.oj_url) return;
+  stashProbCode();
+  var pick = hwSubmitCode();
+  if (!pick.code.trim()){
+    toast("先写代码，或在「解析」里生成一份");
+    return;
+  }
+  var ok = "";
+  try{ ok = localStorage.getItem("ic.oj.consent") || ""; }catch(e){ ok = ""; }
+  if (!ok){ openOjConsent(pick.from); return; }
+  hwDoAutoSubmit(pick.code, pick.from);
+}
+function openOjConsent(from){
+  var which = (from === "ai")
+    ? (aiFinalCodeIndex() > 0 ? "「解析」里 AI 修正后的代码" : "「解析」里 AI 写的代码")
+    : "「测一测」里你自己的代码";
+  openModal("ojconsent", "🚀 自动提交说明",
+    '<div class="body" style="font-size:14px;line-height:1.9">' +
+      "<p>点「同意」之后，这个终端会用<b>你自己的 OpenJudge 账号</b>，把" + which + "直接提交到这道题，并读回评测结果。</p>" +
+      "<p>· 密码只在登录时发给 OJ 一次，<b>本机不保存</b>；只保存登录状态（session cookie）。</p>" +
+      "<p>· 提交记录会出现在 OJ 的提交列表里，和你在网页上交一模一样 —— 包括可能的次数限制。</p>" +
+      "<p>· 每次提交前不会再问，直到你在 AI 设置里退出登录。</p>" +
+    "</div>" +
+    '<div class="hwActions"><button class="primary" data-act="ojconsent">同意，开始提交</button>' +
+    '<button data-act="closemodal">算了，手动交</button></div>',
+    { keepSurface: true });
+}
+function hwDoAutoSubmit(code, from){
+  var t = testState();
+  t.sub = { busy: true, from: from || "mine", verdict: "", verdictCn: "", error: "",
+            message: "", mem: "", time: "", at: "", url: "" };
+  renderProblem(); fillProbCode();
+  toast("正在提交并等评测…（最长约 40 秒）");
+  postJson("/homework/submit", { hw: HW.hw.id, no: HW.prob.no, code: code }).then(function(d){
+    t.sub.busy = false;
+    if (d && d.need_login){ t.sub = null; renderProblem(); fillProbCode(); openOjLogin(); return; }
+    if (!d || d.ok === false){
+      t.sub.error = String((d && d.error) || "提交失败");
+    }else{
+      t.sub.verdict = String(d.verdict || "");
+      t.sub.verdictCn = String(d.verdict_cn || "");
+      t.sub.message = String(d.message || "已提交");
+      t.sub.mem = String(d.memory || "");
+      t.sub.time = String(d.time || "");
+      t.sub.at = String(d.submitted_at || "");
+      t.sub.url = String(d.solution_url || d.status_url || "");
+      if (t.sub.verdict === "AC") hwSetMark("ac");
+      else if (t.sub.verdict) hwSetMark("wa");
+      hwRefreshStats(true, false);   /* 刚交完，通过人数/提交次数都变了 */
+      toast(t.sub.verdict ? ("评测结果：" + (t.sub.verdictCn || t.sub.verdict)) : "已提交");
+    }
+    renderProblem(); fillProbCode();
+  }, function(e){
+    t.sub.busy = false;
+    t.sub.error = String(e && e.message ? e.message : e);
+    renderProblem(); fillProbCode();
+  });
+}
+function openOjLogin(){
+  openModal("ojlogin", "🔑 登录 OpenJudge",
+    '<div class="aiNote" style="margin-bottom:10px;line-height:1.8">' +
+      "自动提交要用你自己的 OJ 账号。密码只随这次登录发给 OpenJudge，<b>本机不保存</b>；" +
+      "只留登录状态（cookie）。</div>" +
+    '<div class="rowIn"><input class="setInput" id="ojEmail" type="text" placeholder="账号（邮箱 / 学号）" autocomplete="username"></div>' +
+    '<div class="rowIn" style="margin-top:8px"><input class="setInput" id="ojPass" type="password" placeholder="密码" autocomplete="current-password"></div>' +
+    '<div class="aiErr" id="ojErr" hidden style="margin-top:10px"></div>' +
+    '<div class="hwActions" style="margin-top:12px">' +
+      '<button class="primary" data-act="ojdologin">登录并提交</button>' +
+      '<button data-act="closemodal">取消</button></div>',
+    { keepSurface: true });
+  setTimeout(function(){ var e = document.getElementById("ojEmail"); if (e && e.focus) e.focus(); }, 0);
+}
+function ojLoginError(msg){
+  var box = document.getElementById("ojErr");
+  if (box){ box.hidden = false; box.textContent = String(msg || ""); }
+  toast(String(msg || "登录失败"));
+}
+function ojDoLogin(){
+  var em = document.getElementById("ojEmail"), pw = document.getElementById("ojPass");
+  var email = em ? String(em.value || "").trim() : "";
+  var pass = pw ? String(pw.value || "") : "";
+  if (!email || !pass){ ojLoginError("账号和密码都要填"); return; }
+  var btn = document.querySelector ? document.querySelector("[data-act=ojdologin]") : null;
+  if (btn && btn.disabled) return;
+  if (btn){ btn.disabled = true; btn.textContent = "正在登录…"; }
+  toast("正在登录…");
+  function restore() { if (btn){ btn.disabled = false; btn.textContent = "登录并提交"; } }
+  postJson("/oj/login", { email: email, password: pass }).then(function(d){
+    if (!d || d.ok === false){
+      restore();
+      ojLoginError(String((d && d.error) || "登录失败"));
+      return;
+    }
+    restore();
+    closeModal();
+    stashProbCode();
+    if (d.warning) toast(String(d.warning));
+    hwDoAutoSubmit(String(testState().code || ""));
+  }, function(e){
+    restore();
+    ojLoginError("登录失败：" + String(e && e.message ? e.message : e));
+  });
+}
+
+/* 跑一段代码：优先 /run-raw（不追踪、无 5000 步上限）。
+   老版本的桌面壳没有这个路由（404）→ 退回 /run，功能不至于整个坏掉。 */
+function hwRunOnce(code, stdin){
+  return postJson("/run-raw", { code: code, stdin: stdin }).then(function(d){ return d; },
+    function(e){
+      if (e && e.status === 404) return postJson("/run", { code: code, stdin: stdin });
+      throw e;
+    });
+}
+function hwRun(){
+  var t = testState();
+  stashProbCode();
+  if (!String(t.code || "").trim()){ toast("先在上面写代码"); return; }
+  t.busy = true; t.ran = false;
+  renderProblemBody(); fillProbCode();
+  /* ★ 用 /run-raw 而不是 /run：/run 是**追踪模式**，有 5000 步上限，
+     一道 n=1000 的题本机会被"中止"判成跑不出来；测试用例要的是结果不是快照。
+     /run-raw 只受 30 秒墙钟限制，变量也不会留在会话里。 */
+  hwRunOnce(t.code, t.stdin).then(function(d){
+    t.busy = false; t.ran = true;
+    t.out = runStdout(d);
+    t.err = runError(d);
+    renderProblemBody(); fillProbCode();
+  }, function(e){
+    t.busy = false; t.ran = true; t.out = null;
+    t.err = "跑不起来：" + String(e && e.message ? e.message : e);
+    renderProblemBody(); fillProbCode();
+  });
+}
+function runStdout(d){
+  if (!d) return "";
+  if (d.direct){                       /* /run-raw 的形状 */
+    return String(d.stdout_final === undefined || d.stdout_final === null ? "" : d.stdout_final);
+  }
+  if (Array.isArray(d.steps) && d.steps.length) return String(d.steps[d.steps.length - 1].stdout || "");
+  return String(d.stdout !== undefined ? d.stdout : (d.out !== undefined ? d.out : ""));
+}
+function runError(d){
+  if (!d) return null;
+  if (d.direct){                       /* /run-raw：error 是字符串，另有中文解释 */
+    if (d.kind === "aborted") return d.abort_message || "执行超时，已中止";
+    if (d.error) return d.error_cn || String(d.error);
+    return null;
+  }
+  if (d.kind === "syntax" && d.error) return (d.error.message || "语法错误") + "（第 " + (d.error.line || "?") + " 行）";
+  if (d.error) return (d.error.type || "错误") + ": " + (d.error.message || "");
+  return null;
+}
+/* 用解析里第 idx 段代码去跑这题的样例 */
+function codeTestFromAnalysis(idx){
+  var code = aiBlockCode(idx);
+  if (!code){ toast("这段代码找不到了，重新生成一次"); return; }
+  var p = HW.prob;
+  HW.tab = "test";
+  var t = testState();
+  t.code = code; t.caseIdx = 0;
+  var sp1 = samplePairs(p)[0] || { in: "", out: "" };
+  t.stdin = sp1.in || ""; t.expected = sp1.out || ""; t.why = "题目样例";
+  t.out = null; t.err = null; t.ran = false;
+  saveHwPos();
+  renderProblem();
+  setTimeout(function(){ fillProbCode(); hwRun(); }, 0);
+}
+/* 取第 idx 个 python 块要跑的代码：**优先用服务端 verify 事件给的 detail.code**
+   （那是它真跑过的那份，比从 markdown 里抠出来的更可靠），没有再退回 markdown 块 */
+function aiBlockCode(idx){
+  var a = aiEnsure();
+  if (!a) return "";
+  var v = a.verify ? a.verify[idx] : null;
+  if (v && v.detail && typeof v.detail.code === "string" && v.detail.code.trim()) return v.detail.code;
+  var b = a.blocks ? a.blocks[idx] : null;
+  return b ? b.code : "";
+}
+/* 解析里"最终代码"是第几块：
+   AI 第一版没过样例时，服务端会重试，把修正版追加在最后（## 修正后的代码），
+   verify 里同时留着第一版（fail）和修正版（pass）两条记录。
+   ★ 原来直接取第 0 块 + verify[0].detail.code —— 那是**第一版**，
+     用户报的"交的是第一版 ai 代码"就是它。 */
+function aiFinalCodeIndex(){
+  var a = aiEnsure();
+  if (!a) return -1;
+  var idxs = [];
+  if (a.verify) Object.keys(a.verify).forEach(function(k){
+    var i = Number(k), v = a.verify[k];
+    if (isFinite(i) && v && v.detail && String(v.detail.code || "").trim()) idxs.push(i);
+  });
+  if (idxs.length){
+    /* 服务端 status 的取值是 ok / fail / skipped（不是 "pass"） */
+    var passed = idxs.filter(function(i){
+      var st = a.verify[i] && a.verify[i].status;
+      return st === "ok" || st === "pass";
+    });
+    return passed.length ? Math.max.apply(null, passed) : Math.max.apply(null, idxs);
+  }
+  return a.blocks && a.blocks.length ? 0 : -1;
+}
+function aiFinalCode(){
+  var a = aiEnsure();
+  if (!a) return "";
+  var i = aiFinalCodeIndex();
+  var v = (i >= 0 && a.verify) ? a.verify[i] : null;
+  if (v && v.detail && typeof v.detail.code === "string" && v.detail.code.trim()) return v.detail.code;
+  var b = (i >= 0 && a.blocks) ? a.blocks[i] : null;
+  if (b && b.code) return b.code;
+  /* 还没渲染过（blocks 是渲染时重建的）：直接从正文里抠最后一个 python 块 */
+  if (a.text){
+    var re = /\x60{3}(?:python3?|py)[^\n]*\n([\s\S]*?)\x60{3}/i, mm = re.exec(a.text);
+    if (mm && String(mm[1]).trim()) return String(mm[1]).replace(/\s+$/, "") + "\n";
+  }
+  return "";
+}
+function codeViz(code){
+  if (!code){ toast("这段代码找不到了"); return; }
+  /* 作业题里点「▶ 可视化」→ 把这道题的样例输入一起带过去，省得用户自己复制 */
+  var stdin = (HW.prob && typeof HW.prob.sample_in === "string") ? HW.prob.sample_in : "";
+  openTutor(code, null, false, stdin);
+}
+function codeCopy(idx){
+  copyText(aiBlockCode(idx), "代码");
+}
+
+/* ---------------- ⚙️ AI 设置 ---------------- */
+function openAiSettings(opts){
+  opts = opts || {};
+  if (opts.push !== false) pushLayer({ kind: "aiset", ai: 1 });
+  /* ★ 记账：这次打开是哪一代。异步回来时要是"已经不是这一代"了，
+     就**不要**再往 modalBody 里写 —— 否则会把用户后开的那个面板（比如助教）顶掉。
+     实测症状：助教开着时点「⚙️ AI 设置」再返回（history.back 回助教），
+     设置面板那次慢了一拍的渲染把助教的内容整块覆盖了。 */
+  AI.setGen = aiPanelGen();
+  openModal("aiset", "⚙️ AI 设置", '<div class="loading">正在读 AI 配置…</div>');
+  /* 余额单独请求（契约 §2）。**不能**挡在 aiSettingsRender 前面：后端还没写好时
+     这条会失败，但设置面板必须照常显示出来。 */
+  loadAiBalance(false);
+  loadAiStatus().then(function(){ aiSettingsRender(); });
+}
+/* 打开一个弹层 → 代数 +1。任何知道自己"是第几代"的异步渲染都要拿它对一下。 */
+function aiPanelGen(){ AI.gen = (Number(AI.gen) || 0) + 1; return AI.gen; }
+function aiSettingsRender(){
+  if (!modalOpen()) return;
+  /* 代数对不上（= 用户已经开了别的面板）就让位，别把那一层覆盖掉。
+     ★ 判据必须带"undefined 不算 generations 不匹配"这一条 ——
+       aiSettingsRender 还有别的调用者（aireload / aitest / aiSaveKey），
+       它们不一定走过 openAiSettings，硬判会让设置面板在这些路径下变成空白。 */
+  if (AI.setGen !== undefined && AI.setGen !== AI.gen) return;
+  var st = AI.status;
+  var out = [];
+  out.push('<div class="setRow"><div class="setLabel">API Key</div><div class="setField">' +
+    '<div class="rowIn"><input class="setInput" id="aiKey" type="password" placeholder="sk-…" autocomplete="off">' +
+    '<button class="primary" data-act="aisavekey">保存并验证</button></div>' +
+    '<div class="setHint">' + (st && st.configured
+      ? '<span class="setOk">✅ 已配置</span>' + (st.key_tail ? "（末 4 位 " + escapeHtml(st.key_tail) + "）" : "")
+      : '<span class="setBad">还没配置</span> —— 填一个 DeepSeek API Key（只存本机，不写进任何文件）') +
+    "</div></div></div>");
+  /* 💰 余额（契约 §2）：id 挂成一个空壳行，异步回来只替换这一行 ——
+     不整块重画设置面板，免得把用户正在输入的 key 冲掉。 */
+  out.push('<div id="aiBalRow">' + aiBalanceRow() + "</div>");
+  var models = AI.models || [];
+  out.push('<div class="setRow"><div class="setLabel">模型</div><div class="setField">' +
+    '<div class="rowIn"><select class="setInput" id="aiModel" data-set="model"' +
+      (models.length ? "" : " disabled") + ">" +
+      (models.length
+        ? models.map(function(m){
+            var id = m.id || m.name || "";
+            var label = (m.name && m.name !== id) ? (m.name + "（" + id + "）") : id;
+            if (m.context_window) label += "  · 上下文 " + m.context_window;
+            return '<option value="' + attr(id) + '"' + (st && st.model === id ? " selected" : "") + ">" +
+              escapeHtml(label) + "</option>";
+          }).join("")
+        : '<option value="">（读不到模型列表）</option>') +
+    "</select></div>" +
+    '<div class="setHint">' + (models.length
+      ? "列表来自 <code>GET /ai/models</code>，没有写死模型名。" + (AI.models.length ? "共 " + AI.models.length + " 个。" : "")
+      : "还没拿到模型列表（还没配 key，或 <code>/ai/models</code> 不可用）。配好 key 会自动刷新。") +
+    "</div></div></div>");
+  var th = [["disabled", "关闭（快、便宜）"], ["low", "低"], ["high", "高"], ["max", "最大"]];
+  out.push('<div class="setRow"><div class="setLabel">思考模式</div><div class="setField">' +
+    '<div class="rowIn"><select class="setInput" id="aiThink" data-set="thinking"' +
+      (st && st.configured ? "" : " disabled") + ">" +
+      th.map(function(x){
+        return '<option value="' + x[0] + '"' + (st && st.thinking === x[0] ? " selected" : "") + ">" +
+          escapeHtml(x[1]) + "</option>";
+      }).join("") + "</select></div>" +
+    '<div class="setHint">ⓘ 默认是<b>开</b>着的；解析题这种任务建议<b>关闭</b>，更快更便宜。' +
+    (st && st.thinking ? "当前：<code>" + escapeHtml(st.thinking) + "</code>" : "") + "</div></div></div>");
+  out.push('<div class="setRow"><div class="setLabel">发给 AI 的内容</div><div class="setField">' +
+    '<div class="setHint">解析时我会把<b>题面 / 样例 / 补充用例</b>发过去，' +
+    "<b>不会</b>把题目自带的 analysis_md 和 solution_code 发过去（免得它抄自己）。" +
+    "点下面可以看当前这题实际会发什么。</div>" +
+    '<details class="aiReason"><summary>查看我将要发送的 JSON</summary><pre id="aiPreview">' +
+      escapeHtml(JSON.stringify(HW.prob
+        ? { problem: problemPayload(HW.prob), mode: "explain", no_cache: false }
+        : { note: "还没打开任何题目" }, null, 2)) + "</pre></details>" +
+    "</div></div>");
+  out.push('<div class="hwActions">' +
+    '<button data-act="aitest">🔌 测试连接</button>' +
+    '<button data-act="aireload">🔄 重新读取配置</button>' +
+    '<button data-act="aicacheclear">🧹 清空解析缓存</button>' +
+    '<span class="sp"></span>' +
+    '<span class="aiNote">' + (st && st.base_url ? escapeHtml(st.base_url) : "") +
+    (st && st.model ? " · " + escapeHtml(st.model) : "") + "</span></div>");
+  if (AI.error) out.push('<div class="aiErr" style="margin-top:12px">' + escapeHtml(AI.error) + "</div>");
+  modalBodyEl().innerHTML = out.join("");
+}
+function aiSaveKey(){
+  var el = $("aiKey");
+  var key = el ? String(el.value || "").trim() : "";
+  if (!key){ toast("先把 key 填进来"); return Promise.resolve(false); }
+  var wantTail = key.length >= 4 ? key.slice(-4) : "";
+  AI.error = null;
+  toast("正在验证 key…");
+  return postJson("/ai/config", { key: key }).then(function(d){
+    var models = (d && Array.isArray(d.models) && d.models.length) ? d.models : null;
+    /* ★ 关键：不信 POST 的返回、也不信本地记忆 —— 回读 GET /ai/status 用真实状态渲染。
+       （用户的 deepseek.json 已经被外部脚本弄没过两次，当场看见比解析时才报错好。） */
+    return loadAiStatus().then(function(){ return models; });
+  }).then(function(models){
+    if (models && !AI.models.length) AI.models = models;
+    var st = AI.status || {};
+    /* ★ 这里踩过一次"必然误报"的坑：/ai/status 的 key_tail 格式是 **"…" + key[-4:]**
+       （后端 ai_status() 里就是这么拼的），而 wantTail 是从输入框取的**裸末 4 位**。
+       于是 String("…644c") === "644c" 恒为 false —— 任何真实 key（≥8 位）保存之后
+       都会弹「保存似乎没生效」，而它其实已经存进去了。分享给别人的版本上，
+       对方填完 key 看到这句就会以为没成功，AI 功能也就不敢用了。
+       所以：**先剥掉前导省略号再比尾字符串**（不用 slice 硬切，免得 key 本身含点）。 */
+    var stTail = String(st.key_tail == null ? "" : st.key_tail)
+                   .replace(/^[…\.\s]+/, "").trim();
+    var tailOk = !wantTail || !stTail || stTail.slice(-wantTail.length) === wantTail;
+    if (!st.configured){
+      AI.error = "⚠️ 保存似乎没生效：回读 /ai/status 仍然显示未配置。" +
+        "（可能是 %LOCALAPPDATA%\\course-terminal\\deepseek.json 写不进去）";
+      aiSettingsRender();
+      toast("保存似乎没生效，请重试");
+      return false;
+    }
+    if (!tailOk){
+      /* 存进去了，但末 4 位对不上 —— 这是"存的是另一个 key"，跟"没保存"是两回事，
+         所以分开报，并且把服务端记着的末 4 位说出来，便于对照。 */
+      AI.error = "⚠️ key 存进去了，但末 4 位对不上：服务端记的是 " +
+        (stTail ? "…" + stTail : "（太短，不显示）") + "，你填的是 …" + wantTail +
+        "。多半是复制时少了/多了字符，或填的是另一个 key。";
+      aiSettingsRender();
+      toast("key 末 4 位对不上，请检查");
+      return false;
+    }
+    aiSettingsRender();
+    toast("✅ key 已保存并确认（末 4 位 " + (stTail || wantTail) + "）");
+    return true;
+  }, function(e){
+    AI.error = "key 没通过验证：" + String(e && e.message ? e.message : e);
+    aiSettingsRender();
+    return false;
+  });
+}
+function aiSetConfig(body){
+  AI.error = null;
+  return postJson("/ai/config", body).then(function(d){
+    if (d && d.status) AI.status = d.status;
+    if (d && Array.isArray(d.models)) AI.models = d.models;
+    aiSettingsRender();
+    toast("已保存");
+    return true;
+  }, function(e){
+    AI.error = "保存失败：" + String(e && e.message ? e.message : e);
+    aiSettingsRender();
+    return false;
+  });
+}
+/* AI 设置里 <select data-set="model|thinking"> 一改就保存。
+   （注意：函数声明会被提升，这里只能有【一个】onDocChange —— 之前文件末尾还有一个空壳，
+     后定义的那个把这份覆盖了，导致选模型/思考模式压根没保存。） */
+function onDocChange(e){
+  var t = e && e.target;
+  if (!t || !t.getAttribute) return;
+  var k = t.getAttribute("data-set");
+  if (!k) return;
+  var body = {};
+  body[k] = t.value;
+  aiSetConfig(body);
+}
+
+/* 「全部生成解析」：挨个过一遍这周作业的题（串行，别把 API 打爆） */
+/* 批量生成解析：**先确认再花 token**。
+ * 原来点一下就从第一题跑到最后一题：没有确认、没有进度、停不下来。
+ * 现在是两段式（第一次点变成"确认：生成 N 题？"），运行中题目页头上有「⏹ 停止」。 */
+function hwAskExplainAll(btn){
+  if (!HW.hw) return;
+  if (HW_ALL.busy) return;
+  var n = (HW.hw.problems || []).length;
+  if (!HW_ALL.confirm){
+    HW_ALL.confirm = true;
+    if (btn){
+      btn.textContent = "确认：生成 " + n + " 题？（再点一次）";
+      btn.classList.add("confirming");
+    }
+    setTimeout(function(){
+      if (!HW_ALL.confirm) return;
+      HW_ALL.confirm = false;
+      if (btn){ btn.textContent = "✨ 全部生成解析"; btn.classList.remove("confirming"); }
+    }, 6000);
+    return;
+  }
+  HW_ALL.confirm = false;
+  aiExplainAll();
+}
+function aiExplainAll(){
+  if (!HW.hw) return Promise.resolve(false);
+  if (!aiConfigured()){ openAiSettings(); toast("先去 AI 设置里填 API Key"); return Promise.resolve(false); }
+  var list = HW.hw.problems.slice();
+  var home = HW.prob, homeTab = HW.tab;
+  HW_ALL.busy = true; HW_ALL.cancel = false; HW_ALL.done = 0; HW_ALL.total = list.length;
+  var i = 0;
+  function finish(msg){
+    HW_ALL.busy = false;
+    toast(msg);
+    HW.prob = home; HW.tab = homeTab;
+    if (modalKind() === "problem"){ renderProblem(); fillProbCode(); }
+    return Promise.resolve(true);
+  }
+  function next(){
+    if (HW_ALL.cancel) return finish("已停止：完成 " + HW_ALL.done + " / " + HW_ALL.total + " 题");
+    if (i >= list.length) return finish("全部生成完了（" + HW_ALL.total + " 题）");
+    var p = list[i++];
+    var key = HW.hw.id + ":" + p.no;
+    if (HW.ai[key] && HW.ai[key].done){ HW_ALL.done++; return next(); }
+    HW.prob = p;
+    HW.tab = "analysis";
+    renderProblem();                        /* 让用户看见正在生成哪一题 */
+    fillProbCode();
+    toast("正在生成第 " + (HW_ALL.done + 1) + " / " + HW_ALL.total + " 题…（点题目页上的停止可中断）");
+    return aiExplain(true, "explain").then(function(){
+      HW_ALL.done++;
+      return next();
+    }, function(){ HW_ALL.done++; return next(); });
+  }
+  return next();
+}
+
+/* =====================================================================
+ * 🤖 AI 助教面板
+ *
+ * 契约：_dev/assistant-contract.md §1 / §4（端点、字段名、SSE 事件名都已冻结）
+ *   POST /ai/chat  body {messages, context, no_cache}   SSE: cached/delta/error/done
+ *   GET  /ai/balance                                    设置面板里的余额那一行
+ *
+ * 三条不能忘的：
+ *   ① 多轮：**前端传完整历史**，服务端无状态。历史只进 sessionStorage
+ *      （key ic.assistant.v1），不落 localStorage、不落盘，关掉标签就没了。
+ *   ② 焦点：发送收尾时显式把焦点还回输入框；流式过程中【只改气泡的
+ *      innerHTML】，绝不重画整个面板 —— 这个项目因为"重渲染导致失焦"修过两次
+ *      （见 NEXT-STEPS 的 replFocus()）。这条是硬要求。
+ *   ③ 代码块：一律走 cardMarkdown + codeRunAdvice（和卡片里那套完全同一份判据），
+ *      不另写"这段代码能不能跑"的判断。
+ * =================================================================== */
+var AS = {
+  msgs: [],          /* [{role:"user"|"assistant", text, error, streaming, blocks:[]}] */
+  ctx: null,         /* 当前所在地的快照（打开面板时取一次，显示在面板顶上） */
+  busy: false,
+  t: 0,
+  seq: 0,
+  autoAsk: null,     /* 打开面板后自动问的第一句（合并进来的「AI 查代码」走这里） */
+  loaded: false,
+  stream: null,      /* 正在流式的那条 msg */
+  el: null,          /* 正在流式的那条气泡 DOM 节点 */
+  timer: null,
+  _ctxKey: ""        /* 上一次的"章节|小节|知识点"，用来判断圆点该不该闪 */
+};
+var AS_KEY = "ic.assistant.v1";
+var AS_MAX = 40;                        /* 上限 40 条，超了从头丢 */
+var AS_NOTES_MAX = 4000;                /* 讲义片段截断（契约 §1） */
+
+/* 只认 user/assistant。
+   ★ 这里踩过一次：sessionStorage 里存的是**契约形状**（{role, content}），
+     而内存里每条是 {role, text, ...}。第一版这里读的是 m.text，
+     于是存储里根本没有 text 字段 → 全部被当成脏数据丢掉 →
+     "往 sessionStorage 写一条假历史、重开面板能恢复出来"这条**静默失败**
+     （读回来是 0 条，不抛异常、不报错）。所以两个字段名都要认。 */
+function asNormMsgs(arr){
+  var out = [];
+  if (!Array.isArray(arr)) return out;
+  for (var i = 0; i < arr.length; i++){
+    var m = arr[i];
+    if (!m || typeof m !== "object") continue;
+    var role = (m.role === "user" || m.role === "assistant") ? m.role : null;
+    if (!role) continue;
+    var text = (typeof m.content === "string") ? m.content
+             : (typeof m.text === "string") ? m.text : null;
+    if (text === null) continue;
+    out.push(asMsg(role, text, { error: (typeof m.error === "string" ? m.error : null) }));
+  }
+  return out;
+}
+function asMsg(role, text, extra){
+  var m = { role: role, text: String(text == null ? "" : text),
+            error: null, streaming: false, blocks: [] };
+  if (extra) for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra, k)) m[k] = extra[k];
+  return m;
+}
+/* 40 条是**总条数**（不是轮数）；超了从头丢，被丢的后面的编号跟着变 */
+function asTrim(){
+  if (AS.msgs.length > AS_MAX) AS.msgs = AS.msgs.slice(AS.msgs.length - AS_MAX);
+}
+function assistantHistory(){
+  return AS.msgs.map(function(m){ return { role: m.role, content: m.text }; });
+}
+/* ★ 真正发给 /ai/chat 的 messages：**必须滤掉空内容**。
+   空 assistant 消息来自"上一轮没答出来"——assistantSend() 会先把一条
+   asMsg("assistant", "", {streaming:true}) 推进 AS.msgs 当占位；如果这一轮失败
+   （没配 key / 网络断 / 模型报错），asstMsg.text 就**永远是空串**，只剩一个 error。
+   而后端契约是 content 必须非空字符串（app/main.py:2985），于是一条空消息会让
+   **之后每一次提问**都被拒：
+     400 {"error": "messages 第 2 条的 content 必须是非空字符串"}
+   —— 整个会话就此永久卡死，只能点「清空对话」才恢复（实测确认，全空白也算空）。
+   所以：发出去之前过滤，而不是把空串原样塞进请求体。
+   注意**只**过滤发出去的 payload，AS.msgs 本身不动 —— 那条失败的气泡还得显示给用户看。 */
+function assistantPayload(){
+  var h = assistantHistory(), out = [];
+  for (var i = 0; i < h.length; i++){
+    if (!h[i].content || !String(h[i].content).trim()) continue;
+    out.push(h[i]);
+  }
+  return out;
+}
+function assistantLoad(){
+  try{
+    var raw = sessionStorage.getItem(AS_KEY);
+    if (!raw) return;
+    var o = JSON.parse(raw);
+    if (!o || typeof o !== "object") return;
+    AS.msgs = asNormMsgs(o.msgs);
+    AS.t = Number(o.t) || 0;
+    asTrim();
+  }catch(e){ AS.msgs = []; }
+}
+function assistantSave(){
+  try{
+    asTrim();
+    var msgs = AS.msgs.map(function(m){
+      var o = { role: m.role, content: m.text };
+      if (m.error) o.error = m.error;      /* 契约里没有 error 字段，但多带一个键不影响后端 */
+      return o;
+    });
+    sessionStorage.setItem(AS_KEY, JSON.stringify({ msgs: msgs, t: AS.t || Date.now() }));
+    return true;
+  }catch(e){ return false; }               /* 没有 sessionStorage 也不能让面板崩 */
+}
+function assistantClear(){
+  AS.msgs = [];
+  AS.stream = null; AS.el = null;
+  AS.busy = false;
+  AS.t = Date.now();
+  try{ sessionStorage.removeItem(AS_KEY); }catch(e){ /* 忽略 */ }
+  assistantRender();
+  return true;
+}
+function asMsgCount(){ return AS.msgs.length; }
+
+/* ---- 当前所在地（契约 §1 的 context）---- */
+/* 快照：打开面板时取一次并显示在顶上。这样"翻到别的卡片再回来接着问"时，
+   用户看得见助教现在以为他在哪儿。 */
+/* ★ 读屏只在**真的要发出去**时才算（screenText 要遍历 DOM，是热路径上的开销）。
+   所以这里分两个函数：
+     asCtxBase()     便宜，只取结构化定位 —— 每次翻卡都会调（喂 chip 那行）
+     assistantContext() 贵，带上屏幕正文 —— 只在发送那一刻调一次
+   早先我把 asRefreshCtx 的 chip 更新写成调 asContextPoint()（便宜），是对的；
+   千万别为了"chip 里显示更多"把 screenText 挪进去。 */
+function asContextPoint(){
+  /* ★ 阅读器（100 Days / 讲义原文 / 100Days 参考文件）是一个**全屏层**，
+     它盖在卡片上，但 S.cur 还指着底下那张卡 —— 所以原来看 100 Days 时问助教，
+     它会以为你在看底下那张卡。用户反馈原话："我在看100days的时候他也能知道"。
+     这里先认层：读者器开着就以它为准，认不出是哪一层才回落到卡片流。 */
+  try{
+    if (typeof modalKind === "function" && modalKind() === "reader" && S.readerStep){
+      var rs = S.readerStep;
+      var dayNo = null;
+      try{ dayNo = readerDay(); }catch(e){}
+      if (dayNo){
+        /* 100 Days 的某一天。标题在 openDayFile 里就是 "📖 Day11 常用数据结构…"，
+           这里剥掉 "📖" 和 "Day11" 前缀，只留标题 —— 编号由 asCtxText 统一加，
+           否则会渲染成 "📖 Day11 · Day11 · 常用数据结构…"（实测踩到）。 */
+        var raw = String(rs.dayTitle || "");
+        var clean = raw.replace(/^📖\s*/, "").replace(/^Day\s*\d+\s*/, "").trim();
+        return {
+          chapter: "100 Days",
+          section: clean,
+          day: dayNo,
+          /* ★ p 故意给 null：卡片流的 p.id 是 "chNN-sMM-pKK" 这种位置 id，
+             读者器这里是 "days-11" / "days:Day11.md" 这类**内部 id**。
+             它会被 asCtxText 当"知识点"拼进上下文，显示成没意义的 "days-11"。
+             reader 的上下文 already 由 chapter/section/day 说清楚了，不需要 p。 */
+          p: null
+        };
+      }
+      /* 100Days 目录下的其它文件（不是某一天）：用标题区分 */
+      var t = String(rs.dayTitle || "").replace(/^📖\s*/, "").trim();
+      return { chapter: "100 Days", section: t || "参考文件", p: null };
+    }
+  }catch(e){ /* 认层失败就照旧走卡片流，别让上下文把助教整个弄坏 */ }
+  var st = stepAt(S.cur);
+  var ch = null, p = null, sec = null;
+  if (st && st.ch) ch = st.ch;
+  if (st && st.p) p = st.p;
+  if (st && st.sec) sec = st.sec;
+  var chapter = ch ? String((ch.chapter !== undefined && ch.chapter !== null) ? ch.chapter : (ch.id || "")) : "";
+  var section = "";
+  if (sec) section = String(sec.title || sec.name || sec.key || "");
+  else if (ch && typeof ch.title === "string") section = ch.title;
+  return { chapter: chapter, section: section, p: p };
+}
+
+/* ==================================================================
+ * 👁 读屏：把**前台真正显示着的内容**读成一串纯文本，交给助教
+ * ------------------------------------------------------------------
+ * 和 asContextPoint() 的分工：
+ *   asContextPoint  → 结构化定位（第几章第几节哪个知识点），精确但很窄
+ *   screenText      → 屏幕上抄下来的正文，广但需要截断
+ * 两个都给：只给定位会出现"看 100 Days 时以为你在看卡片"的错位；
+ * 只给正文会丢掉"这是哪一节"。用户要的是"真正有读屏能力"，指的就是后者。
+ *
+ * 为什么**不是**截图 + OCR：
+ *   · 这个前端是单文件 SPA，所有正文都在自己 DOM 里，直接遍历可见节点就是原文，
+ *     既准确又零成本；OCR 反而会认错代码里的括号和缩进。
+ *   · 可视化那层是**整页跳转**（不是 iframe），父页面读不到它的 DOM ——
+ *     那一层单独由 viewer 侧回报状态（见 app/main.py 的桥接 3）。
+ * ================================================================== */
+var SCREEN_MAX_CHARS = 3000;      /* 前端截断（服务端 ASSISTANT_SCREEN_MAX 再兜一次）。
+                                     从 4500 收到 3000：screen 每一轮都要发进 system，
+                                     3000 字已足够描述"他在看什么"，再长边际收益很小、
+                                     但每轮成本线性上涨（用户对成本敏感）。 */
+
+/* 元素可见吗。★ 必须**连祖先一起**看：弹层关掉时是自己 hidden，
+   但 rail 收起那种是给祖先加 .collapsed，只看自身会读到一堆看不见的东西。 */
+function screenVisible(el){
+  var n = el;
+  var guard = 0;
+  while (n && n.nodeType === 1 && guard++ < 60){
+    if (n.hidden) return false;
+    if (n.style && (n.style.display === "none" || n.style.visibility === "hidden")) return false;
+    if (n.classList && (n.classList.contains("collapsed") || n.classList.contains("srOnly"))) return false;
+    if (n.getAttribute){
+      var aria = n.getAttribute("aria-hidden");
+      if (aria === "true") return false;
+    }
+    n = n.parentNode;
+  }
+  return true;
+}
+/* 取一段正文的纯文本。★ 用 textContent 而不是 innerText：
+   innerText 要触发排版、慢很多，而且对隐藏元素的行为各处不一致（它本来就跳过隐藏内容）。
+   这里自己判可见性，语义更明确。 */
+function screenTextOf(el, max){
+  var out = "";
+  var stop = false;
+  var MAXN = 6000;
+  var nodes = 0;
+  function walk(node, depth){
+    if (stop || !node || depth > 40) return;
+    if (node.nodeType === 3){
+      var t = String(node.nodeValue || "").replace(/[ \t\u00a0]+/g, " ");
+      if (t.trim()){
+        out += t;
+        if (out.length >= max){ stop = true; }
+      }
+      return;
+    }
+    if (node.nodeType !== 1) return;
+    var tag = String(node.tagName || "").toUpperCase();
+    if (tag === "SCRIPT" || tag === "STYLE" || tag === "NOSCRIPT" || tag === "SVG") return;
+    if (!screenVisible(node)) return;
+    /* 纯 UI 控件不进正文：按钮文字、面包屑、计数、我的输入框
+       —— 它们会淹没真正的讲义/题面，而模型要读的是"内容"。
+       ★ 助教自己的界面必须**整个**排掉（#asBubble 里的头部/消息区/输入行、
+         完整面板里的 .asMsgs）：不然它把自己刚说的话读回去当"屏幕内容"，
+         既浪费 token 又会让它以为用户屏幕上显示的是那串对话。 */
+    if (node.classList && (node.classList.contains("asFab") ||
+        node.classList.contains("bubHead") || node.classList.contains("bubMsgs") ||
+        node.classList.contains("bubInRow") || node.classList.contains("asMsgs") ||
+        node.classList.contains("asRow") || node.classList.contains("asHint") ||
+        node.classList.contains("hrow") ||
+        node.classList.contains("dots") || node.classList.contains("tb") ||
+        node.classList.contains("mi") || node.classList.contains("noteHead") ||
+        node.classList.contains("toast"))) return;
+    if (tag === "BUTTON" || tag === "TEXTAREA" || tag === "SELECT" || tag === "INPUT") return;
+    if (++nodes > MAXN){ stop = true; return; }
+    var block = (tag === "DIV" || tag === "P" || tag === "LI" || tag === "TR" ||
+                 tag === "SECTION" || tag === "ARTICLE" || tag === "PRE" ||
+                 tag === "H1" || tag === "H2" || tag === "H3" || tag === "H4" ||
+                 tag === "TABLE" || tag === "UL" || tag === "OL" || tag === "BLOCKQUOTE" ||
+                 tag === "FIGCAPTION" || tag === "HEADER" || tag === "FOOTER");
+    var len0 = out.length;
+    var kids = node.childNodes;
+    for (var i = 0; i < kids.length; i++){
+      walk(kids[i], depth + 1);
+      if (stop) break;
+    }
+    if (block && out.length > len0 && out.charAt(out.length - 1) !== "\n") out += "\n";
+  }
+  walk(el, 0);
+  return out.replace(/[ \t]+/g, " ")
+            .replace(/\n{3,}/g, "\n\n")
+            .replace(/^\n+/, "")
+            .trim();
+}
+/* 前台有哪些"面"，按"最前面"优先。第一个有内容的就够描述"他在看什么"，
+   后面几个只作为**补充**（比如卡片 + 右栏材料）。 */
+function screenSurfaces(){
+  var list = [];
+  var mk = "";
+  try{ mk = modalKind(); }catch(e){}
+  if (mk){
+    list.push({ tag: "弹层:" + mk, el: modalBodyEl(), main: true });
+  }
+  list.push({ tag: "卡片", el: $("card"), main: !mk });
+  /* 侧栏/试一试：只在**没有弹层**时算正文（有弹层时它们被盖住，读到反而误导） */
+  if (!mk){
+    list.push({ tag: "材料栏", el: $("railBody"), main: false });
+    var ro = $("replOut");
+    if (ro && screenVisible(ro)) list.push({ tag: "试一试输出", el: ro, main: false });
+  }
+  return list;
+}
+function screenText(){
+  var budget = SCREEN_MAX_CHARS;
+  var parts = [];
+  var surfaces = screenSurfaces();
+  for (var i = 0; i < surfaces.length; i++){
+    if (budget <= 120) break;
+    var s = surfaces[i];
+    if (!s.el || !screenVisible(s.el)) continue;
+    var t = screenTextOf(s.el, budget);
+    if (!t) continue;
+    parts.push("〔" + s.tag + "〕\n" + t);
+    budget -= t.length;
+  }
+  return parts.join("\n\n").slice(0, SCREEN_MAX_CHARS);
+}
+
+/* 可视化（/tutor）那一层看到的画面。
+   ★ 它和 screenText() 是**两回事，必须分开报**：可视化是整页跳转，用户在那边时
+     这个页面根本不在前台；等回到主页面，屏幕上显示的是卡片/层，**不是**可视化。
+     把可视化内容混进"屏幕上"就是撒谎，模型会以为用户正盯着那段代码。
+     所以单独一路，来源是 viewer 自己写进 sessionStorage 的快照（见 app/main.py 桥接 3）。 */
+var TUTOR_STATE_KEY = "ic.tutorstate.v1";
+function tutorStateText(){
+  var raw = null;
+  try{ raw = sessionStorage.getItem(TUTOR_STATE_KEY); }catch(e){ return ""; }
+  if (!raw) return "";
+  var s = null;
+  try{ s = JSON.parse(raw); }catch(e){ return ""; }
+  if (!s || typeof s.text !== "string") return "";
+  /* 太旧的不要：读了半小时书之后，"可视化里那一步"已经不是他问的东西了。
+     和滚动复原用同一个 30 分钟口径。 */
+  var age = Date.now() - (Number(s.at) || 0);
+  if (!(age >= 0) || age > 30 * 60 * 1000) return "";
+  return s.text.slice(0, 6000);
+}
+/* 讲义片段：step 上有讲义行号（notes_lines），原文在 NOTE_PREFIX + 章号 + ".md"。
+   取法照抄 openNotesRef()，只是不去包弹层。**截断到 4000 字符**再传（契约 §1）。 */
+function asNotesSnippet(){
+  var st = stepAt(S.cur);
+  if (!st || !st.p || !Array.isArray(st.p.notes_lines) || st.p.notes_lines.length !== 2)
+    return Promise.resolve("");
+  var chapter = (st.ch && st.ch.chapter) ? String(st.ch.chapter) : "";
+  if (!chapter) return Promise.resolve("");
+  var a = Math.max(1, Number(st.p.notes_lines[0]) || 1);
+  var b = Math.max(a, Number(st.p.notes_lines[1]) || a);
+  var path = NOTE_PREFIX + chapter + ".md";
+  return Promise.resolve(fetchText(path)).then(function(txt){
+    var all = String(txt == null ? "" : txt).replace(/\r\n?/g, "\n").split("\n");
+    return all.slice(a - 1, Math.min(all.length, b)).join("\n").slice(0, AS_NOTES_MAX);
+  }, function(){ return ""; });            /* 拿不到讲义不是错误，安静留空 */
+}
+/* 组装 context。problem 给了就用题面（「AI 查代码」那条路），
+   否则用当前卡片 + 讲义片段。**任何一个字段失败都不能让整个 context 塌掉。** */
+function assistantContext(problem){
+  /* ★ 都在这里带上 screen（前台屏幕正文）+ tutor（可视化里上一眼的画面）：
+     screen 是"读屏"那一半，tutor 补上"整页跳转那层读不到"的缺口。
+     作业题那条路也带 —— 他在做题时屏幕上就是题面 + 他自己的代码，那正是他要问的。 */
+  var scr = "";
+  try{ scr = screenText(); }catch(e){ scr = ""; }     /* 读屏失败不能把助教弄坏 */
+  var tut = "";
+  try{ tut = tutorStateText(); }catch(e){ tut = ""; }
+  if (problem){
+    return Promise.resolve({
+      chapter: String(problem.__ch || ""),
+      section: String(problem.__sec || ""),
+      point: String(problem.title || ("第 " + problem.no + " 题")),
+      notes: String(problem.statement_md || "").slice(0, AS_NOTES_MAX),
+      screen: scr, tutor: tut
+    });
+  }
+  var base = asContextPoint();
+  return asNotesSnippet().then(function(notes){
+    var point = "";
+    if (base.p) point = String(base.p.title || base.p.id || "");
+    /* ★ 省重复：notes 是"这一页的讲义片段"，而 screen 里**已经包含**屏幕上那一页的正文
+       （讲义正是显示在屏幕上的东西）。两个都发就是同一段文字发两遍，
+       实测 system 会从 2400 字涨到 9200 字（约 +6800 token/轮，而用户对成本敏感）。
+       所以：读屏拿到了足够内容时就不再附讲义片段；读屏空/很小时才用讲义兜底
+       （比如上下文取不到、或者在某个没有正文的界面上）。 */
+    var useNotes = String(scr || "").length < 800 ? (notes || "") : "";
+    return { chapter: base.chapter, section: base.section, day: base.day || null,
+             point: point, notes: useNotes, screen: scr, tutor: tut };
+  });
+}
+/* 一行"学生现在在看什么"，给面板顶上用（也是发给服务端的同一份来源） */
+function asCtxText(ctx){
+  if (!ctx) return "（不知道你在哪一页）";
+  var parts = [];
+  /* ★ 这里的 day 是**显示便利字段**，不是发给模型的东西 ——
+     服务端的 assistant_context_block() 只读 chapter/section/point/notes（已核对源码），
+     所以真正让模型知道"在看 100 Days"的是 chapter，让它知道"在看什么内容"的是
+     section（= 那天标题）。day 只让这行 chip 更好读。
+     ★ 别在这里为"section 里已经含 Day11"再加条件判断：我第一版那么写，
+       结果渲染成 "📖 Day11 · Day11 · 常用数据结构…"（重复），脆且难维护。
+       约定：section 里不放 Day 编号，编号只由这里加。 */
+  if (ctx.day) parts.push("📖 Day" + ctx.day);
+  if (ctx.chapter) parts.push(ctx.chapter);
+  if (ctx.section) parts.push(ctx.section);
+  if (ctx.point) parts.push(ctx.point);
+  return parts.length ? parts.join(" · ") : "（不知道你在哪一页）";
+}
+
+/* ---- 渲染 ---- */
+function asEnsureBlocks(){
+  for (var i = 0; i < AS.msgs.length; i++) AS.msgs[i].blocks = [];
+}
+function assistantPanelHtml(){
+  var ctx = AS.ctx || { chapter: "", section: "", point: "" };
+  var out = [];
+  out.push('<div class="asPanelWrap">');
+  out.push('<div class="asCtxBar" id="asCtxBar"><b>现在在看</b>' +
+    '<span class="asCtxTxt" id="asCtxTxt">' + escapeHtml(asCtxText(ctx)) + "</span>" +
+    '<span class="sp" style="flex:1"></span>' +
+    '<button class="tb" data-act="asclear" title="清空这段对话（只清本窗口的临时记录，不碰任何文件）">🧹 清空对话</button>' +
+    '<button class="tb" data-act="aiset">⚙️ AI 设置</button>' +
+    "</div>");
+  out.push('<div class="asMsgs" id="asMsgs"' + (AS.busy ? ' data-assistant-busy="1"' : "") + ">" + asMsgsHtml() + "</div>");
+  out.push('<div class="asFoot">' +
+    '<textarea id="asInput" data-assistant-input="1" class="asIn" rows="1" spellcheck="false" autocomplete="off" ' +
+      'placeholder="哪里不懂就直接问（Enter 发送，Shift+Enter 换行）"></textarea>' +
+    '<button class="primary" id="asSend" data-act="assend">发送</button>' +
+    "</div>");
+  out.push('<div class="asHint" id="asHint">' + escapeHtml(asHintText()) + "</div>");
+  out.push("</div>");
+  return out.join("");
+}
+function asHintText(){
+  if (!aiConfigured()) return "还没配置 API Key —— 点右上「⚙️ AI 设置」填一个就能用了。";
+  if (AS.busy) return "助教正在回答…（可以先翻别的地方，回答不会丢）";
+  return "助教看得到你当前在看的这一节；他给的代码块可以「▶ 可视化」直接跑。对话只存在这个窗口里，关掉就没了。";
+}
+function asBubbleHtml(m, i){
+  var body = m.text ? cardMarkdown(m.text, { id: "assistant" }, m.blocks) : "";
+  if (m.error) body += '<div class="asErrLine">' + escapeHtml(m.error) + "</div>";
+  if (m.streaming) body += '<span class="asCursor"></span>';
+  if (!body) body = '<span class="asCursor"></span>';
+  return '<div class="asBubble">' + body + "</div>";
+}
+/* ⚠️ data-assistant-msg **只能挂一处**：验收要数
+   `#modalBody [data-assistant-msg]` 的条数，而 asMsgIndexFromEl() 又要靠
+   "它是第几个 [data-assistant-msg]" 反推消息下标。
+   第一版行和气泡各挂了一个 → 一条消息命中两次 → 3 条消息数出 6 个节点、
+   下标从 0 变成 3（于是"▶ 可视化"点下去取到空代码）。挂在行上，气泡不挂。 */
+function asMsgsHtml(){
+  /* ★ 每次生成 HTML 都从零重建 blocks —— 这样 data-idx 一律是"这一次渲染里的
+     第几个代码块"。原来没有这一步，于是同一条消息被两个容器（主面板 #asMsgs 和
+     右下角气泡 #asBubMsgs）各渲染一次 → 同一段代码在 blocks 里出现两次 →
+     下标从 0 漂成 1；更糟的是其中一个容器重画后 blocks 被重置，
+     另一个容器里留下的旧按钮还指着老下标 → 越界 → 点「▶ 可视化」取到空代码。 */
+  asEnsureBlocks();
+  if (!AS.msgs.length){
+    return '<div class="asEmpty">把不懂的地方直接说出来就行。<br>' +
+      "可以追问、可以让助教写一段代码给你看 —— 代码块上有「▶ 可视化」，" +
+      "能一步步看变量怎么变。</div>";
+  }
+  var out = [];
+  for (var i = 0; i < AS.msgs.length; i++){
+    var m = AS.msgs[i];
+    out.push('<div class="asRow ' + attr(m.role) + '" id="asRow' + i + '" data-assistant-idx="' + i + '" data-assistant-msg="' + attr(m.role) + '">' +
+      '<div style="max-width:86%; min-width:0">' +
+      '<div class="asWho">' + (m.role === "user" ? "我" : "🤖 助教") + "</div>" +
+      asBubbleHtml(m, i) +
+      "</div></div>");
+  }
+  return out.join("");
+}
+function asScrollEnd(){
+  var el = $("asMsgs");
+  if (!el) return;
+  try{ el.scrollTop = el.scrollHeight; }catch(e){ /* 忽略 */ }
+}
+/* 整块重画（只用在**用户动作**的收尾处：打开面板、发送落定、清空）。
+   流式过程中不许调它 —— 那会把输入框整个换掉，焦点就飞了。 */
+function assistantRender(){
+  if (!modalOpen() || modalKind() !== "assistant") return false;
+  var ta = $("asInput");
+  var caret = -1, keepText = null;
+  /* 保住用户正在敲到一半的内容和光标（重画本身是用户动作触发的，但可能他先
+     在输入框里打了草稿又点了别的按钮）。 */
+  if (ta){ keepText = ta.value; try{ caret = ta.selectionStart; }catch(e){ caret = -1; } }
+  asEnsureBlocks();
+  modalBodyEl().innerHTML = assistantPanelHtml();
+  var ta2 = $("asInput");
+  if (ta2 && keepText !== null && keepText !== "") ta2.value = keepText;
+  if (caret >= 0 && ta2 && ta2.setSelectionRange){
+    try{ ta2.setSelectionRange(caret, caret); }catch(e){ /* 忽略 */ }
+  }
+  asScrollEnd();
+  return true;
+}
+/* 只重画消息区（增量，不碰输入框）—— 流式用这个 */
+function assistantRenderMsgs(){
+  var box = $("asMsgs");
+  if (!box) return false;
+  asEnsureBlocks();
+  box.innerHTML = asMsgsHtml();
+  asScrollEnd();
+  return true;
+}
+function asHintRefresh(){
+  var el = $("asHint");
+  if (el) el.textContent = asHintText();
+  var b = $("asSend");
+  if (b){
+    b.disabled = !!AS.busy;
+    b.textContent = AS.busy ? "…" : "发送";
+  }
+}
+/* 把焦点还给输入框。★ 三条"不要抢用户东西"的守卫（照 replFocus 的规矩来）：
+   ① 面板没开着 → 不碰；② 用户正开着别的弹层 → 不抢；
+   ③ 他已经把焦点放在别的可输入元素上（比如在搜索框打字）→ 不动。
+   **不去碰 selectionStart/End** —— 那是用户正在编辑的位置。 */
+function asFocusInput(){
+  var el = $("asInput");
+  if (!el) return false;
+  if (modalKind() !== "assistant") return false;
+  var ae = null;
+  try{ ae = document.activeElement; }catch(e){ ae = null; }
+  if (ae && ae !== el && ae !== document.body){
+    var tag = String(ae.tagName || "").toUpperCase();
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || ae.isContentEditable) return false;
+  }
+  try{ el.focus(); return document.activeElement === el; }catch(e){ return false; }
+}
+/* 输入框跟着内容长高（1~6 行），但不重画 DOM。
+   两个输入框都处理：完整面板的 #asInput、常驻气泡的 #asBubIn。 */
+function asAutoGrow(){
+  var ids = ["asInput", "asBubIn"];
+  for (var i = 0; i < ids.length; i++){
+    var el = $(ids[i]);
+    if (!el) continue;
+    try{
+      el.style.height = "auto";
+      el.style.height = Math.min(el.scrollHeight || 34, ids[i] === "asBubIn" ? 120 : 150) + "px";
+    }catch(e){ /* 忽略 */ }
+  }
+}
+function asRefreshCtx(){
+  AS.ctx = (function(){
+    var b = asContextPoint();
+    /* ★ day 必须带上：不带上 AS.ctx 就丢了"这是 100 Days 第几天"，
+       而气泡那行上下文读的正是 AS.ctx（发给服务端的那份走 asContextPoint，见
+       assistantContext）。两边字段口径保持一致，免得"显示的和发出去的不一样"。 */
+    return { chapter: b.chapter, section: b.section, day: b.day || null,
+             point: b.p ? String(b.p.title || b.p.id || "") : "", notes: "" };
+  })();
+  var el = $("asCtxTxt");
+  if (el) el.textContent = asCtxText(AS.ctx);
+  /* 常驻气泡上的那行上下文也要跟着变 —— 它和完整面板读的是**同一个** AS.ctx，
+     只是换个地方显示（所以不存在"两边说的不一样"）。 */
+  var bub = $("asBubCtx");
+  if (bub){
+    var txt = asCtxText(AS.ctx);
+    if (bub.textContent !== txt) bub.textContent = txt;
+    if (bub.setAttribute)
+      bub.setAttribute("title", txt + "\n\n（读的是应用自己的状态：当前章节/知识点/讲义，不是截图）\n点一下重新读取");
+  }
+  /* 只在**上下文真的变了**时闪圆点。renderAll 每次翻卡都会调到这里，
+     无脑闪会变成一个一直在跳的干扰源，而不是"我跟着你"的信号。 */
+  var key = [AS.ctx.chapter, AS.ctx.section, AS.ctx.point].join("|");
+  if (key !== AS._ctxKey){ AS._ctxKey = key; asFabPing(); }
+}
+
+/* ---- 打开 / 关闭 ---- */
+function openAssistant(opts){
+  opts = opts || {};
+  if (!AS.loaded){ assistantLoad(); AS.loaded = true; }
+  if (!AS.t) AS.t = Date.now();
+  asRefreshCtx();
+  /* 互斥：展开成完整面板时把气泡收起来（同一份会话，不需要两个窗口） */
+  closeAsBubble();
+  if (typeof opts.autoAsk === "string" && opts.autoAsk) AS.autoAsk = { text: opts.autoAsk, problem: opts.problem || null };
+  /* 开助教面板 = 代数 +1：让设置面板那类"慢了一拍"的异步渲染自动让位 */
+  aiPanelGen();
+  if (opts.push !== false) pushLayer({ kind: "assistant", assistant: 1 });
+  openModal("assistant", "🤖 助教", assistantPanelHtml());
+  /* ★ 必须显式同步一次圆钮：openModal() 只改 #modal/#scrim 的 hidden，**不会**调
+     applyChrome()（那是 closeModal 才做的）。实测踩到：展开成完整面板后圆钮还挂着，
+     压在弹层右上角。closeAsBubble() 里那次同步发生在 openModal 之前，管不到这里。 */
+  asFabSync();
+  asHintRefresh();
+  asScrollEnd();
+  setTimeout(asMaybeAutoAsk, 0);
+  return true;
+}
+function asMaybeAutoAsk(){
+  var a = AS.autoAsk;
+  AS.autoAsk = null;
+  if (!a || !a.text) return;
+  if (modalKind() !== "assistant") return;
+  assistantSend(a.text, { problem: a.problem || null });
+}
+/* 刷新页面后把刚才开着的那一层接回来（层是 noUrl 的那一种，见 boot()）。
+   ★ 两道守卫，缺一个都会出事：
+     ① 只在"地址参数没带来别的层"时接（调用方 boot 已经这么做了）——别抢
+        restoreFromUrl 的活；
+     ② `if (modalKind()) return false` —— 父代理/验收脚本会**直接调**这个函数，
+        没有这一行的话，"已经在助教面板里"再调一次会把整块面板重画一遍
+        （顺带把焦点换掉，而"失焦"正是这个项目反复栽的坑）。 */
+function restoreAssistantPanel(){
+  try{
+    if (!AS.loaded){ assistantLoad(); AS.loaded = true; }
+    if (!AS.msgs.length) return false;      /* 空历史就别自作主张弹面板 */
+    if (modalKind()) return false;          /* 已经开着别的东西（含助教自己）→ 不碰 */
+    openAssistant({ push: false });
+    return true;
+  }catch(e){ return false; }
+}
+
+/* ---- 发送 ----
+   入口只有两个：① 用户点发送/回车（**从输入框里读内容**，见下）；
+   ② 「AI 查代码」合并过来的自动提问（text + problem）。
+   ★ 不管哪条路，收尾都必须做到：输入框清空、焦点回到输入框上。 */
+function assistantSend(text, opts){
+  opts = opts || {};
+  var ta0 = $("asInput");
+  var fromInput = false;
+  /* ★ 气泡面板和完整面板共用这一个发送函数（也就共用同一份 AS.msgs、同一个 /ai/chat）。
+     两边的差异只有三处：输入框是哪个、消息区画到哪、以及下面那两处渲染路由。
+     不带参数调用时：气泡开着就从气泡输入框读，否则从完整面板的输入框读。 */
+  var bubTa = $("asBubIn");
+  if ((text === undefined || text === null || text === "") && asBubbleOpen() && bubTa)
+    ta0 = bubTa;
+  if (text === undefined || text === null || text === ""){
+    /* 从输入框读（验收/按钮/回车都走这条） */
+    text = ta0 ? String(ta0.value || "") : "";
+    fromInput = true;
+  }
+  text = String(text == null ? "" : text);
+  if (!text.trim()) return Promise.resolve(false);
+  if (AS.busy) return Promise.resolve(false);
+  if (fromInput && ta0){ ta0.value = ""; asAutoGrow(); }   /* 立刻清空，别等回复 */
+  var payload = assistantPayload();          /* ★ 滤掉空 assistant（见 assistantPayload 注释） */
+  payload.push({ role: "user", content: text });
+  AS.busy = true;
+  AS.t = Date.now();
+  /* 缩到 AS_MAX 以内，但要让本轮新加的这条一定在（from 从头丢） */
+  var from = Math.max(0, payload.length - AS_MAX);
+  payload = payload.slice(from);
+  var userMsg = asMsg("user", text);
+  var asstMsg = asMsg("assistant", "", { streaming: true });
+  AS.msgs.push(userMsg);
+  AS.msgs.push(asstMsg);
+  asTrim();
+  AS.stream = asstMsg;
+  /* 增量追加两条（不整块重画 —— 输入框必须连焦点一起活着） */
+  var box = $("asMsgs");
+  if (box){    if (box.setAttribute) box.setAttribute("data-assistant-busy", "1");
+    var empty = box.querySelector ? box.querySelector(".asEmpty") : null;
+    if (empty && empty.parentNode) empty.parentNode.removeChild(empty);
+    var wrap = document.createElement("div");
+    wrap.innerHTML = asMsgsHtml();
+    box.innerHTML = wrap.innerHTML;
+    asScrollEnd();
+  }
+  asHintRefresh();
+  /* 收尾：图省事就用整块重画，然后**显式把焦点还回输入框**。
+     输入框此刻是空的（刚发出去），所以重画不会丢用户正在敲的字。 */
+  var finish = function(errMsg){
+    AS.busy = false;
+    AS.stream = null;
+    asstMsg.streaming = false;
+    if (errMsg && !asstMsg.error) asstMsg.error = errMsg;
+    if (!asstMsg.text && !asstMsg.error) asstMsg.error = "助教没有返回任何内容。";
+    AS.t = Date.now();
+    assistantSave();
+    assistantRender();                 /* 整块重画会把 data-assistant-busy 一起摘掉 */
+    asHintRefresh();
+    asAutoGrow();
+    asFocusInput();                    /* ★ 发送后焦点必须还在输入框上 */
+    /* 常驻气泡：整块重画一次（含错误行），再把焦点还给气泡输入框 */
+    if (asBubbleOpen()){ asBubbleRenderMsgs(); asBubbleFocusInput(); }
+  };
+  var ctxP = assistantContext(opts.problem);
+  var evs = [];
+  return Promise.resolve(ctxP).then(function(ctx){
+    var body = { messages: payload, context: ctx, no_cache: !!opts.noCache };
+    var cacheShown = false;
+    /* 每个 delta 都只改**这一个气泡**的 innerHTML，别的什么都不碰 */
+    return streamPost("/ai/chat", body, function(ev){
+      evs.push(ev);
+      if (!ev || !ev.type) return;
+      if (ev.type === "delta"){
+        asstMsg.text += String(ev.text || "");
+        var el = document.getElementById ? document.getElementById("asRow" + (AS.msgs.length - 1)) : null;
+        if (el){
+          var b = el.querySelector ? el.querySelector(".asBubble") : null;
+          if (b) b.innerHTML = asBubbleHtml(asstMsg, AS.msgs.length - 1);
+        }
+        /* 常驻气泡开着时，同一条消息在气泡里也要跟前言一起长出来。
+           ★ 不能在这里调 asBubbleFocusInput()：流式期间每次 delta 都还焦点，
+             会把用户正在输入的光标反复打断。焦点在 finish() 里统一还。 */
+        if (asBubbleOpen()) asBubbleRenderMsgs();
+        asScrollEnd();
+        if (asBubbleOpen()) asBubbleScrollEnd();
+      }else if (ev.type === "cached"){
+        /* 「这一轮来自缓存」—— 前面会立刻把正文补上，先给一行小字 */
+        if (!cacheShown && evs.length === 1){ cacheShown = true; }
+      }else if (ev.type === "error"){
+        /* ★ 契约：error 时**不要清掉已有内容**，只加一条红色错误 */
+        asstMsg.error = String(ev.message || "AI 返回了错误");
+      }else if (ev.type === "done"){
+        asstMsg.streaming = false;
+      }
+    }).then(function(){ finish(null); }, function(e){
+      finish(String(e && e.message ? e.message : e));
+      return false;
+    });
+  }, function(e){
+    finish("取当前上下文失败：" + String(e && e.message ? e.message : e));
+    return false;
+  });
+}
+/* 「AI 查代码」合并进来的入口：先切页签（顺序不能反），再开面板自动问一句。
+   ★ 旧路径 aiExplain 一个字节没动 —— 万一要回滚，按钮行为改回来就行。 */
+function aiAskAboutCode(){
+  var p = HW.prob;
+  if (!p) return Promise.resolve(false);
+  /* ① 先把用户在「测一测」里敲的代码抄回 state（和 hwtab 分支同一顺序） */
+  stashProbCode();
+  /* ② 切到「解析」—— 这是用户报过的 bug：不切页签，AI 的回答就渲染在他看不见的地方 */
+  if (HW.tab !== "analysis"){
+    HW.tab = "analysis";
+    saveHwPos();
+    renderProblem();
+    syncProblemUrl();
+  }
+  var st = stepAt(S.cur);
+  var prob = {
+    no: p.no, title: p.title, statement_md: p.statement_md || "",
+    __ch: (st && st.ch && st.ch.chapter) ? st.ch.chapter : "",
+    __sec: (st && st.sec) ? (st.sec.title || st.sec.name || "") : ""
+  };
+  var q = "这是我的代码，帮我看看：哪里不对、怎么改简单点？\n\n```python\n" + (testState().code || "") + "\n```";
+  /* 把「测一测」里刚跑出来的真实结果一起带上：模型不用猜我在什么输入上错。
+     JSON.stringify 既保住换行/制表符，又不会被多行代码围栏搞乱。 */
+  var tst = testState();
+  if (tst.ran && String(tst.stdin || "").length <= 2000){
+    var ranOut = tst.err ? ("[报错] " + tst.err) : (tst.out === null ? "" : tst.out);
+    var ranOk = !tst.err && sameOutput(tst.out, tst.expected, p);
+    q += "\n\n我刚在「测一测」里跑了这组用例：\n输入：" + JSON.stringify(tst.stdin) +
+         "\n期望：" + JSON.stringify(tst.expected) + "\n实际：" + JSON.stringify(ranOut) +
+         "\n" + (ranOk ? "这组是对的。" : "这组没过。");
+  }
+  if (HW.hw) q = "这周作业「" + (HW.hw.title || HW.hw.id) + "」第 " + p.no + " 题：**" + String(p.title || "") + "**\n\n" + q;
+  openAssistant({ autoAsk: q, problem: prob });
+  return Promise.resolve(true);
+}
+
+/* ---- 助教气泡里那些代码块的按钮 ----
+   面板是弹层，底下那张卡可能压根不是这段代码的来源（比如从作业题里点进来的），
+   所以**不能**沿用 cardCodeOf(codesOwner(), idx) —— 那会取到卡片流的代码。
+   代码存在"这一条消息"的 blocks 里：从按钮往上找最近的那个
+   [data-assistant-msg]，数它前面有几个同样的节点，就是消息下标。 */
+function asMsgIndexFromEl(el){
+  /* ★ 认行上挂的 data-assistant-idx，**不再写死容器**。
+     原来这里用 $("asMsgs") 当边界并只在这个容器里数节点，于是**右下角气泡**
+     （消息容器是 #asBubMsgs）里的按钮一路走到最外层都撞不到 #asMsgs →
+     返回 -1 → asHandleCodeClick 让路 → 落到卡片流那套处理器，
+     拿「当前卡片」的代码去查 → 卡片没这段代码 → 空串 →
+     可视化页一片空白。这就是"助教写的代码没法正常可视化"。
+     改成读属性之后，主面板/气泡/以后任何新容器都自动成立。 */
+  var node = el;
+  while (node){
+    if (node.getAttribute){
+      var v = node.getAttribute("data-assistant-idx");
+      if (v !== null && v !== ""){
+        var n = Number(v);
+        return (isFinite(n) && n >= 0 && n < AS.msgs.length) ? n : -1;
+      }
+    }
+    node = node.parentNode;
+  }
+  return -1;
+}
+function asMsgCode(el, idxMsg){
+  var i = (typeof idxMsg === "number") ? idxMsg : asMsgIndexFromEl(el);
+  if (i < 0 || i >= AS.msgs.length) return "";
+  var idx = Number(el.getAttribute("data-idx"));
+  var list = AS.msgs[i].blocks || [];
+  if (!isFinite(idx) || idx < 0 || idx >= list.length) return "";
+  return list[idx] || "";
+}
+/* 这个按钮是不是长在某条助教气泡里的？是就返回那个消息下标，否则 -1。
+   从按钮往上走到最近一个带 data-assistant-msg 的祖先（就是那一行）。 */
+function asMsgIndexFromNode(el){
+  /* 直接复用 asMsgIndexFromEl —— 它已经能认任何容器里的助教行（见那边的注释）。
+     第一版这里也拿 $("asMsgs") 当遍历边界，于是气泡里的按钮永远返回 -1。 */
+  return el ? asMsgIndexFromEl(el) : -1;
+}
+/* 面板里点了「▶ 可视化」/「📋 复制」——返回 true 表示"这一下我处理了，
+   中央 dispatcher 不用再管"。按钮在外面（卡片流）时一律返回 false，走老路。 */
+function asHandleCodeClick(btn){
+  /* ★ 判定标准改成"这个按钮是不是长在助教的一条消息里"，**不再看弹层状态**。
+     原来是 `!modalOpen() || modalKind() !== "assistant"` 就放行给卡片流，
+     而右下角气泡不是弹层 → 气泡里的「▶ 可视化」全被让给了卡片流处理器，
+     拿**当前卡片**的代码去查 → 卡片上没有这段 → 空串 → 可视化页一片空白。
+     用户报的"助教写的代码没法正常可视化"就是这一条。 */
+  if (!btn) return false;
+  var act = btn.getAttribute("data-act");
+  if (act !== "cardviz" && act !== "cardcopy") return false;
+  var iMsg = asMsgIndexFromNode(btn);
+  if (iMsg < 0) return false;                      /* 不是助教消息里的按钮 → 走卡片流老路 */
+  var code = asMsgCode(btn, iMsg);
+  if (!code){ toast("这段代码找不到了，重新问一次"); return true; }
+  if (act === "cardcopy") copyText(code, "代码");
+  else openTutor(code, null, false, "");           /* 助教的代码没有"这题的样例输入" */
+  return true;
+}
+
+/* ---------------- ⚙️ 余额（契约 §2） ----------------
+   ★ 余额**绝对不能进 ai_cache_key** 是后端的事；前端这边只有一条纪律：
+     余额请求失败/后端没写好时，**安静显示"还没配置"或一行红字**，绝不弹窗报错。 */
+var AIBAL = { loading: false, data: null, error: null, loaded: false };
+function loadAiBalance(refresh){
+  if (AIBAL.loading) return Promise.resolve(AIBAL);
+  AIBAL.loading = true;
+  AIBAL.error = null;
+  aiBalanceRefreshRow();
+  return fetchJson("/ai/balance" + (refresh ? "?refresh=1" : "")).then(function(j){
+    AIBAL.loading = false;
+    AIBAL.data = (j && typeof j === "object") ? j : null;
+    AIBAL.loaded = true;
+    if (!AIBAL.data) AIBAL.error = "余额接口返回了看不懂的内容。";
+    aiBalanceRefreshRow();
+    return AIBAL;
+  }, function(e){
+    AIBAL.loading = false;
+    AIBAL.data = null;
+    AIBAL.loaded = true;
+    AIBAL.error = String(e && e.message ? e.message : e);
+    aiBalanceRefreshRow();
+    return AIBAL;
+  });
+}
+function aiBalanceValue(){
+  var d = AIBAL.data;
+  if (!d) return null;
+  if (d.ok === false) return null;
+  if (typeof d.total_balance === "string" || typeof d.total_balance === "number")
+    return String(d.total_balance);
+  return null;
+}
+function aiBalanceTimeText(iso){
+  var s = String(iso == null ? "" : iso);
+  if (!s) return "";
+  /* ★ 分组下标数错了会打出字面的 "undefined"（第一版就是 m[6] 越界 →
+     「（27-21 13:undefined 取的）」）。只用 1/2/3/4/5 这五组。 */
+  var m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(s);
+  if (!m) return "（" + s + " 取的）";
+  return "（" + m[2] + "-" + m[3] + " " + m[4] + ":" + m[5] + " 取的）";
+}
+function aiBalanceRow(){
+  var d = AIBAL.data, val = aiBalanceValue();
+  var text, cls = "";
+  if (!aiConfigured() && !val){
+    /* 没配 key：后端按契约回 200 + ok:false，不要弹窗、不要红字 */
+    text = "还没配置"; cls = "setBad";
+  }else if (AIBAL.loading && !AIBAL.loaded){
+    text = "正在查…";
+  }else if (val !== null){
+    var cur = (d && d.currency) ? String(d.currency) : "CNY";
+    var sign = (cur === "CNY") ? "¥" : (cur + " ");
+    text = sign + val;
+    if (d && d.is_available === false) text += "（账户不可用）";
+    if (d && typeof d.fetched_at === "string") text += " " + aiBalanceTimeText(d.fetched_at);
+    if (d && typeof d.topped_up_balance === "string" && d.topped_up_balance !== val)
+      text += "，其中充值 ¥" + d.topped_up_balance;
+  }else if (d && d.ok === false && d.error){
+    text = String(d.error); cls = "setBad";
+  }else if (AIBAL.error){
+    text = "暂时查不到余额（" + AIBAL.error + "）"; cls = "setBad";
+  }else{
+    text = "还没配置"; cls = "setBad";
+  }
+  return '<div class="setRow"><div class="setLabel">余额</div><div class="setField">' +
+    '<div class="rowIn"><span class="' + cls + '" id="aiBalTxt" ' +
+      'style="font-size:15px;font-weight:600;margin-right:4px">' + escapeHtml(text) + "</span>" +
+      '<button class="tb" data-act="aibalrefresh"' + (AIBAL.loading ? " disabled" : "") + ">" +
+      (AIBAL.loading ? "正在刷新…" : "🔄 刷新") + "</button></div>" +
+    '<div class="setHint">来自 <code>GET /ai/balance</code>（只读上游余额，不写任何文件）。' +
+    "余额**不参与**解析缓存，不会因为它变了就重算解析。</div>" +
+    "</div></div>";
+}
+function aiBalanceRefreshRow(){
+  var el = $("aiBalRow");
+  if (!el || !el.parentNode) return false;
+  if (AI.setGen !== undefined && AI.setGen !== AI.gen) return false;   /* 已经不是设置那一代了 */
+  var tmp = document.createElement("div");
+  tmp.innerHTML = aiBalanceRow();
+  if (!tmp.firstChild) return false;
+  el.parentNode.replaceChild(tmp.firstChild, el);
+  return true;
+}
+
+/* =====================================================================
+ * 事件
+ * =================================================================== */
+function closestAct(el){
+  var n = el;
+  var guard = 0;
+  while (n && n.getAttribute && guard++ < 40){
+    if (n.getAttribute("data-act")) return n;
+    n = n.parentNode;
+  }
+  return null;
+}
+/* 往上找第一个命中选择器的祖先（含自身）。
+   写法照 closestAct：手写遍历 + guard，不用 Element.closest/querySelector
+   —— 这个前端要在 Edge WebView2 里跑，手写这套一直没出过问题。 */
+function closestEl(el, sel){
+  var n = el;
+  var guard = 0;
+  while (n && n.nodeType === 1 && guard++ < 40){
+    if (n.matches ? n.matches(sel) : false) return n;
+    n = n.parentNode;
+  }
+  return null;
+}
+/* 顶栏那个「⋯ 更多」弹出菜单整套删掉了：按钮改成左侧图标栏后菜单没有载体了。
+   连同它的 openMore/closeMore/headMenuOpen/toggleMore 和 onDocClick 里的
+   "点外面关闭"逻辑一起删 —— 留着就是永远不会被调用的死代码，
+   而死的 DOM 查询（$("headMenu") 返回 null）最容易在以后被误当成"还能用"。 */
+/* =====================================================================
+ * 「这次点击是不是拖选？」—— 卡片流是"点一下做事"的，
+ * 用户在正文里拖选文字、松手正好落在某个可点区域上，很容易被当成点击（于是翻页、选中的东西也没了）。
+ * 两道判据：
+ *   ① 松手时仍有文字被选中  → 确定是拖选
+ *   ② mousedown→mouseup 位移 > 4px → 就算选区已经塌掉（拖空白），也算拖选
+ * =================================================================== */
+var DRAG = { down: null, last: 0, moved: false };
+function textSelected(){
+  try{
+    var s = window.getSelection && window.getSelection();
+    return !!(s && String(s).length > 0);
+  }catch(e){ return false; }
+}
+function onDocMousedown(e){
+  if (!e) return;
+  DRAG.down = [e.clientX || 0, e.clientY || 0];
+  DRAG.moved = false;
+}
+function onDocMouseup(e){
+  if (!e || !DRAG.down){ DRAG.down = null; return; }
+  var dx = Math.abs((e.clientX || 0) - DRAG.down[0]);
+  var dy = Math.abs((e.clientY || 0) - DRAG.down[1]);
+  DRAG.moved = (dx > 4 || dy > 4);
+  DRAG.down = null;
+  /* 记一下"刚刚发生过拖选"，紧跟其后的那个 click 要被忽略 */
+  if (DRAG.moved || textSelected()) DRAG.last = Date.now();
+}
+/* 这次点击是不是"拖选"？e.target 在输入框里时一律不算 —— 用户是在自己编辑，
+   拖选完 400ms 内点一下输入框必须能把光标放进去（以前这里没豁免，第一下必然无效）。 */
+function dragSelected(e){
+  var t = e && e.target;
+  var tag = String((t && t.tagName) || "").toUpperCase();
+  if (tag === "TEXTAREA" || tag === "INPUT") return false;
+  if (DRAG.moved) return true;
+  if (Date.now() - DRAG.last < 400) return true;
+  if (textSelected()) return true;
+  return false;
+}
+/* 点遮罩：有弹层就关最上面那一层；没有弹层就关侧边面板（目录抽屉）
+   —— 遮罩是共用的，两种都得管 */
+function onScrimClick(){
+  if (modalKind()){ closeLayer(); return; }
+  closeAll();
+}
+function onDocClick(e){
+  var t = e.target;
+  /* 遮罩自己先处理：它是"点空白处收起"的意思，不受拖选守卫影响（遮罩上本来就没有文字） */
+  if (t && t.id === "scrim"){ onScrimClick(); return; }
+  var btn = closestAct(t);
+  /* ★ 拖选（或紧跟在拖选之后）松手落到按钮上 → 不当点击 */
+  if (dragSelected(e)){
+    if (btn && e.preventDefault) e.preventDefault();
+    return;
+  }
+  if (!btn) return;
+  var act = btn.getAttribute("data-act");
+  /* 🤖 助教气泡里的代码块按钮：代码在**那条消息**的 blocks 里，不在当前卡片上，
+     所以先让面板自己处理（见 asHandleCodeClick）。 */
+  if (asHandleCodeClick(btn)) return;
+  if (act === "prev") goto(S.cur - 1);
+  else if (act === "next") goto(S.cur + 1);
+  else if (act === "toc"){ closeModal(); TOC_ACT(); }
+  else if (act === "tocclose"){ S_TOcDRAWER.open = false; if (isWide(TOCOPE_W)) ui.toc = "0"; saveUi(); applyChrome(); }
+  else if (act === "railclose") setRailPref(ui.rail !== "1");   /* 切换，不是一律收起 */
+  else if (act === "jumpidx"){ closeModal(); closeTocAll(); goto(Number(btn.getAttribute("data-idx"))); }
+  else if (act === "jumpchap"){ closeTocAll(); jumpChapter(btn.getAttribute("data-ci"), btn.getAttribute("data-pos")); }
+  else if (act === "repl") setReplPref(!replOpen());
+  else if (act === "tutor") openTutor("", null, true);
+  else if (act === "replclose") setReplPref(false);
+  else if (act === "replclear") replReset();
+  else if (act === "compick") compPickIdx(Number(btn.getAttribute("data-i")));
+  else if (act === "search") openSearch();
+  else if (act === "oj") openOj();
+  else if (act === "update") openUpdate();
+  else if (act === "upcheck") upCheckStart({ thenDeep: false });
+  else if (act === "updeep") upDeepStart();
+  else if (act === "uprebuild") upRebuild(btn.getAttribute("data-chapter"));
+  else if (act === "upinstall") upRebuild(btn.getAttribute("data-chapter"), "开始安装新章");
+  else if (act === "uprebuildall") upRebuild("");
+  else if (act === "hw") openHomework();
+  else if (act === "hwcheck") hwCheckNew();
+  else if (act === "hwfetch") hwFetchNew(btn.getAttribute("data-slug"), btn.getAttribute("data-title"));
+  else if (act === "hwset"){ var hid = btn.getAttribute("data-hw");
+    for (var hi = 0; hi < HW.list.length; hi++) if (HW.list[hi].id === hid) HW.hw = HW.list[hi];
+    HW.prob = null; saveHwPos(); hwPanelRefresh(); }
+  else if (act === "hwreload"){ HW.loaded = false; hwPanelRefresh(); loadHomework().then(function(){ hwPanelRefresh(); }); }
+  else if (act === "hwopen") openProblem(btn.getAttribute("data-hw"), btn.getAttribute("data-no"));
+  else if (act === "hwback"){ closeLayer(); }        /* 回上一层（作业列表那层），不是"再开一个列表" */
+  else if (act === "hwtab"){ HW.tab = btn.getAttribute("data-tab"); saveHwPos(); renderProblem();
+                             syncProblemUrl();
+                             if (HW.tab === "test") fillProbCode(); }
+  else if (act === "hwjump"){
+    var pid = btn.getAttribute("data-id");
+    closeModal();
+    if (!jumpToId(pid)) toast("讲义里没有这个知识点（可能还没生成）");
+  }
+  else if (act === "hwcase") hwUseCase(Number(btn.getAttribute("data-i")));
+  else if (act === "hwrun") hwRun();
+  else if (act === "hwrunall") hwRunAll();
+  else if (act === "hwgencases"){
+    var cst0 = HW_CASES[hwKey()];
+    hwGenCases(!!(cst0 && (cst0.cases || []).length));
+  }
+  else if (act === "hwrefcopy") copyText(String((HW.prob && HW.prob.solution_code) || ""), "参考代码");
+  else if (act === "hwrefviz"){
+    var rcode = String((HW.prob && HW.prob.solution_code) || "");
+    if (rcode.trim()) openTutor(rcode, null, false, (HW.prob && HW.prob.sample_in) || "");
+  }
+  else if (act === "hwsubmit") hwSubmit();
+  else if (act === "hwstats"){
+    hwRefreshStats(true, false).then(function(ok){
+      toast(ok ? "通过率已更新" : (HW.statsErr || "通过率更新失败"));
+    });
+  }
+  else if (act === "hwautosubmit") hwAutoSubmit();
+  else if (act === "ojconsent"){
+    try{ localStorage.setItem("ic.oj.consent", "1"); }catch(e){}
+    closeModal();
+    stashProbCode();
+    var pick0 = hwSubmitCode();
+    hwDoAutoSubmit(pick0.code, pick0.from);
+  }
+  else if (act === "ojdologin") ojDoLogin();
+  else if (act === "hwmark"){ hwSetMark(btn.getAttribute("data-v")); renderProblem(); }
+  else if (act === "hwallcancel"){ HW_ALL.cancel = true; toast("正在停止：当前这题跑完就停"); }
+  else if (act === "testviz"){ stashProbCode(); var tz = testState(); openTutor(tz.code, null, false, tz.stdin); }
+  else if (act === "copysample"){
+    var pk = btn.getAttribute("data-key"), pp = HW.prob;
+    if (!pp) return;
+    var si = Number(btn.getAttribute("data-i") || 0) || 0;
+    var pr = samplePairs(pp)[si] || { in: pp.sample_in || "", out: pp.sample_out || "" };
+    if (pk === "in") copyText(pr.in || "", "样例输入");
+    else copyText(pr.out || "", "样例输出");
+  }
+  else if (act === "copycase"){
+    var ck = btn.getAttribute("data-key"), ct = testState();
+    if (ck === "in") copyText(ct.stdin || "", "这次跑的输入");
+    else if (ck === "exp") copyText(ct.expected || "", "期望输出");
+    else copyText(ct.err ? ("[报错] " + ct.err) : (ct.out === null ? "" : ct.out), "实际输出");
+  }
+  /* ★ 「📝 让 AI 看看我的代码」已合并进助教面板：先切页签（顺序不能反，见
+     aiAskAboutCode），再开面板并自动发起一段带当前题的对话。
+     旧的 aiExplain(false,"review") 路径一个字节没动，回滚只要把这一行改回去。 */
+  else if (act === "aireview") aiAskAboutCode();
+  /* 🤖 助教面板 */
+  else if (act === "assistant") openAssistant();
+  /* 🤖 常驻气泡（右下角圆钮那一套，独立于弹层系统） */
+  else if (act === "asfab") toggleAsBubble();
+  else if (act === "asbclose") closeAsBubble();
+  else if (act === "asexpand") asExpand();
+  else if (act === "asbclear") asBubbleClear();
+  else if (act === "asctx") asRefreshCtx();     /* 手动重读当前页面内容 */
+  else if (act === "assend") assistantSend();
+  else if (act === "asclear") assistantClear();
+  else if (act === "aibalrefresh") loadAiBalance(true);
+  else if (act === "aigen") aiExplain(btn.getAttribute("data-nocache") === "1", "explain");
+  else if (act === "hwall") hwAskExplainAll(btn);
+  else if (act === "codeviz") codeViz(aiBlockCode(Number(btn.getAttribute("data-idx"))));
+  else if (act === "codetest") codeTestFromAnalysis(Number(btn.getAttribute("data-idx")));
+  else if (act === "codecopy") codeCopy(Number(btn.getAttribute("data-idx")));
+  else if (act === "aiset") openAiSettings();
+  else if (act === "aisavekey") aiSaveKey();
+  else if (act === "aitest"){ toast("正在测试…"); loadAiStatus().then(function(){ aiSettingsRender(); toast(aiConfigured() ? "✅ 连接正常" : "还没配好 key"); }); }
+  else if (act === "aireload"){ AI.error = null; loadAiStatus().then(function(){ aiSettingsRender(); }); }
+  else if (act === "aicacheclear"){
+    postJson("/ai/cache/clear", {}).then(function(d){
+      toast("已清空解析缓存" + (d && d.removed !== undefined ? "（删了 " + d.removed + " 条）" : ""));
+      HW.ai = {};                       /* 本地也丢掉，下次重新生成 */
+    }, function(e){ toast("清缓存失败：" + String(e && e.message ? e.message : e)); });
+  }
+  else if (act === "closemodal") closeLayer();
+  else if (act === "scrim") closeLayer();
+  else if (act === "reload") reloadData();
+  else if (act === "jump"){ closeTocAll(); closeModal(); jumpToId(btn.getAttribute("data-id"), btn.getAttribute("data-q")); }
+  else if (act === "goto"){ closeModal(); jumpToSec(btn.getAttribute("data-sec")); }
+  else if (act === "fillmissing"){ closeModal(); jumpToSec(btn.getAttribute("data-sec")); }
+  else if (act === "slide"){
+    var chNow = stepAt(S.cur) && stepAt(S.cur).ch ? stepAt(S.cur).ch.chapter : "";
+    openSlide(chNow, Number(btn.getAttribute("data-page")));
+  }
+  else if (act === "run"){
+    var st1 = stepAt(S.cur);
+    openTutor(st1 && st1.p ? st1.p.run : "", btn.getAttribute("data-id"));
+  }
+  else if (act === "copyrun") copyRun(btn.getAttribute("data-id"));
+  /* 卡片正文里那段 python 代码的按钮（100Days 阅读器里也用同一套，代码存在 readerStep 上） */
+  else if (act === "cardviz"){
+    var stc = codesOwner();
+    openTutor(cardCodeOf(stc, btn.getAttribute("data-idx")), btn.getAttribute("data-id"));
+  }
+  else if (act === "cardcopy"){
+    copyText(cardCodeOf(codesOwner(), btn.getAttribute("data-idx")), "代码");
+  }
+  else if (act === "days") openDaysBrowser();
+  /* 课件缩略图那一行「展开全部 / 收起」：就地重画当前卡片（同一条 thumbRow，
+     不新增 history、不动滚动位置 —— renderCard 不碰 scrollTop） */
+  else if (act === "slideexpand"){
+    var skey = btn.getAttribute("data-key") || "";
+    if (skey){
+      if (S.slideExpanded[skey]) delete S.slideExpanded[skey];
+      else S.slideExpanded[skey] = true;
+      renderCard();
+    }
+  }
+  else if (act === "daysopen") openDayFile(Number(btn.getAttribute("data-day")));
+  else if (act === "vpage") switchVideoPage(Number(btn.getAttribute("data-page")));
+  else if (act === "biliwatch"){
+    var vst = stepAt(S.cur);
+    if (vst && vst.kind === "point" && vst.p.video && vst.p.video.bvid){
+      var pg = Number(btn.getAttribute("data-page"));
+      openExternalPreferred(biliWatchUrl(vst.p.video.bvid, isFinite(pg) && pg > 0 ? pg : null));
+    }
+  }
+  else if (act === "videos") openVideos();
+  else if (act === "vidclear"){
+    if (!S.videos) S.videos = {};
+    S.videos.vidQ = "";
+    openVideos({ push: false });        /* 整体重开：输入框的值和列表一起归零，焦点也回来了 */
+  }
+  else if (act === "vidopen"){
+    /* 视频目录里的某一条：能挂到知识点就跳过去，不能就交给 B 站 */
+    var vp = btn.getAttribute("data-page");
+    var vpp = videoPagePoint(vp);
+    if (vpp && jumpToId(vpp)){ closeModal(); syncProblemUrl(); toast("已跳到挂着这个分P的知识点"); }
+    else if (S.videos && S.videos.bvid){
+      openExternalPreferred(biliWatchUrl(S.videos.bvid, Number(vp)));
+    }
+  }
+  else if (act === "vidbili"){
+    if (S.videos && S.videos.bvid) openExternalPreferred(biliWatchUrl(S.videos.bvid, Number(btn.getAttribute("data-page"))));
+  }
+  else if (act === "ojopen") openExternal(btn.getAttribute("data-url"));
+  else if (act === "copyurl") copyText(btn.getAttribute("data-url"), "链接");
+  else if (act === "dayfile") openDayFile(Number(btn.getAttribute("data-day")));
+  else if (act === "ref"){
+    var kind = btn.getAttribute("data-kind");
+    if (kind === "notes") openNotesRef();
+    else if (kind === "days") openDaysRef(Number(btn.getAttribute("data-i")) || 0);
+    else if (kind === "file"){
+      var st2 = stepAt(S.cur);
+      var r2 = (st2 && st2.p && Array.isArray(st2.p.refs)) ? st2.p.refs[Number(btn.getAttribute("data-i")) || 0] : null;
+      if (r2) openDaysRef(Number(btn.getAttribute("data-i")) || 0);
+    }
+    else if (kind === "ext"){
+      var st3 = stepAt(S.cur);
+      var r3 = (st3 && st3.p && Array.isArray(st3.p.refs)) ? st3.p.refs[Number(btn.getAttribute("data-i")) || 0] : null;
+      if (r3) openExternal(r3.url);
+    }
+  }
+}
+function onDocInput(e){
+  var t = e.target;
+  if (!t || !t.classList) return;
+  asOnInput(e);                        /* 🤖 助教输入框（它没有 .searchInput，要单独认） */
+  if (!t.classList.contains("searchInput")) return;
+  /* 100Days 面板里的搜索框也叫 .searchInput，别串到全局搜索上；
+     视频目录那个（vidQ）同理 —— 这个分发是按 id 的，**新增一个 .searchInput
+     就必须在这里加一支**，否则打字会同时驱动另一个面板。 */
+  if (t.id === "daysSearch") daysSearch(t.value);
+  else if (t.id === "vidQ") onVidInput();
+  else renderSearchResults(t.value);
+}
+function onDocKeydown(e){
+  if (handleKey(e) && e.preventDefault) e.preventDefault();
+}
+/* 🤖 助教输入框：Enter 发送、Shift+Enter 换行。
+   挂在 document 上按 target 认（面板是重画的，直接在元素上挂监听会被换掉）。 */
+function asOnKeydown(e){
+  var t = e && e.target;
+  if (!t || !t.getAttribute || t.getAttribute("data-assistant-input") === null) return false;
+  if (e.isComposing) return false;                     /* 中文输入法组字中，回车是"选字" */
+  if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey){
+    if (e.preventDefault) e.preventDefault();
+    assistantSend();                                   /* 从输入框读内容 */
+    return true;
+  }
+  return false;
+}
+/* ==================================================================
+ * 🤖 常驻助教（右下角圆钮 + 轻量气泡面板）
+ * ------------------------------------------------------------------
+ * 为什么不复用 #modal：那是**单例全屏弹层 + 遮罩**，modalOpen() 被 30 多处当作
+ * "有没有弹层"的判据（Esc、键盘翻页、拖动选中…）。做成常驻会把整个层栈搞坏。
+ * 所以这里是一套独立浮层，**只共享 AS.msgs 这一份会话状态**：
+ *   · 气泡面板里的对话 = 完整面板里的对话 = 同一份 AS.msgs、同一个 /ai/chat
+ *   · 想长聊就点「⤢ 展开」，走原来的 openAssistant()（带历史）
+ *
+ * "感知当前页面内容"读的是**应用自己的结构化状态**，不截图、不 OCR：
+ *   asContextPoint() 给 章节/小节/知识点；asNotesSnippet() 按 notes_lines 取讲义原文。
+ * 页面每变一次就重算一次（renderCard/renderAll/开弹层都调 asRefreshCtx）。
+ * ================================================================== */
+function asBubbleEl(){ return $("asBubble"); }
+function asBubbleOpen(){
+  var b = asBubbleEl();
+  return !!(b && !b.hidden);
+}
+/* 圆钮显隐：常驻，但**完整助手面板开着时让位**，免得盖住弹层右上角。
+   挂在 applyChrome() 里，和其他显隐开关待在一起，避免两处逻辑打架。 */
+function asFabSync(){
+  var f = $("asFab");
+  if (!f) return;
+  /* ★★ 只在**完整助手面板**开着时让位 —— 那是全屏弹层，确实会盖住右下角。
+     以前这里还写了"内嵌面板开着也让位"，那是**错的**，用户的反馈是
+     「我右下角的ai助教的按钮你怎么给我干没了」：
+       内嵌面板在卡片区里（实测右边界 ≈1138），圆钮在最右边（左边界 ≈1426），
+       两者**根本不会重叠** —— 白让位，代价是 100 Days / 作业 / 视频目录 /
+       某一天 / 某一道题 这些状态下助教入口全部消失。
+     ★ 教训：让位（隐藏一个常驻入口）必须有**实测的重叠证据**，不能凭"感觉会挡"。
+       验证方式：量两者的 getBoundingClientRect 是否相交。 */
+  f.hidden = (modalKind() === "assistant");
+  if (f.setAttribute) f.setAttribute("aria-expanded", asBubbleOpen() ? "true" : "false");
+  if (f.classList) f.classList.toggle("on", asBubbleOpen());
+}
+/* 圆钮上的小圆点闪一下 —— 让"它在跟着你"这件事**看得见**（否则纯隐形）。
+   .ping 加 1.1s 后摘掉；重复调用先把上一个计时器清掉。 */
+var AS_PING_T = null;
+function asFabPing(){
+  var d = $("asFabDot");
+  if (!d || !d.classList) return;
+  d.classList.add("ping");
+  if (AS_PING_T) { clearTimeout(AS_PING_T); AS_PING_T = null; }
+  AS_PING_T = setTimeout(function(){
+    var dd = $("asFabDot");
+    if (dd && dd.classList) dd.classList.remove("ping");
+    AS_PING_T = null;
+  }, 1100);
+}
+/* 气泡里的消息区重画。复用主面板那套气泡 HTML（asMsgsHtml），
+   这样代码块上的「▶ 可视化 / 📋 复制」在气泡里也一样能用。 */
+function asBubbleRenderMsgs(){
+  var box = $("asBubMsgs");
+  if (!box) return;
+  box.innerHTML = AS.msgs.length
+    ? asMsgsHtml()
+    : '<div class="asEmpty">哪里不懂直接问。\n它会看到你当前在看的这一节。</div>';
+  asBubbleScrollEnd();
+}
+function asBubbleScrollEnd(){
+  var box = $("asBubMsgs");
+  if (box && box.scrollTop !== undefined) box.scrollTop = box.scrollHeight;
+}
+function asBubbleFocusInput(){
+  var ta = $("asBubIn");
+  if (!ta || !ta.focus) return;
+  /* 三条"不抢用户东西"的守卫，照 asFocusInput：面板得开着、没有弹层、别处没有输入焦点 */
+  if (!asBubbleOpen()) return;
+  if (modalOpen()) return;
+  var ae = null;
+  try{ ae = document.activeElement; }catch(e){}
+  if (ae && ae !== ta && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" ||
+      ae.isContentEditable)) return;
+  try{ ta.focus(); }catch(e){}
+}
+function openAsBubble(){
+  var b = asBubbleEl();
+  if (!b) return;
+  if (!AS.loaded){ assistantLoad(); AS.loaded = true; }
+  if (!AS.t) AS.t = Date.now();
+  /* 这里**不关**完整面板：closeModal() 会连带 applyChrome() → asFabSync()，
+     而关气泡又可能反过来碰弹层，两边相互调用容易打转；而且 closeModal 还有
+     pushLayer / aiPanelGen 等副作用，不该被"开个小气泡"这种轻动作触发。
+     互斥只做**一个方向**：openAssistant() 收气泡（见那里）。完整面板开着时
+     圆钮本来就隐藏了（asFabSync），所以用户实际上点不到，不会出现两个窗口。 */
+  b.hidden = false;
+  asFabSync();
+  asRefreshCtx();
+  asBubbleRenderMsgs();
+  asHintRefresh();
+  asBubbleFocusInput();
+  return true;
+}
+function closeAsBubble(){
+  var b = asBubbleEl();
+  if (b) b.hidden = true;
+  asFabSync();
+}
+function toggleAsBubble(){ if (asBubbleOpen()) closeAsBubble(); else openAsBubble(); }
+/* 常驻面板 → 完整面板。带着同一份历史（AS.msgs 本来就共享），
+   所以"展开"不是换一个会话，只是换个大点的窗口。 */
+function asExpand(){
+  var had = AS.msgs.length > 0;
+  closeAsBubble();
+  openAssistant({ push: false });
+  if (had) toast("已展开成完整面板，对话接着来");
+}
+/* 清空（气泡和完整面板共用同一份 AS.msgs，所以清一次两边都空） */
+function asBubbleClear(){
+  assistantClear();
+  asBubbleRenderMsgs();
+  asBubbleFocusInput();
+}
+/* 气泡输入框的键位：Enter 发送 / Shift+Enter 换行 / Esc 收起。
+   和 asOnKeydown 分开写，别的输入框一个字节都不碰。
+   ★ Esc 那一条**不限** target 是输入框：用户点了发送按钮或头部图标之后焦点就不在
+     输入框上了，只认 id 的话那时按 Esc 会没反应（实测踩到）。判据放宽成"气泡开着
+     就处理" —— 弹层那套 Esc 在 handleKey 里，两者互不干扰（气泡开着时通常没有弹层）。 */
+function asBubbleKeydown(e){
+  if (!e) return;
+  var t = e.target;
+  if (e.key === "Escape" && asBubbleOpen()){
+    if (e.preventDefault) e.preventDefault();
+    closeAsBubble();
+    return;
+  }
+  if (!t || !t.id || t.id !== "asBubIn") return;
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing){
+    if (e.preventDefault) e.preventDefault();
+    assistantSend();
+  }
+}
+function asOnInput(e){
+  var t = e && e.target;
+  if (!t || !t.getAttribute || t.getAttribute("data-assistant-input") === null) return;
+  asAutoGrow();
+}
+
+function handleKey(e){
+  if (!e) return false;
+  var t = e.target || {};
+  var tag = String(t.tagName || "").toUpperCase();
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || t.isContentEditable) return false;
+  /* ★ 焦点在按钮/链接上时也别抢键：浏览器对聚焦按钮按空格会【合成一次 click】，
+     我们再处理一遍空格 = 同一个动作跑两次（"学完了"转一圈回原点、"下一条"跳两张）。 */
+  if (tag === "BUTTON" || tag === "A") return false;
+  /* 焦点在 iframe（B站播放器）里时，父文档不该抢键 */
+  var ae = (typeof document !== "undefined") ? document.activeElement : null;
+  if (ae && String(ae.tagName || "").toUpperCase() === "IFRAME") return false;
+
+  var k = e.key;
+  if (k === "Escape"){
+    /* Esc 关【最上面那一层】。modalKind() 现在把内嵌面板也算一层，
+       所以"在看 100 Days / 作业 / 视频目录时按 Esc"会先收掉它、回到卡片。 */
+    if (modalKind()){ closeLayer(); return true; }
+    closeAll(); return true;
+  }
+  /* 弹层开着、或者窄屏抽屉正盖在卡片上时，别去动卡片。
+     宽屏的常驻左栏不算「打开」—— 它是版面的一部分，不该吃掉键盘。 */
+  if (modalOpen()) return false;
+  if (!isWide(TOCOPE_W) && S_TOcDRAWER.open) return false;
+  if (!S.steps.length) return false;
+  /* ★ 带 Ctrl/Cmd 的组合键不抢（Ctrl+K/Ctrl+J 是很多壳子的"跳到某处"，Alt+←/→ 是系统后退前进） */
+  if (e.ctrlKey || e.metaKey || e.altKey) return false;
+  if (k === "ArrowLeft" || k === "k" || k === "K"){ goto(S.cur - 1); return true; }
+  if (k === "ArrowRight" || k === "j" || k === "J"){ goto(S.cur + 1); return true; }
+  /* ★ 空格原来是「标记学完」—— 那个按钮没了，空格也不再劫持（留给浏览器翻页/滚动） */
+  return false;
+}
+
+function bindEvents(){
+  document.addEventListener("click", onDocClick, false);
+  /* 拖选判定要拿 mousedown 的位置（捕获阶段，别被别的处理器拦掉） */
+  document.addEventListener("mousedown", onDocMousedown, true);
+  document.addEventListener("mouseup", onDocMouseup, true);
+  /* 层栈：浏览器/系统后退 → 按新 state 恢复那一层 */
+  if (window.addEventListener) window.addEventListener("popstate", onPopState, false);
+  document.addEventListener("input", onDocInput, false);
+  document.addEventListener("change", onDocChange, false);
+  document.addEventListener("keydown", onDocKeydown, false);
+  /* 🤖 助教输入框的 Enter/Shift+Enter 自己一条监听：handleKey 一上来就把
+     TEXTAREA 排除掉了（那是"别抢翻页键"的守卫），所以不能挂在它那一支里。
+     这条只认 data-assistant-input，别的地方一个字节都不碰。 */
+  document.addEventListener("keydown", function(e){ asOnKeydown(e); }, false);
+  /* 图标栏的悬停提示：委托到 document，所以以后加图标按钮不用再挂监听，
+     写上 data-tip 就有提示。mouseover/mouseout 都会冒泡。 */
+  document.addEventListener("mouseover", sbHover, false);
+  document.addEventListener("mouseout", sbHover, false);
+  /* 点一下就收掉提示（不然点完鼠标不动，气泡挂在那儿挡视线） */
+  document.addEventListener("click", function(){ sbTipHide(); }, true);
+  /* 🤖 常驻气泡的输入框：Enter 发送 / Shift+Enter 换行 / Esc 收起。
+     单独一条，只认 #asBubIn。 */
+  document.addEventListener("keydown", function(e){ asBubbleKeydown(e); }, false);
+  /* 气泡的输入框也要跟着长高（asOnInput 已按 data-assistant-input 认它，
+     但 textarea 的 scrollHeight 变化只在 input 事件之后才准 —— 两条都挂上更稳） */
+  document.addEventListener("input", function(e){
+    var t = e && e.target;
+    if (t && t.id === "asBubIn") asAutoGrow();
+  }, false);
+  if ($("replIn") && $("replIn").addEventListener){
+    $("replIn").addEventListener("keydown", onReplKey, false);
+    $("replIn").addEventListener("input", onReplInput, false);
+    /* Ctrl+Space 手动补全（永远可靠；光标在补全面板里点选也行） */
+    $("replIn").addEventListener("keydown", function(e){
+      if ((e.ctrlKey || e.metaKey) && (e.key === " " || e.code === "Space")){
+        if (e.preventDefault) e.preventDefault();
+        compManual();
+      }
+    }, false);
+  }
+  if ($("tocBody") && $("tocBody").addEventListener){
+    $("tocBody").addEventListener("scroll", onTocScroll, false);
+  }
+  if ($("replResize") && $("replResize").addEventListener){
+    $("replResize").addEventListener("mousedown", startReplResize, false);
+  }
+  if (typeof window !== "undefined" && window.addEventListener){
+    window.addEventListener("resize", onWindowResize, false);
+  }
+  /* 作业代码框：边敲边存（防抖 350ms）。点「▶ 可视化」是整页跳转，没有这一条
+     回来代码就没了 —— 这是"用得最多的功能"里最扎人的一个洞。 */
+  document.addEventListener("input", function(e){
+    var el = e && e.target;
+    if (!el || el.id !== "probCode" || !HW.prob) return;
+    var st = HW.test[hwKey()];
+    if (st) st.code = el.value;
+    hwDraftTouch();
+  }, false);
+  if (typeof window !== "undefined" && window.addEventListener){
+    window.addEventListener("pagehide", function(){ try{ hwDraftSaveNow(); }catch(e){} }, false);
+    document.addEventListener("visibilitychange", function(){
+      if (document.visibilityState === "hidden"){ try{ hwDraftSaveNow(); }catch(e){} }
+    }, false);
+  }
+  if ($("btnResume")){
+    $("btnResume").addEventListener("click", function(){
+      var j = Number($("btnResume").getAttribute("data-jump"));
+      if (!isNaN(j)) goto(j);
+      S.resumeHidden = true;
+      renderResume();
+    }, false);
+  }
+}
+
+/* 每 15 秒翻一下"今天来过"（只在窗口可见时）—— ★ 不再记学习时长（sec 已砍） */
+function startTicker(){
+  var last = Date.now();
+  setInterval(function(){
+    var now = Date.now();
+    var dt = Math.round((now - last) / 1000);
+    last = now;
+    if (dt < 0 || dt > 120) return;
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+    var st = stepAt(S.cur);
+    if (!st || !st.secKey) return;
+    markToday();                 /* ★ 在读就在计天 */
+    saveProgress();
+  }, 15000);
+}
+
+function reloadData(){
+  var el = $("card");
+  if (el) el.innerHTML = '<div class="loading">正在重新载入内容…</div>';
+  loadData().then(function(){
+    if (!S.steps.length){ renderAll(); renderCard(); return; }
+    S.cur = 0;
+    var idx = bookmarkStepIndex();
+    renderAll();
+    goto(idx > 0 ? idx : 0);
+  }, function(){ renderAll(); });
+}
+
+function boot(){
+  try{
+    loadProgress();
+    loadUi();
+    bindEvents();
+    _lastWideToc = isWide(TOCOPE_W);
+    _lastWideRail = isWide(RAIL_W);
+    applyChrome();
+    renderAll();
+    renderToc();
+    replRender();
+    startTicker();
+    renderResume();
+    /* AI 配置后台读一次，作业面板打开时就能直接显示「已就绪 / 末 4 位」 */
+    loadAiStatus();
+  }catch(e){ /* DOM 有意外也不能白屏 */ }
+  return loadData().then(function(){
+    if (!S.steps.length){ renderAll(); renderToc(); return S; }
+    /* 启动位置：先看书签（{ch,s,p} 位置），解析不出来就从第 1 张卡开始 */
+    var idx = bookmarkStepIndex();
+    S.cur = idx > 0 ? idx : 0;
+    S.resumeHidden = true;           /* 已经站在书签上了，顶上不用再提示一次「继续上次」 */
+    renderAll();
+    renderToc();
+    /* URL 里带了现场（从可视化退回来）→ 用它，覆盖 localStorage 的位置 */
+    /* ★ 先把原始地址抓下来：restoreFromUrl() 里的 clearUrlParams() 会把地址栏清成 "/"，
+       之后再读就不是"用户回来的那个地址"了 */
+    var bootUrl = location.pathname + location.search;
+    return restoreFromUrl().then(function(r){
+      /* 地址栏没带来别的层 → 把刚才开着的助教面板接回来（对话在 sessionStorage 里）。
+         ★ 不能抢 restoreFromUrl 的活：它开了层就别再弹面板。 */
+      if (r !== true) restoreAssistantPanel();
+      /* ★ 那一层渲染完之后再看要不要复原滚动位置（内容是异步回来的，函数里会兜几次） */
+      restoreScrollAfterLayer(bootUrl);
+      return S;
+    }, function(){ restoreScrollAfterLayer(bootUrl); return S; });
+  }, function(){
+    renderAll();
+    return S;
+  });
+}
+
+/* boot 完成的那个 promise：解析期就执行本脚本时要等 DOMContentLoaded，
+   否则 ready 会在 boot 之前就 resolve（测试挂钩必须可信）。 */
+var readyPromise = new Promise(function(resolve){
+  function go(){
+    try{ boot().then(function(v){ resolve(v); }, function(){ resolve(null); }); }
+    catch(e){ resolve(null); }
+  }
+  try{
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", go, false);
+    else go();
+  }catch(e){ go(); }
+});
+
+/* =====================================================================
+ * 测试挂钩（浏览器里也留着，方便手查；不参与界面逻辑）
+ * =================================================================== */
+try{
+  window.__IC__ = {
+    S: S, P: P, ready: readyPromise,
+    escapeHtml: escapeHtml, inline: inline, renderMarkdown: renderMarkdown,
+    splitFences: splitFences, dedentLine: dedentLine,
+    normalizeNotesHtml: normalizeNotesHtml, safeUrl: safeUrl, resolveImgUrl: resolveImgUrl,
+    imgHtml: imgHtml, safeImgSrc: safeImgSrc, resolveContentRel: resolveContentRel, attrOf: attrOf,
+    utf8Len: utf8Len, topicIndexMap: topicIndexMap, searchTopics: searchTopics, dayInfo: dayInfo,
+    openDayFile: openDayFile, openDaysMd: openDaysMd,
+    resolveContentPath: resolveContentPath, slideCandidateUrls: slideCandidateUrls,
+    computeStreak: computeStreak, todayStr: todayStr, shiftDay: shiftDay,
+    setData: setData, loadData: loadData, buildSteps: buildSteps, mergeVideos: mergeVideos,
+    stripLeadingTitle: stripLeadingTitle, stripLeadingHeading: stripLeadingHeading,
+    renderMath: renderMath, looksLikeMath: looksLikeMath, MATH_SYMBOLS: MATH_SYMBOLS,
+    mathPart: mathPart, readBraceGroup: readBraceGroup, finalizeMath: finalizeMath,
+    extractFracs: extractFracs, renderFracs: renderFracs, stripBraces: stripBraces,
+    scrollTocToCurrent: scrollTocToCurrent, tocCurrentItem: tocCurrentItem, onTocScroll: onTocScroll,
+    tocItemVisible: tocItemVisible, tocHereId: tocHereId,
+    chapterMd: chapterMd, buildChapterCardHtml: buildChapterCardHtml, chapterTargetStep: chapterTargetStep,
+    jumpChapter: jumpChapter,
+    /* 版面 */
+    ui: ui, loadUi: loadUi, saveUi: saveUi, applyChrome: applyChrome, isWide: isWide,
+    toggleToc: toggleToc, setTocPref: setTocPref, setRailPref: setRailPref, railVisible: railVisible,
+    tocVisible: tocVisible, onWindowResize: onWindowResize, TOCOPE_W: TOCOPE_W, RAIL_W: RAIL_W,
+    setReplPref: setReplPref, setReplHeight: setReplHeight, replOpen: replOpen,
+    replSubmit: replSubmit, replReset: replReset, replRender: replRender, replItemHtml: replItemHtml, R: R,
+    ui: ui, P: P, S: S, HW: HW, AI: AI,
+    replHistory: replHistory, onReplKey: onReplKey, railBodyHtml: railBodyHtml, renderRail: renderRail,
+    /* REPL 补全 */
+    C: C, COMP_STATIC: COMP_STATIC, onReplInput: onReplInput, compManual: compManual,
+    compRequest: compRequest, compShowCandidates: compShowCandidates, compRender: compRender,
+    compMove: compMove, compAccept: compAccept, compPickIdx: compPickIdx, compOpen: compOpen,
+    compClose: compClose, compStatic: compStatic, replWordAtCaret: replWordAtCaret,
+    compDisplay: compDisplay, isPointId: isPointId, POINT_ID_RE: POINT_ID_RE,
+    normBookmark: normBookmark, bookmarkOf: bookmarkOf, bookmarkStepIndex: bookmarkStepIndex,
+    DKEY: DKEY, PKEY: PKEY,
+    /* 100Days 浏览器 */
+    openDaysBrowser: openDaysBrowser, daysPanelHtml: daysPanelHtml, daysSearch: daysSearch,
+    daysList: daysList, daysTopicTotal: daysTopicTotal, daysUnique: daysTopicUnique,
+    hitMark: hitMark, codesOwner: codesOwner,
+    onDocMousedown: onDocMousedown, onDocMouseup: onDocMouseup, dragSelected: dragSelected,
+    textSelected: textSelected, DRAG: DRAG, onDocClick: onDocClick, closestAct: closestAct,
+    /* 层栈 */
+    LAYER_STACK: LAYER_STACK, layerUrlOf: layerUrlOf, pushLayer: pushLayer,
+    replaceLayerUrl: replaceLayerUrl, closeLayer: closeLayer, applyLayerState: applyLayerState,
+    onPopState: onPopState, layerPushSupported: layerPushSupported,
+    problemLayer: problemLayer, syncProblemUrl: syncProblemUrl, modalKind: modalKind,
+    onDocKeydown: onDocKeydown, onDocInput: onDocInput,
+    sectionPoints: sectionPoints, stepAt: stepAt,
+    unescapeEntities: unescapeEntities, startTicker: startTicker,
+    UIDRAWER_STATE: S_TOcDRAWER,
+    matchAllowedTags: matchAllowedTags, planAllowedTags: planAllowedTags, applyTokens: applyTokens,
+    parseListItems: parseListItems, lineIsTagBlock: lineIsTagBlock, blockDepth: blockDepth,
+    ALLOWED_TAGS: ALLOWED_TAGS, BLOCK_TAGS: BLOCK_TAGS,
+    TAG_OPEN: TAG_OPEN, TAG_CLOSE: TAG_CLOSE,
+    buildCardHtml: buildCardHtml, buildPointCardHtml: buildPointCardHtml,
+    buildEndCardHtml: buildEndCardHtml, emptyStateHtml: emptyStateHtml,
+    renderAll: renderAll, renderCard: renderCard, renderTop: renderTop, goto: goto,
+    jumpToId: jumpToId, jumpToSec: jumpToSec,
+    handleKey: handleKey, doSearch: doSearch, snippetHtml: snippetHtml,
+    indexOfPointId: indexOfPointId, loadProgress: loadProgress, saveProgress: saveProgress,
+    videoAreaHtml: videoAreaHtml, videoInnerHtml: videoInnerHtml, switchVideoPage: switchVideoPage,
+    videoList: videoList, levelOf: levelOf, levelLabel: levelLabel, cleanTitleOf: cleanTitleOf,
+    normVideoItem: normVideoItem, videoTagHtml: videoTagHtml, LEVEL_FALLBACK: LEVEL_FALLBACK,
+    currentVideoPage: currentVideoPage, biliSrc: biliSrc, fmtDur: fmtDur, videoExtras: videoExtras,
+    refsHtml: refsHtml, boot: boot, reloadData: reloadData,
+    openModal: openModal, closeModal: closeModal, modalOpen: modalOpen, closeAll: closeAll,
+    openToc: openToc, closeToc: closeToc, renderToc: renderToc,
+    openSearch: openSearch, renderSearchResults: renderSearchResults,
+    openSlide: openSlide, openDaysRef: openDaysRef, openNotesRef: openNotesRef, openOj: openOj,
+    openTutor: openTutor, hydrate: hydrate, notesBase: notesBase,
+    saveScrollBeforeLeave: saveScrollBeforeLeave, restoreScrollAfterLayer: restoreScrollAfterLayer,
+    samePlace: samePlace,
+    scrollNow: scrollNow, SCROLL_KEY: SCROLL_KEY,
+    openExternal: openExternal, showLinkFallback: showLinkFallback, ojRow: ojRow,
+    cardMarkdown: cardMarkdown, sameCode: sameCode, cardCodeOf: cardCodeOf,
+    codeRunAdvice: codeRunAdvice, adviceText: adviceText, EXTRA_LIBS: EXTRA_LIBS,
+    VIZ_TITLE: VIZ_TITLE,
+    slideThumbRowHtml: slideThumbRowHtml, chapterSlidesHtml: chapterSlidesHtml,
+    thumbBtnHtml: thumbBtnHtml, SLIDE_CAP: SLIDE_CAP,
+    chapterSlidePages: chapterSlidePages, chapterMdMarkers: chapterMdMarkers, slidesHtml: slidesHtml,
+    copyText: copyText, showCopyFallback: showCopyFallback,
+    tutorBack: tutorBack, restoreFromUrl: restoreFromUrl, urlParams: urlParams,
+    clearUrlParams: clearUrlParams, validParam: validParam, readerDay: readerDay,
+    tabToUrl: tabToUrl, tabFromUrl: tabFromUrl, TAB_URL: TAB_URL,
+    /* 作业 + AI */
+    HW: HW, AI: AI, loadHomework: loadHomework, loadAiStatus: loadAiStatus,
+    openHomework: openHomework, hwPanelHtml: hwPanelHtml, openProblem: openProblem,
+    hwCheckNew: hwCheckNew, hwFetchNew: hwFetchNew, hwAvailableHtml: hwAvailableHtml,
+    openUpdate: openUpdate, updatePanelHtml: updatePanelHtml, upCheckStart: upCheckStart,
+    upDeepStart: upDeepStart, upRebuild: upRebuild, upChangedList: upChangedList,
+    UP: UP,
+    aiSaveKey: aiSaveKey, loadAiStatus: loadAiStatus,
+    openVideos: openVideos, vidListHtml: vidListHtml, onVidInput: onVidInput,
+    videoPagePoint: videoPagePoint, biliWatchUrl: biliWatchUrl,
+    hwCheckBtnHtml: hwCheckBtnHtml, hwPanelRefresh: hwPanelRefresh,
+    hwNewList: hwNewList, hwTakenIds: hwTakenIds, hwIdsFromHealth: hwIdsFromHealth,
+    hwCacheAgeText: hwCacheAgeText, fetchJsonMeta: fetchJsonMeta,
+    deriveHwId: deriveHwId, hwItemId: hwItemId, HW_PROBE: HW_PROBE,
+    renderProblem: renderProblem, hwStatementHtml: hwStatementHtml, hwAnalysisHtml: hwAnalysisHtml,
+    hwTestHtml: hwTestHtml, aiConfigured: aiConfigured, aiState: aiState, aiEnsure: aiEnsure, hwKey: hwKey,
+    isPythonLang: isPythonLang, vfyBadgeHtml: vfyBadgeHtml, codeToolbarHtml: codeToolbarHtml,
+    aiBlockCode: aiBlockCode, studentVfyHtml: studentVfyHtml,
+    aiMarkdown: aiMarkdown, sseHandleLine: sseHandleLine, sseFeed: sseFeed, streamPost: streamPost,
+    onAiEvent: onAiEvent, aiExplain: aiExplain, aiExplainAll: aiExplainAll,
+    problemPayload: problemPayload, reviewContext: reviewContext,
+    testState: testState, normOut: normOut, sameOutput: sameOutput, caseList: caseList,
+    expandTabs8: expandTabs8, tabExpandedSample: tabExpandedSample,
+    outputSpecMissing: outputSpecMissing, sampleHintHtml: sampleHintHtml,
+    verifiedBadgeHtml: verifiedBadgeHtml, hwSampleHtml: hwSampleHtml, preCopyHtml: preCopyHtml,
+    hwUseCase: hwUseCase, hwRun: hwRun, runStdout: runStdout, runError: runError,
+    codeTestFromAnalysis: codeTestFromAnalysis, codeViz: codeViz, codeCopy: codeCopy,
+    openAiSettings: openAiSettings, aiSettingsRender: aiSettingsRender, aiSaveKey: aiSaveKey,
+    aiSetConfig: aiSetConfig, rateOf: rateOf, fillProbCode: fillProbCode, saveHwPos: saveHwPos, ready_: function(){ return readyPromise; },
+    /* 🤖 AI 助教面板（契约 _dev/assistant-contract.md §1/§2/§4）
+       验收要用的四个：openAssistant / assistantSend / assistantHistory / assistantClear */
+    AS: AS, AS_KEY: AS_KEY, AS_MAX: AS_MAX, AS_NOTES_MAX: AS_NOTES_MAX,
+    openAssistant: openAssistant, assistantSend: assistantSend, assistantHistory: assistantHistory,
+    assistantPayload: assistantPayload,
+    assistantClear: assistantClear,
+    /* 落点（弹层 vs 卡片区内嵌）—— 验收要断言 100 Days / 作业 / 视频落在卡片区 */
+    surfaceIsInline: surfaceIsInline, surfaceInlineOk: surfaceInlineOk,
+    surfaceInlineOff: surfaceInlineOff, surfaceBack: function(){ return SURF_BACK; },
+    modalBodyEl: modalBodyEl, surfaceRoot: surfaceRoot, surfaceBodySel: surfaceBodySel,
+    sbHover: sbHover, sbTipHide: sbTipHide, sbHoverShow: sbHoverShow,
+    INLINE_KINDS: INLINE_KINDS, INLINE_MIN_W: INLINE_MIN_W,
+    closestEl: closestEl, assistantLoad: assistantLoad, assistantSave: assistantSave,
+    anaSave: anaSave, anaEnsureLoaded: anaEnsureLoaded, ANA_KEY: ANA_KEY, ANA_MAX: ANA_MAX,
+    assistantRender: assistantRender, assistantRenderMsgs: assistantRenderMsgs,
+    assistantPanelHtml: assistantPanelHtml, asMsgsHtml: asMsgsHtml, asBubbleHtml: asBubbleHtml,
+    asHintText: asHintText, asFocusInput: asFocusInput, asAutoGrow: asAutoGrow,
+    asContextPoint: asContextPoint, asNotesSnippet: asNotesSnippet, asContextText: asCtxText,
+    assistantContext: assistantContext, asCtxText: asCtxText,
+    asMsgIndexFromEl: asMsgIndexFromEl, asMsgIndexFromNode: asMsgIndexFromNode,
+    asMsgCode: asMsgCode, asHandleCodeClick: asHandleCodeClick,
+    asOnKeydown: asOnKeydown, asOnInput: asOnInput,
+    /* 🤖 常驻气泡（验收要断言：常驻、跟随上下文、和完整面板共用会话） */
+    openAsBubble: openAsBubble, closeAsBubble: closeAsBubble, toggleAsBubble: toggleAsBubble,
+    asBubbleOpen: asBubbleOpen, asBubbleRenderMsgs: asBubbleRenderMsgs, asExpand: asExpand,
+    asFabSync: asFabSync, asFabPing: asFabPing, asBubbleKeydown: asBubbleKeydown,
+    asRefreshCtx: asRefreshCtx, asCtxText: asCtxText,
+    /* 👁 读屏（验收要断言：读得到正文、不读自己、按前台优先） */
+    screenText: screenText, screenTextOf: screenTextOf, screenVisible: screenVisible,
+    screenSurfaces: screenSurfaces, SCREEN_MAX_CHARS: SCREEN_MAX_CHARS,
+    paneScrollNow: paneScrollNow, paneEl: paneEl, scrollNow: scrollNow,
+    tutorStateText: tutorStateText, TUTOR_STATE_KEY: TUTOR_STATE_KEY,
+    assistantContext: assistantContext,
+    asMaybeAutoAsk: asMaybeAutoAsk, restoreAssistantPanel: restoreAssistantPanel,
+    assistantBusy: function(){ return !!AS.busy; },
+    assistantMsgCount: function(){ return AS.msgs.length; },
+    aiAskAboutCode: aiAskAboutCode,
+    /* 💰 余额（契约 §2） */
+    AIBAL: AIBAL, loadAiBalance: loadAiBalance, aiBalanceRow: aiBalanceRow,
+    aiBalanceValue: aiBalanceValue, aiBalanceRefreshRow: aiBalanceRefreshRow,
+    aiBalanceTimeText: aiBalanceTimeText
+  };
+}catch(e){ /* 忽略 */ }

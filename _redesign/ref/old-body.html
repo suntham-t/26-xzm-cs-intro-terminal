@@ -1,0 +1,161 @@
+
+
+<!-- ============================ 左侧图标栏 ============================
+     横向顺序就是用户要的：图标栏 → 目录区 → 卡片区 → 课件/讲义（#rail）。
+     按钮从上到下：目录开关 / 试一试 / 可视化 ‖ 视频目录 / 100 Days / 作业 ‖ 搜索 / 检查更新
+     ‖ 底部：AI 设置。
+     分组用小横线隔开，靠 data-group 决定分隔线画在哪一组之前。
+     ★ 这些按钮的 data-act **原样复用**（videos/days/hw/search/update/aiset），
+       所以 onDocClick 的分发逻辑一行没动；变的是它们点开后面板落在哪（见 openModal）。 -->
+<div id="sideBar" role="toolbar" aria-label="功能区">
+  <button class="sb" id="btnToc" data-act="toc" data-tip="目录 · 章节 / 小节 / 知识点" aria-label="目录"><svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v8M8.5 12h7"/><path d="M4 5h7v14H4zM13 5h7v14h-7z"/></svg></button>
+  <button class="sb" id="btnRepl" data-act="repl" data-tip="试一试 · 敲几行立刻看结果" aria-label="试一试"><svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="M7 10.5l2.5 2L7 14.5M12.5 15.5h4.5"/></svg></button>
+  <button class="sb" id="btnTutor" data-act="tutor" data-tip="可视化 · 逐步单步执行，看变量怎么变" aria-label="可视化"><svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6.5h4M5 12h4M5 17.5h4"/><path d="M12.5 6.5h6.5M12.5 12h6.5M12.5 17.5h3"/><circle cx="11" cy="12" r="2.1" fill="currentColor" stroke="none"/></svg></button>
+  <button class="sb" id="btnVideos" data-act="videos" data-group="1" data-tip="视频目录 · 整套 164 个分P，可搜" aria-label="视频目录"><svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M10.5 9.6v4.8l4-2.4z" fill="currentColor" stroke="none"/></svg></button>
+  <button class="sb" id="btnDays" data-act="days" data-tip="100 Days · 22 天 Python 练习" aria-label="100 Days"><svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3.5v3M16 3.5v3"/><circle cx="12" cy="15" r="1.5" fill="currentColor" stroke="none"/></svg></button>
+  <button class="sb" id="btnHw" data-act="hw" data-tip="作业 · 题面 / 解析 / 用样例测" aria-label="作业"><svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="16" rx="2.2"/><path d="M9 10.2h6M9 13.6h6M9 17h3"/></svg></button>
+  <span class="sbSp"></span>
+  <button class="sb" id="btnSearch" data-act="search" data-group="1" data-tip="搜索 · 标题 + 正文" aria-label="搜索"><svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="5.5"/><path d="M14.8 14.8L19 19"/></svg></button>
+  <button class="sb" id="btnUpdate" data-act="update" data-tip="检查更新 · 讲义 / 课件变了没有" aria-label="检查更新"><svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.5 4.8v3.4h-3.4"/></svg></button>
+  <button class="sb" id="btnAiSet" data-act="aiset" data-tip="AI 设置 · Key / 模型 / 余额" aria-label="AI 设置"><svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2.1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="12" r="2.1" fill="currentColor" stroke="none"/><circle cx="7.5" cy="18" r="2.1" fill="currentColor" stroke="none"/></svg></button>
+</div>
+<!-- 悬停提示的气泡。挂在 body 层（图标栏外面）是**故意**的：
+     图标栏自己 overflow-y:auto，放它里面会被裁掉。 -->
+<div id="sbTip" role="tooltip" hidden></div>
+
+<div id="rightPane">
+<header>
+  <!-- 顶栏现在只放"我在哪"（书名 + 当前章节）。所有动作按钮都搬到左侧图标栏了 ——
+       用户的要求原话：「把以前右上角那一堆统一放到左侧做出图标栏」。
+       这样顶栏不再随按钮增减而折行，也不再和上面的东西抢横向空间。 -->
+  <div class="hrow top">
+    <span class="brand">计算概论 B</span>
+    <span class="chapterTitle" id="chapterTitle"></span>
+    <span class="secLabel" id="secLabel"></span>
+    <span class="sp"></span>
+    <span class="streak" id="streak"></span>
+  </div>
+</header>
+
+<div id="resume" hidden><button class="linkbtn" id="btnResume"></button></div>
+
+<div id="shell">
+  <aside id="toc">
+    <div class="panelHead"><b>目录</b>
+      <button class="xclose" id="btnTocClose" data-act="tocclose" aria-label="关闭" title="关闭（Esc）">
+        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 2 L12 12 M12 2 L2 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button></div>
+    <div id="tocBody"></div>
+  </aside>
+
+  <main>
+    <!-- 卡片区两个互斥的视图：
+         #card        —— 正常的知识卡片（翻卡流）
+         #inlinePanel —— 100 Days / 作业 / 视频目录，直接显示在这里**而不是弹层**
+                         （用户要求：「100days和作业，b站视频列表统一在卡片区展示」）
+         谁显示由 openModal() 的落点逻辑决定，见 §surface。 -->
+    <section id="card"></section>
+    <section id="inlinePanel" hidden>
+      <div class="panelHead"><b id="inlineTitle"></b>
+        <button class="xclose" data-act="closemodal" aria-label="关闭" title="关闭（Esc）">
+          <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 2 L12 12 M12 2 L2 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </button></div>
+      <div id="inlineBody"></div>
+    </section>
+  </main>
+
+  <aside id="rail">
+    <div class="panelHead"><b id="railTitle">材料</b>
+      <button class="railToggle" id="btnRailClose" data-act="railclose" aria-label="收起材料栏" title="收起材料栏">‹</button>
+    </div>
+    <div id="railBody"></div>
+  </aside>
+</div>
+
+<section id="repl" hidden>
+  <div class="replHead">
+    <b>🐍 试一试</b>
+    <span class="replHint" id="replHint">这是一个真的 Python 3.13，变量会留在会话里</span>
+    <span class="sp"></span>
+    <button class="tb" id="btnReplClear" data-act="replclear">清空会话</button>
+    <button class="tb" id="btnReplClose" data-act="replclose">收起 ▾</button>
+  </div>
+  <div id="replOut" class="replOut"></div>
+  <div class="replInputRow">
+    <span class="replPrompt" id="replPrompt">&gt;&gt;&gt; </span>
+    <textarea id="replIn" class="replIn" rows="1" spellcheck="false" autocomplete="off"
+      placeholder="敲一行 Python，回车执行（Shift+Enter 换行，↑/↓ 翻历史，Ctrl+Space 补全）"></textarea>
+    <div id="replComp" hidden></div>
+  </div>
+  <div id="replResize" title="拖动改高度"></div>
+</section>
+
+<footer>
+  <button id="btnPrev" data-act="prev">← 上一条</button>
+  <button id="btnNext" data-act="next">下一条 →</button>
+  <!-- ★ 进度点阵（本节第几个知识点，可点跳转）+ 计数放在底部翻卡这一排：
+       它们是"在卡片流里前进/后退"的一部分，跟上一页/下一页是同一类东西。
+       原来在顶栏第二行，那一行随按钮搬去左侧图标栏后取消了 —— 但 renderTop()
+       还在写这两个 id，放在这里才不会变成对 null 赋值（验收的 id 交叉检查抓到了）。 -->
+  <span class="dots" id="dots"></span>
+  <span class="dotCount" id="dotCount"></span>
+  <span class="navhint" id="navHint">← → 或 J K 翻卡 · Esc 关闭</span>
+</footer>
+</div><!-- /#rightPane -->
+
+<div id="scrim" data-act="scrim" hidden></div>
+
+<!-- ==================== 🤖 常驻助教（右下角） ====================
+     为什么不复用 #modal：openModal 是**单例全屏弹层 + 遮罩**，而 modalOpen() 被
+     30 多处用来判断"有没有弹层"（Esc、键盘翻页、拖动选中…）。把助教改成常驻面板
+     会连带破坏整个层栈和浏览器后退，所以这里完全独立，只共享 AS.msgs 这份会话状态
+     （长对话仍可「⤢ 展开」到原来那个完整面板）。
+
+     "感知当前页面内容"靠的是**读应用自己的结构化状态**，不是截图识别屏幕文字：
+       asContextPoint()  → S.cur / stepAt() → chapter / section / point
+       asNotesSnippet()  → 按知识点的 notes_lines 去 fetch 讲义原文
+     圆钮上那个小圆点每次刷新上下文时闪一下 —— 让人看得见"它正跟着你"。 -->
+<button id="asFab" data-act="asfab" hidden
+  title="🤖 助教：哪里不会问哪里（Enter 发送，Shift+Enter 换行）"
+  aria-label="打开助教" aria-expanded="false" aria-controls="asBubble">
+  <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+    <path fill="currentColor" d="M12 3C6.9 3 3 6.4 3 10.6c0 2.3 1.2 4.3 3.2 5.7-.1 1.1-.6 2.3-1.4 3.2-.2.2 0 .6.3.6 1.9 0 3.6-.7 4.8-1.6.7.1 1.4.2 2.1.2 5.1 0 9-3.4 9-7.6S17.1 3 12 3z"/>
+  </svg>
+  <span id="asFabDot" aria-hidden="true"></span>
+</button>
+
+<div id="asBubble" hidden role="dialog" aria-label="助教">
+  <div class="bubHead">
+    <b>🤖 助教</b>
+    <button class="bubCtx" id="asBubCtx" data-act="asctx" title="点一下重新读取当前页面内容（读的是应用自己的状态，不是截图）">…</button>
+    <span class="sp"></span>
+    <button class="bubIco" data-act="asexpand" title="展开成完整面板（长对话用）" aria-label="展开">⤢</button>
+    <button class="bubIco" data-act="asbclear" title="清空对话" aria-label="清空">🧹</button>
+    <button class="bubIco" data-act="asbclose" title="收起（Esc）" aria-label="收起">✕</button>
+  </div>
+  <div class="bubMsgs" id="asBubMsgs" data-bubble-msgs="1"></div>
+  <div class="bubInRow">
+    <!-- placeholder 必须**短到只占一行**：框宽只有 ~380px 减内边距，
+         "……（Enter 发送，Shift+Enter 换行）"这种长句会折成两行，而 asAutoGrow
+         只在用户开始打字后才跑 —— 初始高度是按一行算的，多出来的那行就被裁掉
+         （实测：textarea 高 36px，scrollHeight 53px，被裁 17px）。
+         按键说明放 title，鼠标停上去一样看得到。 -->
+    <textarea id="asBubIn" class="bubIn" data-assistant-input="1" rows="1" spellcheck="false"
+      autocomplete="off" placeholder="这里哪里不懂？"
+      title="Enter 发送 · Shift+Enter 换行 · Esc 收起"></textarea>
+    <button class="bubSend" data-act="assend">发送</button>
+  </div>
+</div>
+
+<div id="modal" hidden data-kind="">
+  <div class="modalBox">
+    <div class="panelHead"><b id="modalTitle"></b>
+      <button class="xclose" id="modalClose" data-act="closemodal" aria-label="关闭" title="关闭（Esc）">
+        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 2 L12 12 M12 2 L2 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button></div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<div id="toast" hidden></div>
+

@@ -1,0 +1,6 @@
+{
+ "id": "vid-spacer-order",
+ "note": "视频目录行：sp 挪到时长之前，时长才靠右（原来悬在行中间）",
+ "old": "      '<span class=\"vdur\">' + escapeHtml(String(fmtDur(p.duration)).replace(/^ \\(|\\)$/g, \"\")) + \"</span>\" +\n      '<span class=\"sp\"></span>' +",
+ "new": "      '<span class=\"sp\"></span>' +\n      '<span class=\"vdur\">' + escapeHtml(String(fmtDur(p.duration)).replace(/^ \\(|\\)$/g, \"\")) + \"</span>\" +"
+}

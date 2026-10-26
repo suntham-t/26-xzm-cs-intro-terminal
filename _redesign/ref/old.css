@@ -1,0 +1,906 @@
+
+  /* =====================================================================
+     设计语言：与 tools/pytutor/viewer.html 完全一致
+     白底 / 几乎无边框 / 大量留白 / 深蓝 #1f4e9c 作强调色
+     ===================================================================== */
+  :root{
+    --bg:#ffffff;
+    --paper:#f7f6f3;         /* 桌面：卡片下面那层"纸" */
+    --fg:#1f2328;
+    --dim:#6a737d;
+    --line:#d6d9e0;
+    --hair:#eceef2;          /* 发丝线：比 --line 更淡，用来代替边框 */
+    --accent:#1f4e9c;        /* 深蓝，主强调色 */
+    --accent2:#2a60b8;
+    --codebg:#fbfbfc;
+    --soft:#f7f8fa;
+    --warnbg:#fffdf2;        /* 点坑：黄底 */
+    --warnline:#f0e0a8;
+    --warntx:#7a6a1e;
+    --cellbg:#fdf6c9;
+    --err:#c62828;
+    --errbg:#fdecea;
+    --ok:#0a7d3c;
+    --okbg:#f0f9f2;
+    /* ============ 字体三套（用户要求中文用宋体） ============
+       坑 1：SimSun 自带的拉丁是 Courier 味位图 → **拉丁衬线放最前**，
+             CSS 逐字符匹配：英文命中 Georgia，中文 Georgia 没有 → 落到宋体。
+       坑 2：宋体比无衬线细，小字号会糊 → UI 小字（按钮/chip/计数）留在无衬线。
+       坑 3：宋体要更大字号、更大行高。
+       坑 4：Georgia 是旧式数字 → 数字类的 UI 留在无衬线里。
+       不要用 NSimSun（全角等宽版，正文会变得很稀）。
+       想改回无衬线：把 --font-read 换成 --font-ui 的栈即可。 */
+    --font-read:Georgia,Cambria,"Times New Roman",SimSun,"宋体",
+                "Source Han Serif SC","Noto Serif CJK SC",serif;
+    --font-ui:system-ui,"Segoe UI","Microsoft YaHei",sans-serif;
+    --font-mono:Consolas,"Cascadia Mono","Courier New",monospace;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  html,body{height:100%}
+  /* ============================ 整体骨架 ============================
+     横向：左侧图标栏(#sideBar) ‖ 右半区
+     右半区竖向：顶栏(header，只放"我在哪") / #shell(目录 ‖ 卡片区 ‖ 材料栏) / REPL / footer
+     ★ 图标栏是 body 的直接子元素、和右半区**并排**，所以它天然占满整个高度
+       （顶栏也在右半区里，不再横跨整页）—— 用户要的"图标栏在最左"就是这个意思。 */
+  body{
+    margin:0; background:var(--paper); color:var(--fg);
+    font:14px/1.6 var(--font-ui);
+    display:flex; flex-direction:row; overflow:hidden;
+  }
+  #rightPane{flex:1; min-width:0; min-height:0; display:flex; flex-direction:column; overflow:hidden}
+  /* ★ 右半区内部纵向分配必须写全：原来 #shell 是 body 的 flex 子项（自己的 flex:1 生效），
+     现在它成了 #rightPane 的子项 —— 只靠 #shell 自己的 flex:1 本来也行，但 header/footer
+     没有 flex:none 时会被一起拉伸/压缩（实测症状：内容被挤成底部一小条）。
+     所以这里把四段的分配一次说清：顶栏固定 / 主体长高 / REPL 固定 / 底栏固定。 */
+  #rightPane > header, #rightPane > footer, #rightPane > #repl{flex:none}
+
+  /* ---------------------------- 左侧图标栏 ---------------------------- */
+  #sideBar{
+    flex:none; width:52px; height:100%;
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+    padding:8px 0 10px;
+    background:#fff; border-right:1px solid var(--hair);
+    z-index:52;                       /* 在遮罩(40)/REPL(45)之上，弹层(60)之下 */
+    /* ★ 窗口不高时允许自己滚动，并且**别压扁图标**：按钮 flex:none + overflow-y:auto。
+       实测症状：不加这两条时，矮窗口下 .sbSp{flex:1} 会把中间的图标挤出去，
+       底部的 🔍🔄⚙️ 掉到看不见的地方（图标栏"少了一半图标"）。 */
+    overflow-y:auto; overflow-x:hidden;
+    scrollbar-width:none;
+  }
+  #sideBar::-webkit-scrollbar{width:0; height:0}
+  .sb{
+    flex:none; width:38px; height:38px; padding:0;
+    display:flex; align-items:center; justify-content:center;
+    line-height:1;
+    background:none; border:0; border-radius:9px; cursor:pointer;
+    color:var(--fg);
+  }
+  /* 图标：24×24 描边网格，渲染 15px。用 currentColor 所以三态全跟着 .sb 的 color 走
+     （常态 --fg / 悬停 / 选中 --accent），换主题不用重画。
+     —— 以前这里是 emoji（font-size:19px）：彩色位图字形，不继承颜色，
+        字重/基线由系统字体定，选中态只能靠背景色区分。 */
+  .sb .sbi{display:block; width:15px; height:15px}
+  .sb:hover:not(:disabled){background:var(--soft); border-color:transparent}
+  .sb.on{background:#eef4fb; color:var(--accent)}
+  /* 分隔线：给某组第一个按钮加 data-group，它上面画一条发丝线 */
+  .sb[data-group]{margin-top:9px; position:relative}
+  .sb[data-group]::before{
+    content:""; position:absolute; top:-5px; left:5px; right:5px;
+    height:1px; background:var(--hair);
+  }
+  .sbSp{flex:1; min-height:8px}      /* 把最后几个（搜索/更新/设置）压到底部 */
+  /* ---------------------------- 图标栏的自定义提示 ----------------------------
+     为什么不用原生 title：要悬停 1 秒多才弹、而且只显示一长串整句；用户要的是
+     "鼠标放上就显示功能"。所以提示文字放 data-tip，由 sbHoverShow() 画气泡。
+     ★ 气泡挂在 body 上是**故意**的：图标栏自己 overflow-y:auto，放它里面会被裁掉。 */
+  #sbTip{
+    position:fixed; z-index:90; pointer-events:none;
+    max-width:260px; padding:6px 10px; border-radius:8px;
+    background:rgba(31,35,40,.95); color:#fff;
+    font:12.5px/1.45 var(--font-ui); white-space:nowrap;
+    box-shadow:0 4px 16px rgba(0,0,0,.22);
+    opacity:0; transition:opacity .1s ease;
+  }
+  #sbTip.on{opacity:1}
+  #sbTip[hidden]{display:none}
+  /* 代码 / 终端输出：任何情况下都不许变成宋体 */
+  code,pre,.mono,.replOut,.replIn,.rl-in,.rl-out,.cnRawPlain{
+    font-family:var(--font-mono);
+  }
+  /* 中文教材的做法：正文宋体、图表标注黑体。这些"读的内容"用 --font-read */
+  .body,.md,h2.cardTitle,.emptyCard h2,.endCard h2,.railHint,
+  .cnTitle,.cnDetail,.cnHint{
+    font-family:var(--font-read);
+  }
+  /* 宋体在大字号下不要合成粗体（SimSun 只有 400/700，中间字重会被算法加粗，屏幕上发糊）。
+     强调靠字号和颜色，不靠字重。 */
+  h2.cardTitle,.emptyCard h2,.endCard h2{font-weight:500}
+  .body .md-h{font-weight:500}
+  code,pre,.mono{font-family:var(--font-mono)}
+  button{font:inherit; color:var(--fg); background:#fff; border:1px solid var(--line);
+    border-radius:6px; padding:5px 12px; cursor:pointer}
+  button:hover:not(:disabled){border-color:#a9b0bd; background:var(--soft)}
+  button:disabled{opacity:.42; cursor:default}
+  button.primary{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
+  button.primary:hover:not(:disabled){background:var(--accent2); border-color:var(--accent2); color:#fff}
+  button.linkbtn{border:0; background:none; padding:0; color:var(--accent);
+    text-decoration:underline; cursor:pointer; border-radius:0}
+  button.linkbtn:hover:not(:disabled){background:none; color:var(--accent2)}
+  button:focus-visible{outline:2px solid rgba(31,78,156,.45); outline-offset:1px}
+
+  /* ============================ 顶栏 ============================
+     顶栏现在**只放"我在哪"**（书名 + 当前章节 + 连击天数）。动作按钮全部搬到了
+     左侧图标栏(#sideBar)，所以这里不需要按钮样式、响应式折行、也不要弹出菜单了。
+     ★ 原来那套 .hrow.bottom + #headMenu + .mi + @media 折行规则已随改动删除；
+       如果以后又往顶栏塞按钮，先想清楚"为什么不是放图标栏"。 */
+  header{flex:none; padding:7px 22px 6px; border-bottom:1px solid var(--hair); background:#fff}
+  /* 面包屑：品牌 › 章 › 节。分隔符由 ::before 生成，HTML 里不用多塞字符。
+     字号收到 12/12.5，靠字距和颜色分层，别用四种粗体互相打架。 */
+  .hrow{display:flex; align-items:center; gap:0; flex-wrap:wrap}
+  .brand{font:600 12px/1 var(--font-ui); letter-spacing:.14em; color:var(--accent)}
+  .chapterTitle{font-size:12.5px; color:#5f6a76}
+  .brand+.chapterTitle::before,.chapterTitle+.secLabel::before{
+    content:"›"; margin:0 9px; color:#c6ccd5; font-weight:400; font-size:12px}
+  .sp{flex:1}
+  .streak{font-size:12.5px; color:#7d8794; white-space:nowrap}
+  .streak b{color:var(--accent); font-weight:600}
+  @media (max-width:1000px){
+    header{padding-left:14px; padding-right:14px}
+  }
+  /* 层级反了会更难读：'第 2 节' 是坐标，压暗；节名才是"我在看什么"，加粗 */
+  .secLabel{font-size:12.5px; color:#6a737d; font-weight:400; white-space:nowrap}
+  .secTitleInl{font-weight:600; color:var(--fg); font-size:12.5px}
+  /* 进度点阵：本节全部知识点，学一个点亮一个 */
+  .dots{display:flex; align-items:center; gap:5px; flex-wrap:wrap}
+  .dot{
+    width:9px; height:9px; border-radius:50%; padding:0; border:1px solid #cdd3dc;
+    background:#fff; cursor:pointer; display:inline-block;
+    transition:transform .12s ease, border-color .12s ease;
+  }
+  .dot:hover{transform:scale(1.18)}
+  .dot:hover{border-color:var(--accent)}
+  .dot.on{background:var(--accent); border-color:var(--accent)}
+  /* 当前位置填实 + 一圈浅环：空心的环和"没学"看不出差别 */
+  .dot.cur{background:var(--accent); border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(31,78,156,.16)}
+  .dotCount{font:400 11.5px/1 var(--font-ui); color:#9aa3ae;
+    font-variant-numeric:tabular-nums; letter-spacing:.02em}
+
+  /* 「继续上次」条 */
+  #resume{flex:none; padding:6px 22px; border-bottom:1px solid var(--hair); background:var(--soft)}
+  #resume button{font-size:13px}
+
+  /* ============================ 卡片区 ============================ */
+  /* 横向顺序（用户要求）：左侧图标栏 → 目录 | 卡片 | 材料栏 */
+  #shell{flex:1; min-height:0; display:flex; align-items:stretch}
+  main{flex:1; min-width:0; min-height:0; overflow-y:auto; display:flex;
+    justify-content:center; align-items:flex-start; padding:26px 24px 52px}
+  /* #card 与 #inlinePanel 共用这套"卡片外观"：它们是卡片区里两个**互斥**的视图
+     （正常翻卡 vs 100 Days / 作业 / 视频目录内嵌）。谁显示由 openModal 的落点决定。 */
+  #card, #inlinePanel{
+    width:100%; max-width:760px; min-width:0;
+    background:#fff; border:1px solid rgba(0,0,0,.045); border-radius:12px;
+    padding:28px 32px 30px;
+    box-shadow:0 1px 2px rgba(31,35,40,.04), 0 10px 30px rgba(31,35,40,.05);
+  }
+  /* 内嵌面板通常比卡片高（视频目录 164 行、100 Days 22 天），给底部留点余量 */
+  #inlinePanel{padding-bottom:40px}
+  /* 空状态卡/收尾卡自己已经有内边距，别再叠一层 */
+  #card>.emptyCard:only-child, #card>.endCard:only-child{padding:8px 8px 6px}
+  /* 章级材料卡：标题居中，正文照旧左对齐（endCard 默认是居中的） */
+  .endCard.chapterCard{text-align:left}
+  .endCard.chapterCard>.kicker,.endCard.chapterCard>h2{text-align:center}
+  .endCard.chapterCard>.endBtns{justify-content:center}
+  .endCard.chapterCard>.body{margin-top:4px}
+  @media (prefers-reduced-motion:no-preference){
+    #card.enter{animation:fadein .2s ease-out}
+  }
+  @keyframes fadein{from{opacity:0; transform:translateY(3px)} to{opacity:1; transform:none}}
+
+  /* ---- 视频区 ---- */
+  .videoWrap{margin:0 0 22px}
+  iframe.bili{width:100%; aspect-ratio:16/9; height:auto; min-height:300px;
+    border:1px solid var(--hair); border-radius:8px; background:#000; display:block}
+  .videoMeta{margin-top:7px; font-size:12.5px; color:var(--dim);
+    display:flex; align-items:baseline; gap:8px; flex-wrap:wrap}
+  /* 视频列表：一行一个分P（P号 + 标题 + 分组标签），点了切分P。克制，不抢正文的注意力 */
+  button.vlink{border:0; background:none; padding:2px 6px; border-radius:6px; cursor:pointer;
+    font-family:var(--font-ui); font-size:12.5px; line-height:1.7; color:var(--dim); text-align:left;
+    display:flex; align-items:baseline; gap:8px; width:100%}
+  button.vlink:hover:not(:disabled){background:var(--soft); border:0; color:var(--accent)}
+  button.vlink.on{color:var(--accent); font-weight:600; background:var(--soft)}
+  .vHead{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; margin-bottom:4px}
+  .vList{display:flex; flex-direction:column; gap:1px}
+  .vno{font-family:var(--font-mono); font-size:11.5px; color:#98a1ae; min-width:34px}
+  .vttl{flex:1 1 auto}
+  .vdur{font-family:var(--font-mono); font-size:11px; color:#aab2bd; white-space:nowrap}
+  .vlev{font-size:11px; padding:0 6px; border-radius:9px; border:1px solid var(--line);
+    background:var(--soft); color:var(--dim); white-space:nowrap; min-width:30px; text-align:center}
+  .videopending{background:var(--warnbg); border-color:var(--warnline); color:var(--warntx)}
+  .vbadge{font-size:11.5px; color:#98a1ae; margin-right:6px; white-space:nowrap}
+  .tag{font-size:11.5px; padding:0 6px; border-radius:9px; border:1px solid var(--line);
+    background:var(--soft); color:var(--dim); white-space:nowrap}
+  .tag.unconf{background:var(--warnbg); border-color:var(--warnline); color:var(--warntx)}
+
+  /* ---- 提示条 ---- */
+  .warnbar{border-radius:7px; padding:8px 12px; font-size:13px; line-height:1.65;
+    background:var(--warnbg); border:1px solid var(--warnline); color:var(--warntx)}
+  /* 「黑马这套没讲这块」是**信息**，不是**警告**：104 张卡里 76 张都有它，
+     黄底会让它变成页面上最响的东西。改成一条淡竖线 + 灰字：还在，但不抢正文。 */
+  .warnbar.novideo{margin:0 0 20px; padding:2px 0 2px 11px; border:0;
+    border-left:2px solid #e2e6ec; background:none; color:#8a94a0;
+    font-size:12.5px; line-height:1.6; border-radius:0}
+  .warnbar.pitfall{margin:20px 0 0}
+  .warnbar.pitfall b{display:block; margin-bottom:2px; color:#8a6d00}
+  .warnbar.info{background:#f4f8ff; border-color:#d8e4f7; color:#2c4a75}
+  .warnbar.err{background:var(--errbg); border-color:#f0bcbc; color:#7d1f1f}
+
+  /* ---- 标题 ---- */
+  .kicker{font-size:12px; color:#98a1ae; letter-spacing:.04em}
+  .kicker b{color:var(--accent); font-weight:600}
+  h2.cardTitle{margin:4px 0 18px; font-size:24px; line-height:1.42}
+
+  /* ---- 正文（markdown 渲染结果）：宋体要更大字号 + 更大行高 ----
+     font-variant-numeric：Georgia 默认是旧式数字（3 4 5 7 9 高低不一），
+     正文里指定 lining-nums 让数字对齐；不支持这条特性的字体会自动忽略。 */
+  .body{font-size:17px; line-height:1.95; color:var(--fg); overflow-wrap:anywhere;
+    font-variant-numeric:lining-nums tabular-nums}
+  .body code,.body pre{font-family:var(--font-mono)}
+  .body>*:first-child{margin-top:0}
+  .body p{margin:0 0 12px}
+  .body .md-h{margin:22px 0 8px; font-weight:500; line-height:1.4}
+  .body .md-h1,.body .md-h2,.body .md-h3{font-size:18px}
+  .body .md-h4,.body .md-h5,.body .md-h6{font-size:15px; color:#33404f}
+  .body ul,.body ol{margin:0 0 12px; padding-left:24px}
+  .body li{margin:3px 0}
+  .body blockquote{margin:12px 0; padding:6px 14px; border-left:3px solid #cfd8e6;
+    background:#f8fafd; color:#3b4a5e; border-radius:0 5px 5px 0}
+  .body blockquote p:last-child{margin-bottom:0}
+  .body pre.md-pre{margin:12px 0; padding:10px 12px; background:var(--codebg);
+    border:1px solid var(--hair); border-radius:7px; overflow:auto;
+    font:13px/1.7 Consolas,"Cascadia Mono",monospace; white-space:pre}
+  .body code{background:rgba(31,35,40,.07); border-radius:3px; padding:1px 5px;
+    font-size:.92em}
+  .body pre code{background:none; padding:0; font-size:13px}
+  .body a{color:var(--accent); text-decoration:underline; text-underline-offset:2px}
+  .body a:hover{color:var(--accent2)}
+  .body hr.md-hr{border:0; border-top:1px solid var(--hair); margin:20px 0}
+  /* 公式里的上下标：宋体 + sup/sub 容易把行高顶开，钉住 line-height */
+  .body sup,.body sub,.md sup,.md sub{font-size:.7em; line-height:0}
+  .body sup,.md sup{vertical-align:super}
+  .body sub,.md sub{vertical-align:sub}
+  /* 生成的 <img> 不带 class（严格只输出 src/alt/style），所以这里用元素选择器兜住宽度 */
+  .body img,.md img{max-width:100%; height:auto; border-radius:6px; margin:8px 0; display:block}
+  /* 讲义自带的复习题：<details> 默认折叠，展开才看答案；<mark> 高亮答案 */
+  .body mark,.md mark{background:#fdf6c9; color:inherit; border-radius:3px; padding:0 3px}
+  /* 搜索结果跳转后的定位高亮（highlightInCard 生成，随卡片重绘自动消失）。
+     ★ 必须写 .body mark.findmark 这一档：上面那条 `.body mark` 是 (0,1,1)，
+       只写 .findmark(0,1,0) 会被它压住 —— 命中词就变成讲义自带的淡黄，看不见。 */
+  .findmark, .body mark.findmark, .md mark.findmark{background:#ffe58a; color:inherit;
+    border-radius:3px; padding:0 2px; box-shadow:0 0 0 2px rgba(240,180,0,.22)}
+  .findmark.here, .body mark.findmark.here, .md mark.findmark.here{background:#ffd24d;
+    box-shadow:0 0 0 3px rgba(240,180,0,.42)}
+  .body details,.md details{margin:14px 0; border:1px solid var(--hair); border-radius:8px;
+    background:#fcfcfd; padding:8px 14px 10px}
+  .body details>summary,.md details>summary{cursor:pointer; font-weight:600; color:#33404f;
+    padding:2px 0; outline:none; user-select:none}
+  .body details>summary:hover,.md details>summary:hover{color:var(--accent)}
+  .body details[open]>summary,.md details[open]>summary{margin-bottom:8px;
+    border-bottom:1px solid var(--hair); padding-bottom:7px}
+  .body details>*:last-child,.md details>*:last-child{margin-bottom:0}
+  .body figure,.md figure{margin:16px 0; padding:0}
+  .body figcaption,.md figcaption{font-size:12.5px; color:var(--dim); text-align:center; margin-top:5px}
+  .body table.md-table{border-collapse:collapse; margin:12px 0; font-size:13.5px; width:100%}
+  .body table.md-table th,.body table.md-table td{border-bottom:1px solid var(--hair);
+    padding:5px 10px; text-align:left; vertical-align:top}
+  .body table.md-table th{color:var(--dim); font-weight:600; background:var(--soft)}
+
+  /* ---- 「跑一下」块 ---- */
+  .runBlock{margin:22px 0 0; border:1px solid var(--hair); border-radius:9px;
+    background:var(--soft); overflow:hidden}
+  .runHead{padding:6px 14px; font-size:13px; font-weight:600; color:#33404f;
+    background:#fff; border-bottom:1px solid var(--hair)}
+  .runCode{margin:0; padding:11px 14px; background:var(--codebg); overflow:auto;
+    font:13px/1.7 Consolas,"Cascadia Mono",monospace; white-space:pre}
+  .runActions{display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    padding:10px 14px; background:#fff; border-top:1px solid var(--hair)}
+  .runNote{font-size:12px; color:var(--dim)}
+
+  /* ---- 参考区 ---- */
+  .refs{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:22px 0 0;
+    padding-top:16px; border-top:1px solid var(--hair)}
+  button.chip{font-size:12.5px; padding:3px 11px; border-radius:14px; background:#fff}
+  button.chip:hover{border-color:var(--accent); color:var(--accent)}
+  span.chip.more{background:transparent; border-style:dashed; color:var(--dim); cursor:default}
+
+  /* ---- 课件缩略图 ---- */
+  .slides{margin:20px 0 0}
+  .secHead{font-size:12.5px; color:var(--dim); margin-bottom:7px}
+  .thumbRow{display:flex; gap:12px; flex-wrap:wrap}
+  button.thumbBtn{position:relative; padding:0; border:1px solid var(--hair); border-radius:7px;
+    background:#fff; overflow:hidden; display:flex; flex-direction:column; align-items:stretch}
+  button.thumbBtn:hover{border-color:var(--accent); box-shadow:0 4px 14px rgba(31,35,40,.10)}
+  button.thumbBtn img.thumb{width:150px; height:auto; display:block; background:var(--soft)}
+  /* 页码压在图上当一枚小标签；原来是一条占高度的灰条，读起来像图片的一部分 */
+  button.thumbBtn .thumbCap{position:absolute; left:6px; bottom:6px; padding:0 5px;
+    max-width:calc(100% - 12px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    border-radius:4px; background:rgba(255,255,255,.92); color:#5f6a76;
+    font:600 10.5px/1.65 var(--font-ui); box-shadow:0 1px 3px rgba(31,35,40,.14)}
+  button.thumbBtn.missing{opacity:.5; cursor:default}
+  button.thumbBtn.missing:hover{border-color:var(--hair)}
+  /* 「展开全部（共 N 页）」：低调，就是一个文字按钮 */
+  button.thumbMore{align-self:center; padding:6px 12px; font-size:12.5px; color:var(--dim);
+    background:none; border:1px dashed var(--hair); border-radius:7px; cursor:pointer;
+    font-family:var(--font-ui)}
+  button.thumbMore:hover{color:var(--accent); border-color:var(--accent); background:var(--soft)}
+
+  /* ---- 空状态 / 收尾卡 ---- */
+  .emptyCard,.endCard{text-align:center; padding:26px 24px 30px}
+  .emptyCard .emptyIco,.endCard .endIco{font-size:38px; line-height:1.2}
+  .emptyCard h2,.endCard h2{margin:6px 0 10px; font-size:22px}
+  .endCard .endStats{font-size:15px; color:#33404f; margin:0 0 4px}
+  .endCard .endSub{font-size:13px; color:var(--dim)}
+  .endCard .endBtns{margin-top:22px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap}
+  .emptyCard p{color:var(--dim); font-size:14px; margin:6px 0 14px}
+  .errList{list-style:none; margin:0 0 16px; padding:0; font-size:12.5px; color:var(--dim)}
+  .errList code{background:rgba(31,35,40,.06); border-radius:3px; padding:0 4px}
+
+  /* ============================ 底栏 ============================ */
+  footer{flex:none; border-top:1px solid var(--hair); padding:10px 22px; background:#fff;
+    display:flex; align-items:center; gap:9px; justify-content:center; position:relative}
+  /* 翻卡按钮是导航不是主操作：边框降到发丝级，悬停才出强调色 */
+  footer button{padding:5px 15px; font-size:12.5px; color:#4a5461; border-color:var(--hair);
+    background:#fff}
+  footer button:hover:not(:disabled){color:var(--accent); border-color:#c3d3ec; background:#fff}
+  /* 底部的点阵/计数：跟翻卡按钮同一排（navhint 是绝对定位在右边的，不参与流） */
+  footer .dots{gap:6px; margin-left:6px}
+  footer .dotCount{margin-left:6px}
+  /* ★ 右边要给角上的 🤖 圆钮让位：原来 right:22px，提示的最后两个字被圆钮压住 */
+  footer .navhint{position:absolute; right:88px; font-size:11.5px; color:#a2aab4;
+    letter-spacing:.01em}
+  @media (max-width:1000px){ footer .navhint{display:none} }
+
+  /* ============ 关闭按钮：统一的 ✕ 图标按钮 ============
+     以前是 .linkbtn（蓝字 + 下划线），看起来像正文里的超链接，跟"关闭"这个动作不搭。
+     现在全站一个类：灰、无下划线、方形悬停底色；✕ 用内联 SVG（字符 ✕ 在不同字体里粗细不一，
+     有的字体还没这个字形会变方块），颜色靠 currentColor 跟父元素走。 */
+  .xclose{
+    width:30px; height:30px; border-radius:8px;
+    display:inline-flex; align-items:center; justify-content:center;
+    background:transparent; border:0; padding:0;
+    color:#8a94a0; font-size:17px; line-height:1; cursor:pointer;
+    text-decoration:none;
+    transition:background-color .12s ease, color .12s ease;
+  }
+  .xclose:hover:not(:disabled){background:rgba(0,0,0,.06); color:var(--fg); border:0}
+  .xclose:active{background:rgba(0,0,0,.10)}
+  .xclose:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+  .xclose svg{display:block}
+  /* 面板头：✕ 钉在右上角，不跟着标题流 */
+  .panelHead{position:relative; padding-right:46px}
+  .panelHead .xclose{position:absolute; top:50%; right:8px; transform:translateY(-50%)}
+  /* 右栏的收起/展开：只留一个折叠箭头（不搞"收起 ✕"两个动作） */
+  .railToggle{
+    width:26px; height:26px; border-radius:7px; display:inline-flex;
+    align-items:center; justify-content:center; border:0; background:transparent;
+    color:#8a94a0; font-size:15px; line-height:1; cursor:pointer;
+    transition:background-color .12s ease, color .12s ease;
+  }
+  .railToggle:hover:not(:disabled){background:rgba(0,0,0,.06); color:var(--fg); border:0}
+  .railToggle:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+  /* 收起来的右栏只剩一条窄边 + 一个 › */
+  #rail.collapsed{width:34px}
+  #rail.collapsed .panelHead{padding:8px 4px; justify-content:center; padding-right:4px}
+  #rail.collapsed #railTitle{display:none}
+  #rail.collapsed #railBody{display:none}
+  /* 宽屏：常驻左栏；窄屏：滑出抽屉（靠 body[data-wide] 切换，避免和 JS 的断点判断打架） */
+  /* ============================ 左栏目录 ============================ */
+  #toc{flex:none; width:272px; min-height:0; display:flex; flex-direction:column;
+    border-right:1px solid var(--hair); background:transparent}
+  body[data-wide="0"] #toc{position:fixed; top:0; left:0; bottom:0; width:340px; max-width:86vw;
+    z-index:50; background:#fff; box-shadow:2px 0 14px rgba(31,35,40,.07)}
+  .panelHead{flex:none; display:flex; align-items:center; gap:10px;
+    padding:11px 16px; border-bottom:1px solid var(--hair)}
+  .panelHead b{font-size:14px}
+  #tocBody{flex:1; overflow:auto; padding:8px 10px 24px}
+
+  /* ============================ 右栏材料 ============================ */
+  #rail{flex:none; width:308px; min-height:0; display:flex; flex-direction:column;
+    border-left:1px solid var(--hair); background:transparent}
+  #railBody{flex:1; overflow:auto; padding:12px 14px 24px}
+  .railHint{font-size:12.5px; color:var(--dim); line-height:1.7; padding:6px 2px}
+  #railBody .refs{margin:0; padding-top:0; border-top:0; flex-direction:column; align-items:stretch}
+  /* 右栏参考项做成"列表行"，不是"输入框"：原来整圈边框 + 全宽圆角，
+     看起来像可编辑的输入框，反而不像能点的链接。 */
+  #railBody .refs{gap:2px}
+  #railBody .refs button.chip,#railBody .refs span.chip{width:100%; text-align:left;
+    border-radius:6px; border-color:transparent; background:transparent;
+    display:flex; align-items:center; gap:7px; padding:5px 8px; color:#33404f}
+  #railBody .refs button.chip::after{content:"›"; margin-left:auto; color:#c3cad3; font-size:13px}
+  #railBody .refs button.chip:hover:not(:disabled){background:var(--soft);
+    border-color:transparent; color:var(--accent)}
+  #railBody .refs button.chip:hover::after{color:var(--accent)}
+  #railBody .slides{margin-top:2px}
+  #railBody .thumbRow{flex-direction:column}
+  #railBody button.thumbBtn img.thumb{width:100%}
+  #railBody .secHead{margin:14px 2px 7px}
+  #railBody .refs+.slides .secHead{margin-top:16px}
+
+  /* ============================ 🐍 内置终端 ============================ */
+  /* 底部上滑抽屉：占版面而不是盖住卡片，所以翻卡阅读完全不受影响。
+     z-index 压在遮罩之上、弹层之下 —— 开着弹层也能顺手敲一行。 */
+  #repl{flex:none; position:relative; z-index:45; display:flex; flex-direction:column;
+    height:300px; background:#fff; border-top:1px solid var(--hair);
+    box-shadow:0 -4px 18px rgba(31,35,40,.06)}
+  .replHead{flex:none; display:flex; align-items:center; gap:10px; padding:7px 18px;
+    border-bottom:1px solid var(--hair)}
+  .replHead b{font-size:13.5px}
+  .replHint{font-size:12px; color:var(--dim)}
+  .replOut{flex:1; min-height:0; overflow:auto; padding:10px 18px 14px; background:var(--codebg);
+    font:13px/1.7 Consolas,"Cascadia Mono","Courier New",monospace}
+  .replInputRow{flex:none; display:flex; align-items:flex-start; gap:8px;
+    padding:8px 18px 10px; border-top:1px solid var(--hair); position:relative}
+
+  /* ---- REPL 代码补全面板（贴输入框右上角，不挡正在敲的字） ---- */
+  #replComp{position:absolute; right:18px; bottom:calc(100% + 6px); z-index:60;
+    min-width:150px; max-width:min(340px, 70vw); max-height:206px; overflow:auto;
+    background:#fff; border:1px solid var(--line); border-radius:8px;
+    box-shadow:0 6px 20px rgba(31,35,40,.13); padding:3px;
+    font-family:var(--font-mono); font-size:12.5px}
+  #replComp[hidden]{display:none!important}
+  #replComp .ci{display:block; width:100%; text-align:left; border:0; background:none;
+    border-radius:5px; padding:5px 9px; font-family:inherit; font-size:inherit;
+    color:#33404f; cursor:pointer; white-space:nowrap; overflow:hidden;
+    text-overflow:ellipsis; line-height:1.35}
+  #replComp .ci:hover{background:var(--soft); border:0}
+  #replComp .ci.on{background:#eef4fb; color:var(--accent); font-weight:600}
+  #replComp .cfoot{border-top:1px solid var(--hair); margin-top:3px; padding:4px 9px 2px;
+    font-family:var(--font-ui); font-size:11px; color:var(--dim); white-space:nowrap}
+  .replPrompt{flex:none; color:var(--accent); font:13px/1.7 Consolas,"Cascadia Mono",monospace;
+    padding-top:2px; user-select:none}
+  .replIn{flex:1; min-width:0; border:0; outline:none; resize:none; background:transparent;
+    color:var(--fg); font:13px/1.7 Consolas,"Cascadia Mono",monospace;
+    min-height:24px; max-height:132px; overflow:auto; padding:2px 0}
+  #replResize{position:absolute; top:-4px; left:0; right:0; height:9px; cursor:ns-resize; z-index:2}
+  #replResize:hover{background:rgba(31,78,156,.22)}
+  .rl{margin:0 0 6px}
+  .rl-in{color:var(--accent); white-space:pre-wrap; word-break:break-word}
+  .rl-in .rp{color:#8fa8cc; margin-right:7px; user-select:none}
+  .rl-out{margin:0 0 9px; white-space:pre-wrap; word-break:break-word; color:var(--fg)}
+  .rl-note{color:var(--dim); font-size:12.5px; font-family:var(--font-ui)}
+  .rl-note code{background:rgba(31,35,40,.06); border-radius:3px; padding:0 4px}
+  .rl-err{border:1px solid #f0bcbc; background:var(--errbg); border-radius:7px;
+    padding:8px 11px; margin-bottom:9px}
+  .cnTitle{font-weight:600; color:var(--err); margin-bottom:3px; font-size:13.5px}
+  .cnDetail{color:#7d1f1f; font-size:13px; line-height:1.7}
+  .cnHint{color:var(--accent); font-weight:600; margin-top:4px; font-size:13px}
+  details.cnRaw{margin-top:7px}
+  details.cnRaw summary{cursor:pointer; font-size:12px; color:var(--dim); outline:none}
+  details.cnRaw pre{margin:5px 0 0; padding:5px 8px; border-radius:4px; background:rgba(0,0,0,.05);
+    font:12px/1.6 Consolas,"Cascadia Mono",monospace; white-space:pre-wrap;
+    word-break:break-word; color:#5a626c}
+  .cnRawPlain{margin:0; white-space:pre-wrap; word-break:break-word; color:#7d1f1f; font-size:12.5px}
+  button.tb.on{background:#eef4fb; border-color:#c9d8f0; color:var(--accent); font-weight:600}
+
+  /* ============================ 抽屉 / 弹层 ============================ */
+  #scrim{position:fixed; inset:0; background:rgba(31,35,40,.30); z-index:40}
+  #tocBody{flex:1; overflow:auto; padding:8px 10px 24px}
+  /* 章 → 节 → 知识点三级：章标题独占一行并压一条章线，节标题加粗，
+     知识点缩进 + 竖引导线 —— 之前三级同起一列，108 行读起来是一整块。 */
+  .tocCh{margin:18px 6px 6px; padding-top:14px; border-top:1px solid var(--hair);
+    font-size:13px; color:#33404f; font-weight:600; letter-spacing:.02em}
+  .tocCh:first-child{margin-top:2px; padding-top:0; border-top:0}
+  .tocSec{display:flex; align-items:baseline; gap:8px; margin:10px 6px 4px;
+    font-size:13px; font-weight:600; color:#28313b}
+  .tocCnt{margin-left:auto; font:400 10.5px/1.7 var(--font-ui); color:#aab2bd;
+    font-variant-numeric:tabular-nums}
+  .tocChId{font:600 10.5px/1 var(--font-mono); color:#aab2bd; margin-right:7px;
+    letter-spacing:.02em}
+  .tocNo{font:400 11.5px/1.5 var(--font-ui); color:#9aa3ae}
+  .tocTitle{font-weight:600}
+  /* ★ width 必须显式算：button 的 width:auto 是"贴合内容"，不是"填满"，
+     不写的话当前项那个蓝底只包住文字（实测 88px），看着像贴纸 */
+  button.tocPt{display:block; width:calc(100% - 8px); text-align:left; border:0; background:none;
+    margin-left:8px; padding:3px 8px 3px 12px; border-left:1px solid #e2e6ec;
+    border-radius:0 5px 5px 0; font-size:13px; color:#33404f}
+  button.tocPt:hover:not(:disabled){background:var(--soft); border:0;
+    border-left:1px solid #c9d0da; border-radius:0 5px 5px 0}
+  button.tocPt.done{color:var(--ok)}
+  button.tocPt.tocMat{color:var(--accent); font-weight:600}
+  button.tocPt.here{background:#eef4fb; color:var(--accent); font-weight:600;
+    box-shadow:inset 2px 0 0 var(--accent)}
+
+  #modal{position:fixed; inset:0; z-index:60; display:flex; align-items:center;
+    justify-content:center; padding:34px 20px}
+  .modalBox{background:#fff; border-radius:11px; width:100%; max-width:760px;
+    max-height:88vh; display:flex; flex-direction:column;
+    box-shadow:0 8px 34px rgba(31,35,40,.16)}
+  #modal[data-kind="lightbox"] .modalBox{max-width:1100px; background:#1b1f24; border:0}
+  #modal[data-kind="lightbox"] .panelHead{color:#e8eaee; border-bottom-color:#2c3238}
+  #modal[data-kind="lightbox"] .panelHead b{color:#e8eaee}
+  #modalBody{flex:1; min-height:0; overflow:auto; padding:14px 20px 22px}
+  #modal[data-kind="lightbox"] #modalBody{padding:0; display:flex; align-items:center;
+    justify-content:center}
+  .lbImg{max-width:100%; max-height:82vh; display:block}
+  .searchInput{width:100%; font-family:var(--font-ui); font-size:14px; line-height:1.5;
+    padding:7px 11px; border:1px solid var(--line); border-radius:7px; outline:none}
+  .searchInput:focus{border-color:var(--accent); box-shadow:0 0 0 3px rgba(31,78,156,.12)}
+  .searchHit{display:block; width:100%; text-align:left; border:0; background:none;
+    border-bottom:1px solid var(--hair); border-radius:0; padding:9px 4px}
+  .searchHit:hover:not(:disabled){background:var(--soft); border:0; border-bottom:1px solid var(--hair)}
+  .searchHit .sh{font-size:13.5px; font-weight:600; color:var(--fg)}
+  /* 命中行开头的章号：搜索跨章，不标章号就分不清"第 5 节"是哪一章的 */
+  .searchHit .shch{display:inline-block; font:600 11.5px/1.6 var(--font-ui);
+    color:var(--accent); background:#eef4fb; border-radius:4px; padding:0 5px; margin-right:1px}
+  .searchHit .sn{font-size:12.5px; color:var(--dim); margin-top:2px;
+    overflow-wrap:anywhere; line-height:1.6}
+  .searchHit .sn b{color:var(--accent); background:#eef4fb; border-radius:2px}
+  .topicRow{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
+    padding:6px 4px; border-bottom:1px solid var(--hair)}
+  .topicName{font-size:13px; font-weight:600; color:#33404f; min-width:120px}
+  .topicDays{display:flex; gap:6px; flex-wrap:wrap}
+  .md{font-size:16px; line-height:1.9; overflow-wrap:anywhere; font-variant-numeric:lining-nums tabular-nums}
+  .md code,.md pre{font-family:var(--font-mono)}
+  .md .md-h{margin:20px 0 8px; font-weight:500; font-size:17px}
+  .md pre.md-pre{margin:12px 0; padding:10px 12px; background:var(--codebg);
+    border:1px solid var(--hair); border-radius:7px; overflow:auto;
+    font:12.5px/1.7 Consolas,"Cascadia Mono",monospace; white-space:pre}
+  .md code{background:rgba(31,35,40,.07); border-radius:3px; padding:1px 5px; font-size:.92em}
+  .md pre code{background:none; padding:0}
+  .md blockquote{margin:12px 0; padding:6px 14px; border-left:3px solid #cfd8e6;
+    background:#f8fafd; color:#3b4a5e}
+  .md ul,.md ol{padding-left:24px; margin:0 0 12px}
+  .md a{color:var(--accent)}
+  .md hr.md-hr{border:0; border-top:1px solid var(--hair); margin:18px 0}
+  .md table.md-table{border-collapse:collapse; margin:12px 0; font-size:13px; width:100%}
+  .md table.md-table th,.md table.md-table td{border-bottom:1px solid var(--hair);
+    padding:5px 10px; text-align:left}
+  .md table.md-table th{color:var(--dim); background:var(--soft)}
+  .md img{margin:10px 0}
+  /* 独立成行的公式（$$...$$）。讲义和 100Days 里都有，光靠行内 $...$ 覆盖不到。
+     用等宽字体 + 略大的字号，跟正文拉开一点距离，但不要做成"代码块"那种盒子
+     —— 公式不是代码，加边框会让人以为里面有陷阱。 */
+  .md .md-math{display:block; margin:14px 0; padding:2px 0; text-align:center;
+    font-size:1.06em; line-height:2.1; overflow-x:auto}
+  .md .md-math sub,.md .md-math sup{font-size:.78em}
+  /* 分式：竖排 (分子)/(分母)。不用 <table>（会继承 md-table 的边框和宽度）。
+     inline-table 让它在行内也能跟文字基线对齐。 */
+  .frac{display:inline-table; vertical-align:middle; text-align:center;
+    margin:0 .18em; font-size:.95em; line-height:1.25; border-collapse:collapse}
+  .frac>span{display:table-row}
+  .frac>span>span{display:table-cell; padding:0 .3em; white-space:nowrap}
+  .frac>span:first-child>span{border-bottom:1px solid currentColor}
+  pre.notesPre{white-space:pre-wrap; word-break:break-word; background:var(--codebg);
+    border:1px solid var(--hair); border-radius:7px; padding:12px 14px;
+    font:12.5px/1.75 Consolas,"Cascadia Mono",monospace; margin:10px 0 0}
+  .noteHead{font-size:12.5px; color:var(--dim)}
+  .loading{color:var(--dim); font-size:13.5px; padding:14px 2px}
+
+  /* ---- OpenJudge 面板 ---- */
+  .ojNote{font-size:13.5px; line-height:1.75; color:#33404f; background:var(--warnbg);
+    border:1px solid var(--warnline); border-radius:8px; padding:11px 14px; margin-bottom:16px}
+  .ojNote code{background:rgba(0,0,0,.05); border-radius:3px; padding:1px 5px; font-size:12.5px}
+  .ojBtns{display:flex; flex-direction:column; gap:14px}
+  button.big{padding:12px 18px; font-size:14.5px}
+  .ojRow{display:flex; flex-direction:column; gap:4px}
+  .ojRow button{width:100%}
+  .ojUrl{display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding-left:2px}
+  .ojUrl code{font-family:var(--font-mono); font-size:12px; color:var(--dim);
+    background:var(--soft); border-radius:4px; padding:2px 6px; user-select:all}
+  .ojUrl.big2{margin-top:4px}
+  .ojSmall{margin-top:14px; font-size:12px; color:var(--dim); line-height:1.7}
+
+  /* ============================ 📝 作业 ============================ */
+  .hwHead{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin:2px 0 12px}
+  .hwHead .hwTitle{font-size:17px; font-weight:600; color:#33404f}
+  .hwDeadline{font-size:12.5px; color:var(--warntx); background:var(--warnbg);
+    border:1px solid var(--warnline); border-radius:12px; padding:1px 10px}
+  .hwList{display:flex; flex-direction:column; gap:2px; margin:6px 0 4px}
+  button.hwRow{display:flex; align-items:center; gap:12px; width:100%; text-align:left;
+    border:0; background:none; border-bottom:1px solid var(--hair); border-radius:0; padding:10px 6px}
+  button.hwRow:hover:not(:disabled){background:var(--soft); border:0; border-bottom:1px solid var(--hair)}
+  .hwNo{flex:none; width:26px; height:26px; border-radius:50%; background:var(--soft);
+    color:var(--dim); font-size:12.5px; line-height:26px; text-align:center; font-weight:600}
+  button.hwRow:hover .hwNo{background:#eef4fb; color:var(--accent)}
+  .hwRow .t{flex:1; min-width:0; font-size:14px; color:var(--fg); overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap}
+  .hwRate{flex:none; font-size:12.5px; color:var(--dim); font-variant-numeric:tabular-nums}
+  .hwRate b{color:var(--ok); font-weight:600}
+  .hwRate b.low{color:#c05600}
+  .hwGo{flex:none; font-size:12px; color:var(--accent)}
+  .hwActions{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; padding-top:14px;
+    border-top:1px solid var(--hair)}
+  .newHwRow{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px}
+  .newHwRow code{font-family:var(--font-mono); font-size:12.5px; background:rgba(0,0,0,.05);
+    border-radius:4px; padding:1px 6px}
+  /* 作业面板里的分组标题：📝 作业 / 🧪 小测。小测和作业走**同一套渲染**，
+     只是按 slug 分成两组显示（见 hwIsQuiz），所以这里只加一个分隔标题，不动行样式。*/
+  .hwGroupHead{display:flex; align-items:baseline; gap:8px; margin:20px 0 2px; padding-top:16px;
+    border-top:1px solid var(--hair); font-size:15px; font-weight:600; color:#33404f}
+  .hwGroupHead.first{margin-top:6px; padding-top:0; border-top:0}
+  .hwGroupHead .n{font-weight:400; font-size:12.5px; color:var(--dim)}
+  /* 相邻两份题集之间画一条线，把「上一块的操作栏/AI 状态」和「下一块的标题」隔开 */
+  .hwBlock + .hwBlock{margin-top:22px; padding-top:18px; border-top:1px solid var(--hair)}
+  /* 题目页签 */
+  .tabBar{display:flex; gap:4px; border-bottom:1px solid var(--hair); margin:-4px 0 14px}
+  button.tab{border:0; background:none; border-radius:0; padding:8px 14px; font-size:13.5px;
+    color:var(--dim); border-bottom:2px solid transparent}
+  button.tab:hover:not(:disabled){background:none; border:0; border-bottom:2px solid var(--line); color:var(--fg)}
+  button.tab.on{color:var(--accent); font-weight:600; border-bottom-color:var(--accent)}
+  .probHead{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:4px}
+  .probHead .lim{font-size:12px; color:var(--dim); font-family:var(--font-mono)}
+  .ptChips{display:flex; gap:6px; flex-wrap:wrap; margin-top:12px; padding-top:12px;
+    border-top:1px solid var(--hair)}
+  /* AI 代码块工具栏 */
+  .codeBlock{margin:12px 0}
+  .codeBlock pre.md-pre{margin:0; border-radius:8px 8px 0 0}
+  .codeBar{display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    padding:6px 10px; background:var(--soft); border:1px solid var(--hair);
+    border-top:0; border-radius:0 0 8px 8px}
+  .codeBar button.tb{padding:3px 10px; font-size:12px}
+  /* 不适合直接跑的块：工具栏里换成一行说明（仍然保留复制） */
+  .codeBar.adviceBar{background:var(--warnbg); border-color:var(--warnline)}
+  .runAdvice{font-family:var(--font-ui); font-size:12px; color:var(--warntx); line-height:1.6}
+  .vfy{font-size:12px; border-radius:11px; padding:2px 9px; white-space:nowrap}
+  span.vfy.ok{background:var(--okbg); color:var(--ok); border:1px solid #bfe3c9}
+  span.vfy.skip{background:var(--soft); color:var(--dim); border:1px solid var(--line)}
+  details.vfy.bad{background:var(--warnbg); color:var(--warntx); border:1px solid var(--warnline);
+    padding:2px 9px; cursor:pointer}
+  details.vfy.bad[open]{width:100%; padding:8px 12px}
+  details.vfy.bad summary{cursor:pointer; outline:none; list-style:none}
+  details.vfy.bad summary::-webkit-details-marker{display:none}
+  .vfyBox{margin-top:6px; font-size:12.5px; line-height:1.7; color:#6b5500; white-space:pre-wrap;
+    font-family:var(--font-mono); word-break:break-word}
+  .vfyBox b{color:#8a6d00}
+  .vfyBox b.bad{color:var(--err)}
+  /* AI 流 */
+  .aiBar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px}
+  .aiNote{font-size:12px; color:var(--dim)}
+  .aiStream{min-height:40px}
+  .aiStream .cursor{display:inline-block; width:7px; height:15px; background:var(--accent);
+    vertical-align:-2px; animation:blink 1s step-start infinite}
+  @keyframes blink{50%{opacity:0}}
+  /* ---- 🤖 助教面板（openAssistant）----
+     布局要点：面板占满弹层高度、消息区自己滚、输入行钉在底部。
+     输入框【只在发送收尾时动一次】，流式过程中一个字节都不碰它 ——
+     不然每来一个 delta 就把用户正在敲的字弄丢（这个项目为此修过两次）。 */
+  #modal[data-kind="assistant"] #modalBody{display:flex; flex-direction:column; padding:0}
+  #modal[data-kind="assistant"] .modalBox{max-width:840px; height:86vh; max-height:86vh}
+  .asPanelWrap{display:flex; flex-direction:column; min-height:0; flex:1}
+  .asCtxBar{flex:none; display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    padding:7px 20px; background:var(--soft); border-bottom:1px solid var(--hair);
+    font-size:12px; color:var(--dim)}
+  .asCtxBar b{font-weight:600}
+  .asCtxBar .asCtxTxt{color:var(--accent); font-weight:600; overflow-wrap:anywhere}
+  .asMsgs{flex:1; min-height:0; overflow-y:auto; padding:16px 20px 4px; scroll-behavior:smooth}
+  .asEmpty{color:var(--dim); font-size:13.5px; line-height:1.9; padding:8px 2px}
+  .asRow{display:flex; margin:0 0 14px}
+  .asRow.user{justify-content:flex-end}
+  .asRow.assistant{justify-content:flex-start}
+  .asBubble{max-width:86%; border-radius:11px; padding:10px 14px; font-size:15px; line-height:1.85;
+    overflow-wrap:anywhere}
+  .asRow.user .asBubble{background:#eef4fb; border:1px solid #d8e4f5; white-space:pre-wrap}
+  .asRow.assistant .asBubble{background:#fff; border:1px solid var(--hair)}
+  .asBubble .md{font-size:15px; line-height:1.85}
+  .asWho{font-size:11.5px; color:var(--dim); margin-bottom:3px}
+  .asRow.user .asWho{text-align:right}
+  .asErrLine{border:1px solid #f0bcbc; background:var(--errbg); color:#7d1f1f;
+    border-radius:8px; padding:8px 12px; font-size:13px; line-height:1.7; margin-bottom:12px}
+  .asCursor{display:inline-block; width:7px; height:14px; background:var(--accent);
+    vertical-align:-2px; margin-left:2px; animation:blink 1s step-start infinite}
+  .asFoot{flex:none; display:flex; align-items:flex-end; gap:9px;
+    padding:10px 20px 14px; border-top:1px solid var(--hair); background:#fff}
+  .asIn{flex:1; min-width:0; resize:none; outline:none; border:1px solid var(--line);
+    border-radius:8px; background:var(--codebg); padding:8px 11px;
+    font:13.5px/1.7 var(--font-ui); color:var(--fg); max-height:150px; overflow-y:auto}
+  .asIn:focus{border-color:var(--accent); box-shadow:0 0 0 3px rgba(31,78,156,.12)}
+  .asFoot button{flex:none}
+  .asHint{font-size:11.5px; color:var(--dim); padding:0 20px 10px; background:#fff}
+  .aiErr{border:1px solid #f0bcbc; background:var(--errbg); border-radius:8px; padding:10px 13px;
+    color:#7d1f1f; font-size:13.5px; margin-bottom:12px; line-height:1.7}
+  details.aiReason{margin-bottom:12px; font-size:12.5px; color:var(--dim)}
+  details.aiReason summary{cursor:pointer; outline:none}
+  details.aiReason pre{margin:6px 0 0; padding:8px 10px; background:var(--codebg); border-radius:6px;
+    font:12px/1.7 var(--font-mono); white-space:pre-wrap; color:#5a626c}
+  .builtinTag{display:inline-block; font-size:11.5px; color:var(--dim); border:1px solid var(--line);
+    background:var(--soft); border-radius:10px; padding:0 8px; margin-left:8px}
+  /* 测一测 */
+  textarea.probCode{width:100%; min-height:150px; resize:vertical; outline:none; cursor:text;
+    border:1px solid var(--line); border-radius:8px; background:var(--codebg); padding:9px 11px;
+    font:13px/1.7 var(--font-mono); color:var(--fg); white-space:pre; overflow:auto; tab-size:4}
+  textarea.probCode:focus{border-color:var(--accent); box-shadow:0 0 0 3px rgba(31,78,156,.12)}
+  .caseRow{display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin:12px 0}
+  .caseLbl{font-size:12.5px; color:var(--dim); margin-right:2px}
+  button.caseChip{font-size:12px; padding:3px 11px; border-radius:13px}
+  button.caseChip.on{background:#eef4fb; border-color:#c9d8f0; color:var(--accent); font-weight:600}
+  /* AI 生成的用例：虚线边框，和"题目自带的样例/边界用例"区分开（它们只是参考） */
+  button.caseChip.ai{border-style:dashed; color:#5f6a76}
+  button.caseChip.ai.on{border-style:dashed; color:var(--accent)}
+  .caseOps{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px}
+  .caseHint{font-size:11.5px; color:#a2aab4}
+  /* 参考代码：折叠、灰底，不进代码框（打开看答案 = 练习变抄） */
+  details.refSol{margin:10px 0 0; border:1px solid var(--hair); border-radius:8px; background:var(--soft)}
+  details.refSol>summary{cursor:pointer; padding:7px 12px; font-size:12.5px; color:var(--dim); outline:none}
+  details.refSol>summary:hover{color:var(--accent)}
+  details.refSol .refCode{margin:0; padding:2px 12px 10px; font:13px/1.7 var(--font-mono);
+    white-space:pre; overflow:auto; color:#33404f}
+  details.refSol .refActions{display:flex; gap:8px; padding:0 12px 10px}
+  /* 自己的 AC/WA 标记 */
+  .markDot{width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:-4px; flex:none}
+  .markDot.ac{background:var(--ok)}
+  .markDot.wa{background:var(--err)}
+  button.markBtn.on.ac{border-color:#bfe3c9; background:var(--okbg); color:var(--ok); font-weight:600}
+  button.markBtn.on.wa{border-color:#f0bcbc; background:var(--errbg); color:var(--err); font-weight:600}
+  /* 全跑一遍的失败明细 */
+  .allCase{border-top:1px solid var(--hair); padding:9px 12px 3px}
+  .allHead{font-size:12.5px; font-weight:600; color:var(--err); display:flex; gap:8px; align-items:baseline}
+  .allHead .why{font-weight:400; color:var(--dim); font-size:11.5px}
+  .miniPre{margin:2px 0 7px; padding:4px 8px; border-radius:5px; background:var(--codebg);
+    border:1px solid var(--hair); font:12px/1.6 var(--font-mono); white-space:pre-wrap;
+    overflow-wrap:anywhere; max-height:170px; overflow:auto}
+  .miniPre.bad{background:var(--errbg); border-color:#f0bcbc}
+  .allOk{font-size:12.5px; color:var(--ok); padding:2px 12px 9px}
+  button.confirming{border-color:var(--accent); color:var(--accent); background:#eef4fb; font-weight:600}
+  /* 题目页头的「自动提交」：primary 但按页头尺寸收小，别比标题还抢眼 */
+  button.subBtn{padding:4px 12px; font-size:12.5px; border-radius:7px}
+  /* 题集头部那行"通过率：12 秒前更新 · 点我刷新" */
+  .hwStatsBar{display:flex; justify-content:flex-end; margin:-6px 2px 6px}
+  button.linkbtn.hwStats{font-size:11.5px; color:#a2aab4; text-decoration:none; padding:0 2px}
+  button.linkbtn.hwStats:hover:not(:disabled){color:var(--accent); text-decoration:underline}
+  /* 登录框里的账号/密码要占满一行（.rowIn 是 flex，不写会缩成一小截） */
+  #ojEmail,#ojPass{width:100%; min-width:0}
+  .resBox{margin-top:14px; border:1px solid var(--hair); border-radius:9px; overflow:hidden}
+  .resBox .resHead{padding:6px 12px; font-size:12.5px; font-weight:600; background:var(--soft);
+    border-bottom:1px solid var(--hair); display:flex; align-items:center; gap:8px}
+  .resBox .resHead .verdict{font-size:12px; border-radius:10px; padding:0 8px}
+  .verdict.pass{background:var(--okbg); color:var(--ok); border:1px solid #bfe3c9}
+  .verdict.fail{background:var(--errbg); color:var(--err); border:1px solid #f0bcbc}
+  .resGrid{display:grid; grid-template-columns:58px minmax(0,1fr); gap:6px 12px;
+    padding:10px 12px; font-size:13px}
+  .resGrid .k{color:var(--dim); font-size:12.5px; padding-top:6px}
+  .resGrid pre{margin:0; padding:7px 9px; background:var(--codebg); border-radius:6px;
+    font:12.5px/1.7 var(--font-mono); white-space:pre-wrap; word-break:break-word;
+    border:1px solid var(--hair); max-height:190px; overflow:auto}
+  .resGrid .why{font-size:12.5px; color:var(--dim); line-height:1.7}
+  /* 样例值 + 「📋 复制」那一行（样例是数据，不是代码 —— 只给复制，不给「跑这段」） */
+  .preRow{display:flex; gap:8px; align-items:flex-start; min-width:0}
+  .preRow > pre{flex:1; min-width:0}
+  .copyMini{flex:none; border:1px solid var(--line); background:#fff; border-radius:6px;
+    font-family:var(--font-ui); font-size:11.5px; line-height:1.5; padding:2px 8px;
+    color:var(--dim); cursor:pointer; white-space:nowrap; margin-top:3px;
+    transition:background-color .12s ease, color .12s ease, border-color .12s ease}
+  .copyMini:hover:not(:disabled){background:#eef4fb; border-color:#c9d8f0; color:var(--accent)}
+  .copyMini:active{background:#e3ebf7}
+  .copyMini:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+  /* AI 设置 */
+  .setRow{display:flex; gap:12px; align-items:flex-start; padding:11px 0;
+    border-bottom:1px solid var(--hair)}
+  .setRow:last-of-type{border-bottom:0}
+  .setLabel{flex:none; width:84px; font-size:13.5px; color:#33404f; font-weight:600; padding-top:5px}
+  .setField{flex:1; min-width:0; display:flex; flex-direction:column; gap:7px}
+  .setField .rowIn{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+  input.setInput,select.setInput{font-family:var(--font-ui); font-size:13.5px; padding:5px 9px;
+    border:1px solid var(--line); border-radius:7px; outline:none; background:#fff; color:var(--fg)}
+  input.setInput{flex:1; min-width:170px}
+  input.setInput:focus,select.setInput:focus{border-color:var(--accent); box-shadow:0 0 0 3px rgba(31,78,156,.12)}
+  select.setInput:disabled,input.setInput:disabled{opacity:.5}
+  .setHint{font-size:12px; color:var(--dim); line-height:1.65}
+  .setOk{color:var(--ok); font-weight:600}
+  .setBad{color:var(--err); font-weight:600}
+
+  /* ---- 📅 100Days 浏览器 ---- */
+  .daysBar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 10px}
+  .daysBar .searchInput{flex:1; min-width:180px}
+  .dayRow{display:flex; align-items:center; gap:10px; padding:8px 6px;
+    border-bottom:1px solid var(--hair)}
+  .dayNo{flex:none; width:52px; font:12.5px var(--font-mono); color:var(--accent)}
+  .dayRow .t{flex:1; min-width:0; font-size:13.5px; color:var(--fg)}
+  .dayMeta{flex:none; font-size:12px; color:var(--dim)}
+  .dayRow .hit{margin-top:3px; font-size:11.5px; color:var(--dim);
+    font-family:var(--font-mono); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .dayRow .hit b{color:var(--accent); font-weight:600}
+  .topicHit{display:flex; align-items:center; gap:8px; padding:5px 6px; font-size:13px;
+    border-bottom:1px solid var(--hair); flex-wrap:wrap}
+  .topicHit .tk{font-family:var(--font-mono); color:#33404f}
+  .daysSec{font-size:12px; color:var(--dim); margin:12px 0 2px; font-weight:600}
+
+  /* ============ 可选中：内容 vs chrome ============
+     原则：文字界面（正文/代码/样例/输出/解析）**必须能选中复制**；
+     UI 界面（按钮/chip/工具栏/提示符/指标）不可选也无所谓，甚至更好。
+     全站只有 3 处 user-select:none，全是 chrome（>>> 提示符 ×2、<details> 开关）；
+     这里再给内容区显式声明一次 text，免得以后谁加了一条全局 none 把阅读区一起关掉。 */
+  .body, .md, .md-pre, .md-pre code, .runCode, .resGrid pre, .rl-out, .replOut,
+  .noteHead, .aiStream, .vfyBox, .cnHint, details.cnRaw pre, .cardTitle, .kicker,
+  .dayRow .t, .topicHit .tk, .setHint, .runNote{user-select:text}
+  /* UI（按钮/chip/工具栏/药丸/计数）一律不可选 —— 用户在阅读区拖选时不会误选到它们，
+     也顺手挡掉"从按钮上起手拖动"制造出的奇怪选区。 */
+  button, .vfy, .daysBar .aiNote, .dotCount, .dailyStreak, .panelHead b{user-select:none}
+  /* 选中高亮：浅蓝底 + 深字，白纸上一定看得见（默认高亮在浅色正文上偏淡） */
+  ::selection{background:#cfe0f7; color:#1f2328}
+  ::-moz-selection{background:#cfe0f7; color:#1f2328}
+
+  /* ---- toast ---- */
+  #toast{position:fixed; left:50%; transform:translateX(-50%); bottom:56px; z-index:80;
+    background:#1f2328; color:#fff; font-size:13px; padding:7px 15px; border-radius:16px;
+    box-shadow:0 3px 14px rgba(31,35,40,.22); opacity:0; transition:opacity .15s ease}
+  /* ==================== 🤖 常驻助教（右下角） ====================
+     层级是**故意**插在中间的：modal(60) < 圆钮(70) < 气泡(75) < toast(80)。
+     圆钮要在弹层之上（否则弹层一开就被盖住、点不到），但要在 toast 之下
+     （提示条永远可见）。弹层打开时圆钮会隐藏，见 asFabSync()。 */
+  #asFab{
+    position:fixed; right:22px; bottom:22px; z-index:70;
+    width:52px; height:52px; border-radius:50%; padding:0;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--accent); border:0; color:#fff; cursor:pointer;
+    box-shadow:0 6px 18px rgba(31,78,156,.34);
+    transition:transform .14s ease, background .14s ease;
+  }
+  #asFab[hidden]{display:none}
+  #asFab:hover{background:var(--accent2); transform:translateY(-2px)}
+  #asFab.on{background:var(--accent2)}
+  /* 上下文刷新时闪一下的小圆点：让人**看得见**"它正跟着你"，不然"感知页面"是隐形的 */
+  #asFabDot{
+    position:absolute; top:5px; right:5px; width:9px; height:9px; border-radius:50%;
+    background:#7ddc9a; border:1.5px solid var(--accent); opacity:0;
+    transition:opacity .2s ease;
+  }
+  #asFabDot.ping{opacity:1}
+
+  #asBubble{
+    position:fixed; right:22px; bottom:86px; z-index:75;
+    width:min(380px, calc(100vw - 32px));
+    max-height:min(62vh, 560px);
+    display:flex; flex-direction:column;
+    background:#fff; border:1px solid var(--hair); border-radius:14px;
+    box-shadow:0 14px 40px rgba(24,32,48,.20);
+    overflow:hidden;
+  }
+  #asBubble[hidden]{display:none}
+  .bubHead{
+    display:flex; align-items:center; gap:8px; flex-wrap:nowrap;
+    padding:9px 10px 9px 12px; border-bottom:1px solid var(--hair); background:var(--soft);
+    font-size:13px;
+  }
+  .bubCtx{
+    flex:1; min-width:0; margin-left:2px;
+    font:12px/1.4 var(--font-ui); color:var(--dim);
+    background:none; border:0; padding:2px 4px; border-radius:6px;
+    text-align:left; cursor:pointer;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .bubCtx:hover{background:#eef2f8; color:var(--accent)}
+  .bubIco{
+    flex:none; width:26px; height:26px; padding:0; border-radius:7px;
+    background:none; border:0; color:var(--dim); cursor:pointer;
+    font-size:13px; line-height:1;
+  }
+  .bubIco:hover{background:#eef2f8; color:var(--accent)}
+  .bubMsgs{flex:1 1 auto; min-height:64px; overflow-y:auto; padding:10px 12px}
+  .bubMsgs .asRow{margin-bottom:10px}
+  .bubMsgs .asBubble{font-size:13.5px}
+  .bubMsgs pre.md-pre{max-height:200px}
+  /* ★ 输入行必须 flex:none：asAutoGrow 给 textarea 设了内联 height，
+     而 #asBubble 是 flex 列容器 —— 消息一多、总高触到 max-height 时，
+     flex 会把这一行压扁，placeholder 就被裁掉半行（实测踩到）。 */
+  .bubInRow{
+    flex:none;
+    display:flex; align-items:flex-end; gap:8px;
+    padding:9px 10px; border-top:1px solid var(--hair); background:#fff;
+  }
+  .bubIn{
+    flex:1; min-width:0; resize:none; overflow:hidden;
+    min-height:34px;
+    font:13px/1.5 var(--font-ui); color:var(--fg);
+    padding:7px 9px; border:1px solid var(--line); border-radius:9px;
+    background:#fff; max-height:120px;
+  }
+  .bubIn:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(31,78,156,.10)}
+  .bubSend{flex:none; padding:7px 14px; border-radius:9px;
+    background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
+  .bubSend:hover:not(:disabled){background:var(--accent2); border-color:var(--accent2); color:#fff}
+  @media (max-width:600px){
+    #asFab{right:14px; bottom:14px; width:48px; height:48px}
+    #asBubble{right:14px; bottom:74px}
+  }
+  #toast.show{opacity:1}

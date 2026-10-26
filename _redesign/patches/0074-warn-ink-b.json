@@ -1,0 +1,6 @@
+{
+ "id": "warn-ink-b",
+ "note": "用例页签提示：写死的 #8a6d00 改成语义色类",
+ "old": "        (tabHint ? '<div style=\"margin-top:4px;color:#8a6d00\">ⓘ ' + tabHint + \"</div>\" : \"\") + \"</div>\" +",
+ "new": "        (tabHint ? '<div class=\"warnInk mt1\">ⓘ ' + tabHint + \"</div>\" : \"\") + \"</div>\" +"
+}

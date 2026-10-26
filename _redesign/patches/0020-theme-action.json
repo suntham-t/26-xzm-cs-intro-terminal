@@ -1,0 +1,6 @@
+{
+ "id": "theme-action",
+ "note": "图标栏主题按钮的动作分发",
+ "old": "  else if (act === \"aiset\") openAiSettings();",
+ "new": "  else if (act === \"theme\") setTheme(currentTheme() === \"dark\" ? \"light\" : \"dark\");\n  else if (act === \"aiset\") openAiSettings();"
+}

@@ -1,0 +1,6 @@
+{
+ "id": "card-order",
+ "note": "知识点卡片：标题提到视频/提示条之前（标题永远是第一信息）",
+ "old": "  var out = [];\n  out.push(videoAreaHtml(p));\n  out.push('<div class=\"kicker\">第 <b>' + escapeHtml(sec.no) + \"</b> 节 · 知识点 \" +\n    escapeHtml(p.no) + \"</div>\");\n  out.push('<h2 class=\"cardTitle\">' + escapeHtml(p.title || \"(无标题)\") + \"</h2>\");",
+ "new": "  var out = [];\n  /* ★ 顺序：kicker → 标题 → 视频 → 正文。\n     上一版把视频区放在最前面，于是「黑马这套没讲这块」这种提示会压在大标题**上面** ——\n     读者第一眼看到的是一条灰提示，而不是「这张卡讲什么」。标题永远是第一信息；\n     \"没视频\"是补充说明，它只配出现在标题下面。 */\n  out.push('<div class=\"kicker\">第 <b>' + escapeHtml(sec.no) + \"</b> 节 · 知识点 \" +\n    escapeHtml(p.no) + \"</div>\");\n  out.push('<h2 class=\"cardTitle\">' + escapeHtml(p.title || \"(无标题)\") + \"</h2>\");\n  out.push(videoAreaHtml(p));"
+}

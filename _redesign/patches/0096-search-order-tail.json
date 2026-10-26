@@ -1,0 +1,6 @@
+{
+ "id": "search-order-tail",
+ "note": "搜索结果：主题索引块收尾到命中列表之后",
+ "old": "    }).join(\"\"));\n  }\n  box.innerHTML = parts.join(\"\");\n}",
+ "new": "    }).join(\"\"));\n  }\n  if (topicParts.length) parts.push('<div class=\"searchTopics\">' + topicParts.join(\"\") + \"</div>\");\n  box.innerHTML = parts.join(\"\");\n}"
+}

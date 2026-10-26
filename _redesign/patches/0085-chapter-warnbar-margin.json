@@ -1,0 +1,6 @@
+{
+ "id": "chapter-warnbar-margin",
+ "note": "章末统计条：内联上间距换成 .stack 类",
+ "old": "    out.push('<div class=\"warnbar info\" style=\"margin-top:20px\">🏁 本章共 <b>' +",
+ "new": "    out.push('<div class=\"warnbar info stack\">🏁 本章共 <b>' +"
+}

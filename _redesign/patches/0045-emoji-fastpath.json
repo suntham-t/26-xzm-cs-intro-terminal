@@ -1,0 +1,6 @@
+{
+ "id": "emoji-fastpath",
+ "note": "emoji 替换：先做一次全文快检再走 TreeWalker（流式输出时每帧全树遍历太浪费）",
+ "old": "function uiEmojiSwap(root){\n  root = root || document.body;\n  if (!root || !document.createTreeWalker) return 0;",
+ "new": "function uiEmojiSwap(root){\n  root = root || document.body;\n  if (!root || !document.createTreeWalker) return 0;\n  /* ★ 快检：整棵子树的文本里没有可替换的 emoji就直接返回。\n     为什么需要：MutationObserver 会在每次 DOM 变化后触发（AI 流式输出时每帧都有），\n     而正文/代码/终端输出那些\"内容区\"本来就被豁免 —— 没有这层快检的话，\n     每帧都要建一次 TreeWalker 把全文件文本节点走一遍，纯属浪费。\n     textContent 拼接是浏览器原生实现，几十 KB 也就几十微秒。 */\n  try{\n    if (!_hasUiEmoji(root.textContent)) return 0;\n  }catch(e){ /* 极端情况（textContent 取不到）就走完整路径 */ }"
+}

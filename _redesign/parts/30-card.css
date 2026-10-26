@@ -1,0 +1,958 @@
+/* =====================================================================
+   30-card.css —— 阅读卡里的内容层（卡片"里面"的一切）
+   ---------------------------------------------------------------------
+   负责范围（对应老样式表 old.css 的行段）：
+     · #card 的内容节奏、.endCard.chapterCard（章首/章末材料卡）
+     · 标题组 .kicker（eyebrow）+ h2.cardTitle
+     · 视频区 .videoWrap / iframe.bili / .videoMeta / button.vlink 分P列表
+     · 提示条 .warnbar 及 .novideo / .pitfall / .info / .err / .videopending
+     · 正文排版 .body 全量（p / .md-h1..6 / ul / ol / blockquote / pre / code / a /
+       hr / sup / sub / img / mark / details / figure / table.md-table）
+     · 代码块 .codeBlock + .codeBar（作业面板 / AI 面板复用同一套，别改成卡片专用）
+     · 「跑一下」.runBlock，参考 chip .refs/.chip，课件缩略图 .slides/.thumbRow
+     · 空状态 / 收尾卡 .emptyCard / .endCard
+     · 通用 markdown 容器 .md（100 Days 阅读器、AI 气泡、题面都用它）
+     · 搜索命中高亮 .findmark
+   卡片这个"盒子"（宽度 / 纸面 / 圆角 / 阴影 / 内边距）在 20-shell.css 的 #card 里，
+   这里只管内容，不要重复定义盒子，否则内边距会加倍。
+
+   和老样式比，动手改过的地方（都不是随手改的）：
+     1) 正文 17px → 17.5px、行宽收到 42em：宋体在 17px 下笔画偏细；
+        行长再长一点，整页读起来像一张放大的手机截图。
+     2) 中文正文一律不用中间字重：SimSun 只有 400 / 700，500/600 会被算法合成加粗，
+        在 150% 缩放下发糊。所以标题精确用 700、正文精确用 400，层级靠字号和颜色拉。
+     3) .warnbar.novideo 从"黄底提示盒"降成一条 12.5px 灰字 + 2px 发丝线：
+        104 张卡里 76 张都有它，黄底会让它变成整页最响的东西。
+     4) 分P列表从"行内文字链接"改成"一行一条"的行式列表
+        （级别 pill / P号 / 标题 / 时长），当前项左侧一条 2px 强调条。
+     5) 代码块统一成 .codeBlock（pre + .codeBar 同圆角拼接）—— 老样式里
+        卡片正文、AI 解析、作业面板各写了一套，现在只有这一套。
+     6) 空状态 / 收尾卡的大图标改成"圆形浅强调底盘 + 居中图标位"：
+        JS 里是 emoji（运行时换成内联 SVG），两种都不会错位。
+     7) 讲义自带的 mark 用中性暖底、搜索命中的 mark.findmark 用较重的暖底 + 外圈，
+        两套高亮必须一眼分得开（找不到命中词比"没高亮"更糟）。
+     8) 卡片顺序已按新契约排：kicker → 标题 → 视频 → 正文。
+        视频区的下外边距从"上/下都留"改成只留下边，上边由标题的 20px 撑开。
+
+   字号 / 圆角的 token 说明：
+     · 正文 17.5px 写成 calc(var(--fs-17) + .5px) 而不是硬编码 17.5px ——
+       tokens 里最接近的就是 --fs-17。若 Lead 愿意加 --fs-read:17.5px，换一处即可。
+     · 设计稿里"代码块 / 视频 / 跑一下块 r12"，tokens 没有 12（8/10/14/18），
+       这里统一取 --r-md(10)：差 2px 看不出来，但守住"圆角只来自 token"。
+   ===================================================================== */
+
+/* ============================ 图标位置 ============================
+   JS 运行时把界面上的 emoji 换成 <span class="emo"><svg class="ico">（见 app.js 的
+   uiEmojiSwap）。基础对齐、尺寸、默认右外边距都在 90-polish.css 里统一给了，
+   这里只做两件它管不到的组件级修正：
+     ① 大标题旁边那颗图标要略小 —— 28px 衬线标题配 1.05em(≈29px) 图标会高过汉字；
+     ② flex 容器（.chip / .runHead / .warnbar.pitfall>b …）本身已经有 gap，
+        90-polish 给 .emo 的 .32em 右边距会和 gap 叠加，图标后面多出 4px。 */
+h2.cardTitle .emo .ico{ width:.86em; height:.86em; }
+.kicker .emo,
+.chip .emo,
+.videoMeta .emo,
+.vbadge .emo,
+.tag .emo,
+.runHead .emo,
+.runAdvice .emo,
+.runActions .emo,
+.codeBar .emo,
+.warnbar.pitfall > b .emo,
+.endBtns .emo,
+.thumbCap .emo{ margin-right:0; }
+
+/* ============================ 卡片内容节奏 ============================
+   卡片的第一个块不能顶出额外的外边距；最后一个块的 margin-bottom 也要归零 ——
+   老版里 .slides 的 margin-bottom 会把卡片底部的留白撑成一坨，看着像"卡片没写完"。 */
+#card > *:first-child,
+#inlinePanel > #inlineBody > *:first-child{ margin-top:0; }
+#card > *:last-child{ margin-bottom:0; }
+
+/* 章首 / 章末材料卡：抬头居中，正文仍然左对齐 ——
+   这类卡一半是"标题页"一半是"正文页"，把整块都居中会让长段落失去起点。 */
+.endCard.chapterCard{ text-align:left; }
+.endCard.chapterCard > .kicker{ justify-content:center; }
+/* ★ 这里的 h2 就是 .cardTitle（章首/章末卡的标题），必须显式钉回 28px：
+   下面 .endCard h2 那条（24px）和 h2.cardTitle 特异性相同，靠书写顺序决胜 ——
+   不钉的话，以后谁调一下段落顺序，章首标题就会莫名其妙小一号。 */
+.endCard.chapterCard > h2.cardTitle{
+  text-align:center;
+  font-size:var(--fs-28);
+  line-height:1.34;
+}
+.endCard.chapterCard > .body{ margin:var(--sp-5) 0 0; }
+.endCard.chapterCard .slides{ text-align:left; }
+.endCard.chapterCard .thumbRow{ justify-content:center; }
+.endCard.chapterCard > .endBtns{ justify-content:center; }
+
+/* ============================ 标题：eyebrow + 大标题 ============================
+   这一组是全页"设计感"的来源：
+     .kicker —— 无衬线 12px、字距 .08em、强调色、前面一颗 5px 的圆点；
+     h2      —— 衬线 700、28px、行高 1.34。
+   一个极小的无衬线抬头压着一个很大的衬线标题，大小对比就是层级。 */
+.kicker{
+  display:flex; align-items:center; gap:8px;
+  margin:0 0 var(--sp-2);
+  font:500 var(--fs-12)/1.4 var(--font-ui);
+  letter-spacing:.08em;
+  color:var(--c-accent);
+}
+.kicker::before{
+  content:"";
+  flex:none; width:5px; height:5px; border-radius:50%;
+  background:var(--c-accent);
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--c-accent) 15%, transparent);
+}
+.kicker b{ color:var(--c-accent-ink); font-weight:700; letter-spacing:.04em; }
+.kicker .secTitleInl{ color:var(--c-text-2); letter-spacing:.02em; }
+
+h2.cardTitle{
+  margin:0 0 var(--sp-5);
+  font:700 var(--fs-28)/1.34 var(--font-read);
+  color:var(--c-text);
+  letter-spacing:-.005em;
+  overflow-wrap:anywhere;
+}
+
+/* ============================ 视频区 ============================
+   播放器是嵌入的 B 站简化播放器（没有倍速、没有清晰度菜单，所以 .videoMeta
+   右边必须留一个"去 B 站看"的出口）。iframe 只给宽度和 aspect-ratio，
+   不写死高度：窗口变宽时高度自己跟着算，写死会变形。
+   ★ 顺序是新契约：kicker → 标题 → 视频 → 正文。所以这块只有下外边距。 */
+.videoWrap{ margin:0 0 var(--sp-6); }
+
+iframe.bili{
+  width:100%; height:auto;
+  aspect-ratio:16 / 9;
+  display:block;
+  border:1px solid var(--c-line);
+  border-radius:var(--r-md);
+  background:var(--c-term);        /* 黑底：播放器加载前是白块，白闪一下很刺眼 */
+}
+
+/* 抬头那行做成"左信息 / 右动作"两栏：左边 UP名 + 匹配状态，右边"去 B 站看"。
+   ★ 不许换行（nowrap）：这一行一旦折成两行，下面的分P列表就被往下推，
+     视频区和标题之间的留白会突然变成两倍。空间不够时只让 UP 名省略号。
+   ★ 中间那个 .sp（结构里 JS 放的）要压扁 —— 右对齐由 .vHead 的 flex:1 完成，
+     否则 .sp 会和 .vHead 平分余量，UP 名会提前一大截被截掉。 */
+/* ★ 结构陷阱：.vList 在 DOM 里是 .videoMeta 的**子元素**
+     （videoInnerHtml 里 "跑一下" 的收尾 </div> 在列表之后），不是兄弟。
+   所以这一块本质是"两行的 flex"：
+     第 1 行 = .vHead（左信息） + .sp + 「去 B 站看」（右动作）；
+     第 2 行 = .vList（flex-basis:100%，独占一行）。
+   这样不管窗口多窄，meta 行都不会折成两行、分P列表也永远单独起一行。 */
+.videoMeta{
+  margin-top:var(--sp-2);
+  display:flex; flex-wrap:wrap; align-items:center; gap:var(--sp-2);
+  font-size:var(--fs-125); line-height:1.7; color:var(--c-text-3);
+}
+.videoMeta > .sp{ flex:0 1 0; min-width:0; }   /* 位置由 .vHead 的 flex:1 决定，它别抢余量 */
+.videoMeta > button{ flex:none; }              /* 「去 B 站看」永远钉在右端，不许被挤掉 */
+.vHead{
+  display:flex; align-items:center; gap:6px;
+  flex:1 1 auto; min-width:0; flex-wrap:nowrap;
+  overflow:hidden;                             /* 空间不够时只让 UP 名出省略号 */
+}
+.vbadge{
+  flex:0 1 auto; min-width:0;
+  font-size:var(--fs-125); color:var(--c-text-2);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+
+/* 匹配状态徽标：已确认=绿，机器匹配待确认=暖色。
+   这不是装饰 —— 它回答"这个知识点和视频到底对不对得上"。 */
+.tag{
+  flex:none;                       /* 匹配状态不许被压缩：它是"这视频对不对"的判据 */
+  font:400 var(--fs-11)/1.75 var(--font-ui);
+  padding:0 8px; border-radius:var(--r-pill);
+  border:1px solid var(--c-ok-line);
+  background:var(--c-ok-soft); color:var(--c-ok);
+  white-space:nowrap;
+}
+.tag.unconf{ background:var(--c-warn-soft); border-color:var(--c-warn-line); color:var(--c-warn); }
+
+/* ---- 分P列表：一行一条 ----
+   一行里的顺序是 [级别 pill][P号][标题][时长]。.vttl 用 flex:1 吃掉剩余宽度，
+   时长自然被推到右端；标题单行省略，列表才不会因为一条长标题变成锯齿。 */
+.vList{
+  flex:1 0 100%;                     /* 独占一整行：它和 meta 是同一条 flex 流 */
+  margin:0;                          /* 上间距交给 .videoMeta 的 gap，别叠两次 */
+  padding-top:var(--sp-1);
+  border-top:1px solid var(--c-line-2);
+  display:flex; flex-direction:column; gap:1px;
+}
+button.vlink{
+  position:relative;
+  width:100%; text-align:left;
+  display:flex; align-items:center; gap:10px;
+  padding:6px 10px 6px 12px;
+  border:1px solid transparent; border-radius:var(--r-sm);
+  background:none;
+  font:400 var(--fs-125)/1.7 var(--font-ui);
+  color:var(--c-text-2);
+}
+button.vlink:hover:not(:disabled){
+  background:var(--c-surface-2);
+  border-color:transparent;
+  color:var(--c-accent-ink);
+}
+button.vlink:hover .vttl{ color:var(--c-accent-ink); }
+button.vlink:hover .vdur{ color:var(--c-text-3); }
+/* 当前播放项：左侧 2px 强调条 + 浅强调底（条贴在行的左缘，不是贴着文字） */
+button.vlink.on{
+  background:var(--c-accent-soft);
+  color:var(--c-accent-ink);
+}
+button.vlink.on::before{
+  content:"";
+  position:absolute; left:0; top:50%;
+  width:2px; height:16px; margin-top:-8px;
+  border-radius:0 2px 2px 0;
+  background:var(--c-accent);
+}
+button.vlink.on .vttl{ color:var(--c-accent-ink); font-weight:700; }
+button.vlink.on .vno{ color:var(--c-accent); }
+
+.vno{
+  flex:none; min-width:30px;
+  font-family:var(--font-mono); font-size:var(--fs-12);
+  color:var(--c-text-4);
+  font-variant-numeric:tabular-nums;
+}
+.vttl{
+  flex:1 1 auto; min-width:0;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  transition:color var(--dur-2) var(--ease);
+}
+.vdur{
+  flex:none; margin-left:var(--sp-2);
+  font-family:var(--font-mono); font-size:var(--fs-11);
+  color:var(--c-text-4);
+  font-variant-numeric:tabular-nums; white-space:nowrap;
+}
+/* 级别标签（主线 / 基础 / 补充 / 拔高 / 拓展 / 回顾）：极小号 pill，不能抢标题的位置。
+   min-width + 居中是为了让各行的 P 号对齐 —— 标签字数不一样（主线/补充），
+   不对齐的话整列 P 号会左右跳，扫读时很难定位。 */
+.vlev{
+  flex:none;
+  min-width:32px; text-align:center;
+  font:400 var(--fs-11)/1.7 var(--font-ui);
+  padding:0 6px; border-radius:var(--r-pill);
+  background:var(--c-surface-3);
+  color:var(--c-text-3);
+  white-space:nowrap;
+}
+/* ============================ 提示条 ============================
+   默认这一档就是"点坑 / 数据待确认"那种**值得停一下**的提示：
+   浅暖底 + 左 3px 竖条 + 10px 圆角。蓝色（info）/ 红色（err）是同一条结构的变体。
+   位置固定：都在标题之后、正文之前（视频区那个位），所以只给下外边距。 */
+.warnbar{
+  margin:0 0 var(--sp-6);
+  padding:var(--sp-3) var(--sp-4);
+  border:1px solid var(--c-warn-line);
+  border-left:3px solid var(--c-warn);
+  border-radius:var(--r-md);
+  background:var(--c-warn-soft);
+  color:var(--c-text-2);
+  font:400 var(--fs-13)/1.75 var(--font-ui);
+}
+.warnbar b{ font-weight:700; color:var(--c-warn); }
+.warnbar .emo{ margin-right:1px; }
+
+/* 「黑马这套没讲这块」是**信息**，不是**警告**：104 张卡里 76 张都有它。
+   黄底会让它变成整页最响的东西 —— 降成一条灰字 + 2px 发丝线：还在，但不抢正文。 */
+.warnbar.novideo{
+  margin:0 0 var(--sp-6);
+  padding:1px 0 1px 12px;
+  border:0;
+  border-left:2px solid var(--c-line);
+  border-radius:0;
+  background:none;
+  color:var(--c-text-3);
+  font-size:var(--fs-125);
+  line-height:1.65;
+}
+
+/* 「点坑」是正文之后的补充阅读，所以和正文隔开一段，不贴在段尾 */
+.warnbar.pitfall{ margin:var(--sp-6) 0 0; padding:var(--sp-3) var(--sp-4); }
+/* 标题行留一个图标位：JS 里是 ⚠️（运行时换成内联 SVG），两条规则都兜住 */
+.warnbar.pitfall > b{
+  display:flex; align-items:center; gap:6px;
+  margin:0 0 var(--sp-1);
+  font:700 var(--fs-125)/1.5 var(--font-ui);
+  letter-spacing:.02em;
+  color:var(--c-warn);
+}
+.warnbar.pitfall > b .ico,
+.warnbar.pitfall > b svg,
+.warnbar.pitfall > b .emo .ico{ width:14px; height:14px; flex:none; }
+.warnbar.pitfall > div{ color:var(--c-text-2); }
+
+.warnbar.info{
+  background:var(--c-accent-soft);
+  border-color:var(--c-accent-line);
+  border-left-color:var(--c-accent);
+  color:var(--c-text-2);
+}
+.warnbar.info b{ color:var(--c-accent-ink); }
+.warnbar.err{
+  background:var(--c-err-soft);
+  border-color:var(--c-err-line);
+  border-left-color:var(--c-err);
+  color:var(--c-text-2);
+}
+.warnbar.err b{ color:var(--c-err); }
+/* 「待确认」是数据状态，和点坑同一档暖色：它俩都是"请留意"，不升级成错误 */
+.warnbar.videopending{
+  background:var(--c-warn-soft);
+  border-color:var(--c-warn-line);
+  border-left-color:var(--c-warn);
+  color:var(--c-warn);
+  font-size:var(--fs-125);
+}
+
+/* ============================ 正文 .body ============================
+   讲义原文的阅读面：宋体、17.5px、行高 1.95。
+   三条防坑规则写在这里，别删：
+     · overflow-wrap:anywhere —— 讲义里有长 URL 和长英文单词，会顶破卡片；
+     · font-variant-numeric:lining-nums —— Georgia 默认旧式数字（3/4/5/7/9 高低不一），
+       正文里的行号、公式数字会被读错；
+     · max-width:42em 只加在 #card / 章级卡上（下面单独一条）——
+       题面、OJ 协议这些复用了 .body 的地方是窄弹层，收行宽反而更糟。 */
+.body{
+  font-family:var(--font-read);
+  font-size:calc(var(--fs-17) + .5px);
+  line-height:var(--lh-read);
+  color:var(--c-text);
+  overflow-wrap:anywhere;
+  font-variant-numeric:lining-nums tabular-nums;
+}
+/* 行宽上限只给"阅读卡"这一种场景（42em ≈ 42 个汉字，中文一行的舒适上限） */
+#card > .body,
+.endCard.chapterCard > .body{ max-width:var(--measure-read); }
+
+.body > *:first-child{ margin-top:0; }
+.body > *:last-child{ margin-bottom:0; }
+
+/* 段落间距 14px：1.95 行高下，12px 会让两段粘成一块，16px 又散；
+   这个值是两档 token 之间的半步，视觉上最接近"书里的段距"。 */
+.body p{ margin:0 0 14px; text-wrap:pretty; }
+.body li{ margin:var(--sp-1) 0; text-wrap:pretty; }
+
+/* 卡内小标题：h1-h3 用衬线 700（教材感），h4-h6 换成无衬线 700 的一行"导读"。
+   注意元素永远是 h4（渲染器只出 h4 再挂 .md-hN 类），字号全靠类。 */
+.body .md-h{
+  margin:var(--sp-6) 0 var(--sp-2);
+  font-family:var(--font-read);
+  font-weight:700;
+  line-height:1.45;
+  color:var(--c-text);
+  letter-spacing:0;
+}
+.body .md-h1{ font-size:var(--fs-24); }
+.body .md-h2{ font-size:var(--fs-20); }
+.body .md-h3{ font-size:var(--fs-18); }
+.body .md-h4,
+.body .md-h5,
+.body .md-h6{
+  font-family:var(--font-ui);
+  font-size:var(--fs-15);
+  font-weight:700;            /* 精确到 700：中文没有 600 字面，用 600 会被合成加粗 */
+  color:var(--c-text-2);
+  letter-spacing:.01em;
+}
+
+.body ul,
+.body ol{ margin:0 0 14px; padding-left:1.45em; }
+.body ul{ list-style:disc; }
+.body ol{ list-style:decimal; }
+.body li::marker{ color:var(--c-text-4); }
+.body ol li::marker{ font-variant-numeric:tabular-nums; }
+/* 列表里嵌套的段落不能再吃一次 14px，否则每条之间会空出一大截 */
+.body li > p{ margin:0 0 var(--sp-1); }
+
+/* 引用块：左侧一根强调细线 + 极淡底，不用整圈边框（正文里盒子越少越安静） */
+.body blockquote{
+  margin:var(--sp-4) 0;
+  padding:var(--sp-3) var(--sp-4);
+  border-left:3px solid var(--c-accent-line);
+  border-radius:0 var(--r-sm) var(--r-sm) 0;
+  background:var(--c-surface-2);
+  color:var(--c-text-2);
+}
+.body blockquote p:last-child{ margin-bottom:0; }
+
+/* 行内代码：极淡底 + 正文墨色。等宽字体本身已经足够"这是代码"，
+   所以不加边框（一圈虚线框在日常阅读里是噪声）。 */
+.body code{
+  font-family:var(--font-mono);
+  font-size:.92em;
+  padding:.5px 5px;
+  border-radius:var(--r-xs);
+  background:var(--c-surface-3);
+  color:var(--c-text);
+}
+.body pre code{ background:none; padding:0; font-size:inherit; color:inherit; }
+
+.body a{
+  color:var(--c-accent-ink);
+  text-decoration:underline;
+  text-decoration-thickness:1px;
+  text-underline-offset:2px;
+}
+.body a:hover{ color:var(--c-accent); }
+.body hr.md-hr{ border:0; border-top:1px solid var(--c-line); margin:var(--sp-6) 0; }
+
+/* 公式里的上下标：宋体 + sup/sub 会把行高顶开，line-height:0 钉住行框 */
+.body sup,
+.body sub,
+.md sup,
+.md sub{ font-size:.7em; line-height:0; }
+.body sup,
+.md sup{ vertical-align:super; }
+.body sub,
+.md sub{ vertical-align:sub; }
+
+/* 讲义里生成的 <img> 不带 class（只输出 src/alt/style），所以必须用元素选择器兜住：
+   宽度不定、有的还是整页扫描件，不钉 max-width 会直接撑破卡片。 */
+.body img,
+.md img{
+  max-width:100%; height:auto;
+  display:block;
+  margin:var(--sp-4) 0;
+  border-radius:var(--r-md);
+  border:1px solid var(--c-line-2);
+}
+
+/* 讲义自带的复习题高亮：中性暖底（保持继承字色），做"标记"而不是"警告" */
+.body mark,
+.md mark{
+  background:var(--c-warn-soft);
+  color:inherit;
+  border-radius:3px;
+  padding:0 3px;
+}
+
+/* 折叠块（讲义里的复习题答案）：
+   ★ 这里**绝对不能做成"整块卡片"**。有的 <details> 只包一道题的答案，
+     但有的一口气包住整节内容（实测 ch01-s02-p04 那个 details 高 9070px）——
+     一旦套上浅底 + 圆角边框，整张阅读卡就变成一大块灰板，边框还画到屏幕外。
+   所以只给 summary 做"可折叠的题头"：自定义 ▸/▾、悬停染色、展开时一条发丝线。
+   容器本身不加任何盒子，多大多小都不会难看。 */
+.body details,
+.md details{ margin:var(--sp-4) 0; }
+.body details > summary,
+.md details > summary{
+  display:flex; align-items:baseline; gap:6px;
+  cursor:pointer;
+  padding:var(--sp-1) 0;
+  font-weight:700;              /* 700 而不是 600：SimSun 没有 600 字面 */
+  color:var(--c-text);
+  user-select:none;
+  list-style:none;              /* 关掉 Chromium 默认的三角，换成下面的 ▸ */
+}
+.body details > summary::-webkit-details-marker,
+.md details > summary::-webkit-details-marker{ display:none; }
+.body details > summary::before,
+.md details > summary::before{
+  content:"▸";
+  flex:none;
+  font-size:.86em; line-height:1;
+  color:var(--c-text-4);
+  transform:translateY(.06em);
+  transition:color var(--dur-2) var(--ease);
+}
+.body details[open] > summary::before,
+.md details[open] > summary::before{ content:"▾"; color:var(--c-accent); }
+.body details > summary:hover,
+.md details > summary:hover{ color:var(--c-accent-ink); }
+.body details[open] > summary,
+.md details[open] > summary{
+  margin-bottom:var(--sp-2);
+  padding-bottom:7px;
+  border-bottom:1px solid var(--c-line-2);
+}
+.body details > *:last-child,
+.md details > *:last-child{ margin-bottom:0; }
+
+.body figure,
+.md figure{ margin:var(--sp-4) 0; padding:0; }
+.body figcaption,
+.md figcaption{
+  margin-top:6px;
+  font:400 var(--fs-125)/1.6 var(--font-ui);
+  color:var(--c-text-3);
+  text-align:center;
+}
+
+/* 管道表格：表头浅底 + 行分隔发丝线。宽度 100% 且允许长词断行，
+   讲义里的表格常有长英文标识符。 */
+.body table.md-table,
+.md table.md-table{
+  border-collapse:collapse;
+  width:100%;
+  margin:var(--sp-4) 0;
+  overflow-wrap:anywhere;
+}
+.body table.md-table{ font-size:var(--fs-135); }
+.md table.md-table{ font-size:var(--fs-13); }
+.body table.md-table th,
+.body table.md-table td,
+.md table.md-table th,
+.md table.md-table td{
+  padding:var(--sp-2) var(--sp-3);
+  border-bottom:1px solid var(--c-line-2);
+  text-align:left;
+  vertical-align:top;
+}
+.body table.md-table th,
+.md table.md-table th{
+  font:700 var(--fs-125)/1.6 var(--font-ui);
+  color:var(--c-text-2);
+  background:var(--c-surface-2);
+  border-bottom-color:var(--c-line);
+  white-space:nowrap;
+}
+/* ============================ 代码块 + 工具条 ============================
+   .codeBlock = pre.md-pre + div.codeBar。
+   两块上下拼接成一张卡：pre 只留上圆角，工具条只留下圆角，中间靠工具条的上边线分隔。
+   ★ 这套不只卡片在用 —— 作业面板和 AI 解析页签也走 .codeBlock/.codeBar，
+     所以不要把选择器写成 #card .codeBar 之类，否则那两处会掉样式。 */
+pre.md-pre{
+  margin:var(--sp-3) 0;
+  padding:14px 16px;
+  background:var(--c-code);
+  border:1px solid var(--c-code-line);
+  border-radius:var(--r-md);
+  overflow:auto;
+  font:400 var(--fs-13)/1.7 var(--font-mono);
+  color:var(--c-text);
+  white-space:pre;
+  tab-size:4;
+}
+.codeBlock{ margin:var(--sp-4) 0; }
+.codeBlock > pre.md-pre{
+  margin:0;
+  border-bottom-left-radius:0;
+  border-bottom-right-radius:0;
+  border-bottom:0;
+}
+.codeBar{
+  display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap;
+  padding:6px 10px 6px 12px;
+  background:var(--c-surface-2);
+  border:1px solid var(--c-code-line);
+  border-top:1px solid var(--c-line-2);
+  border-radius:0 0 var(--r-md) var(--r-md);
+}
+.codeBar button.tb{ font-size:var(--fs-12); padding:4px 10px; }
+/* 「这段不适合直接跑」：工具栏换成 warn 浅底 + 一行说明，复制按钮仍然留着 */
+.codeBar.adviceBar{
+  background:var(--c-warn-soft);
+  border-color:var(--c-warn-line);
+  border-top-color:var(--c-warn-line);
+}
+.runAdvice{
+  display:inline-flex; align-items:center; gap:6px;
+  max-width:60ch;
+  font-family:var(--font-ui); font-size:var(--fs-12);
+  line-height:1.55; color:var(--c-warn);
+}
+
+/* ============================ 「跑一下」块 ============================
+   整块是一张"可执行卡片"：头（白底）→ 代码（代码底）→ 操作（白底）。
+   三段之间只用发丝线分隔，不用第三种底色 —— 这块和正文同处一页，不能比正文花。 */
+.runBlock{
+  margin:var(--sp-6) 0 0;
+  border:1px solid var(--c-line);
+  border-radius:var(--r-md);
+  background:var(--c-surface-2);
+  overflow:hidden;
+}
+.runHead{
+  display:flex; align-items:center; gap:6px;
+  padding:var(--sp-2) var(--sp-4);
+  background:var(--c-surface);
+  border-bottom:1px solid var(--c-line);
+  font:700 var(--fs-13)/1.6 var(--font-ui);
+  color:var(--c-text);
+}
+.runHead .ico,
+.runHead svg,
+.runHead .emo .ico{ width:15px; height:15px; flex:none; color:var(--c-accent); }
+.runCode{
+  margin:0;
+  padding:14px 16px;
+  background:var(--c-code);
+  overflow:auto;
+  font:400 var(--fs-13)/1.7 var(--font-mono);
+  color:var(--c-text);
+  white-space:pre;
+}
+.runActions{
+  display:flex; align-items:center; gap:var(--sp-3); flex-wrap:wrap;
+  padding:var(--sp-3) var(--sp-4);
+  background:var(--c-surface);
+  border-top:1px solid var(--c-line);
+}
+.runNote{
+  margin-left:auto;
+  font:400 var(--fs-12)/1.6 var(--font-ui);
+  color:var(--c-text-3);
+}
+
+/* ============================ 参考链接 chip ============================
+   一条 chip = 一个出口（讲义原文 / 100 Days / 外部链接 / 课件页）。
+   白底 pill，hover 才染强调色 —— 一排 chip 全带色会抢正文。
+   注意：chip 在右栏（#railBody）会被 shell 改成"列表行"，那套覆盖优先级更高，
+   这里不要用 !important，否则右栏会退回 pill 样式。 */
+.refs{
+  display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap;
+  margin:var(--sp-6) 0 0;
+  padding-top:var(--sp-4);
+  border-top:1px solid var(--c-line-2);
+}
+.chip{
+  display:inline-flex; align-items:center; gap:6px;
+  max-width:100%;
+  padding:5px 12px;
+  border:1px solid var(--c-line);
+  border-radius:var(--r-pill);
+  background:var(--c-surface);
+  color:var(--c-text-2);
+  font:500 var(--fs-125)/1.6 var(--font-ui);
+  white-space:nowrap;
+}
+.chip .ico,
+.chip svg,
+.chip .emo .ico{ width:14px; height:14px; flex:none; }
+button.chip:hover:not(:disabled){
+  background:var(--c-accent-soft);
+  border-color:var(--c-accent-line);
+  color:var(--c-accent-ink);
+  transform:translateY(-1px);
+  box-shadow:var(--sh-xs);
+}
+span.chip{ cursor:default; }
+/* 「…共 N 页课件」这种残余计数：虚边 + 更弱，读起来是"说明"不是"按钮" */
+span.chip.more{
+  border-style:dashed;
+  border-color:var(--c-line-strong);
+  background:transparent;
+  color:var(--c-text-3);
+  font-weight:400;
+}
+
+/* ============================ 课件缩略图 ============================
+   网格（flex-wrap，每张净宽 150px）：同一行高度自然不齐（课件页有横有竖），
+   所以不给固定高度，只对齐到顶端。缩略图是 button 里套 img ——
+   padding:0 + overflow:hidden 是必须的，否则图片直角会戳出圆角。 */
+.slides{ margin:var(--sp-6) 0 0; }
+.thumbRow{ display:flex; gap:var(--sp-3); flex-wrap:wrap; align-items:flex-start; }
+
+button.thumbBtn{
+  position:relative;
+  display:block;
+  padding:0;                        /* button 有默认内边距，会把图挤出圆角 */
+  overflow:hidden;
+  border:1px solid var(--c-line);
+  border-radius:var(--r-md);
+  background:var(--c-surface-2);
+  cursor:pointer;
+}
+button.thumbBtn:hover:not(:disabled){
+  border-color:var(--c-accent-line);
+  box-shadow:var(--sh-sm);
+  transform:translateY(-2px);
+}
+button.thumbBtn:active:not(:disabled){ transform:translateY(-1px); }
+img.thumb{
+  display:block;
+  width:150px; height:auto;
+  min-height:84px;                  /* 还没水合（src 未设）时也占住一块，卡片不会塌一下 */
+  background:var(--c-surface-2);
+  /* 不用 aspect-ratio + object-fit：课件页是 4:3 / 16:9 混合，
+     统一比例会在两侧留白、整块缩成"小图漂在白框里"。按原始比例显示，宽度吃满。 */
+}
+/* 页码角标压在左下：11px 半透明底，压在图上读得出又不盖住内容 */
+.thumbCap{
+  position:absolute; left:6px; bottom:6px;
+  max-width:calc(100% - 12px);
+  padding:0 6px;
+  border-radius:var(--r-xs);
+  background:color-mix(in srgb, var(--c-surface) 88%, transparent);
+  color:var(--c-text-2);
+  font:500 var(--fs-11)/1.7 var(--font-ui);
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  box-shadow:var(--sh-xs);
+  backdrop-filter:blur(2px);
+}
+/* 页还没本地化好：整张图降透明度，但保留可点区域（点开才知道缺哪一页） */
+button.thumbBtn.missing{ opacity:.45; cursor:default; }
+button.thumbBtn.missing:hover{
+  border-color:var(--c-line);
+  box-shadow:none;
+  transform:none;
+}
+/* 「展开全部（共 N 页）」：一个虚线文字按钮，跟缩略图排在同一行里 */
+button.thumbMore{
+  align-self:center;
+  padding:var(--sp-2) var(--sp-3);
+  border:1px dashed var(--c-line-strong);
+  border-radius:var(--r-md);
+  background:transparent;
+  color:var(--c-text-3);
+  font:400 var(--fs-125)/1.6 var(--font-ui);
+}
+button.thumbMore:hover:not(:disabled){
+  border-color:var(--c-accent-line);
+  border-style:dashed;
+  background:var(--c-accent-soft);
+  color:var(--c-accent-ink);
+}
+/* 右栏是纵向单列（行方向由 shell 定），缩略图要撑满那张卡片的宽度 */
+#railBody button.thumbBtn img.thumb{ width:100%; }
+/* ============================ 空状态 / 收尾卡 ============================
+   这两张卡是一个"断点"：内容没了 / 一节走完了。所以整块居中、留白比正文大。
+   图标位 = 52px 圆形浅强调底盘 + 居中的 28px 图标（display:grid 居中）。
+   JS 里那个符号现在是 emoji（运行时会被换成 <span class="emo"><svg class="ico">），
+   下面把两种都钉成 28px，底盘尺寸不受影响。 */
+.emptyCard,
+.endCard{
+  text-align:center;
+  padding:var(--sp-8) var(--sp-4) var(--sp-10);
+}
+.emptyCard .emptyIco,
+.endCard .endIco{
+  width:52px; height:52px;
+  margin:0 auto var(--sp-4);
+  display:grid; place-items:center;
+  border-radius:50%;
+  background:var(--c-accent-soft);
+  color:var(--c-accent);
+  font-size:28px; line-height:1;   /* emoji 兜底；SVG 由下面的规则接管尺寸 */
+  box-shadow:0 0 0 6px color-mix(in srgb, var(--c-accent) 6%, transparent);
+}
+.emptyCard .emptyIco .ico,
+.emptyCard .emptyIco svg,
+.endCard .endIco .ico,
+.endCard .endIco svg{ width:28px; height:28px; display:block; }
+
+.emptyCard h2,
+.endCard h2{
+  margin:0 0 var(--sp-2);
+  font:700 var(--fs-24)/1.32 var(--font-read);
+  color:var(--c-text);
+}
+.emptyCard p{
+  margin:0 auto var(--sp-4);
+  max-width:34em;
+  font:400 var(--fs-135)/1.8 var(--font-ui);
+  color:var(--c-text-2);
+}
+.emptyCard p code{
+  font-family:var(--font-mono); font-size:.95em;
+  padding:1px 5px; border-radius:var(--r-xs);
+  background:var(--c-surface-3); color:var(--c-text-2);
+}
+.endCard .endStats{
+  margin:0 0 var(--sp-1);
+  font:400 var(--fs-16)/1.7 var(--font-read);
+  color:var(--c-text-2);
+}
+.endCard .endSub{
+  display:block; margin:0;
+  font:400 var(--fs-135)/1.7 var(--font-ui);
+  color:var(--c-text-3);
+}
+.endCard .endBtns{
+  display:flex; align-items:center; justify-content:center; flex-wrap:wrap;
+  gap:var(--sp-3);
+  margin-top:var(--sp-6);
+}
+.emptyCard .endBtns{ margin-top:var(--sp-5); }
+/* 内容没载入成功时列出来的那几条错误：左对齐，方便一条条读路径 */
+.errList{
+  list-style:none;
+  margin:0 auto var(--sp-4);
+  padding:0;
+  max-width:34em;
+  display:flex; flex-direction:column; gap:2px;
+  text-align:left;
+  font:400 var(--fs-125)/1.75 var(--font-ui);
+  color:var(--c-text-3);
+}
+.errList code{
+  font-family:var(--font-mono);
+  padding:1px 5px; border-radius:var(--r-xs);
+  background:var(--c-surface-3); color:var(--c-text-2);
+  overflow-wrap:anywhere;
+}
+
+/* ============================ 通用 markdown 容器 .md ============================
+   100 Days 阅读器、AI 气泡、OJ 协议说明都用它。比 .body 小一号：
+   这些场景的行宽本来就更窄（弹层 / 气泡），字号跟着收才不会显得挤。 */
+.md{
+  font-family:var(--font-read);
+  font-size:var(--fs-16);
+  line-height:1.9;
+  color:var(--c-text);
+  overflow-wrap:anywhere;
+  font-variant-numeric:lining-nums tabular-nums;
+}
+.md > *:first-child{ margin-top:0; }
+.md > *:last-child{ margin-bottom:0; }
+.md p{ margin:0 0 var(--sp-3); }
+.md .md-h{
+  margin:var(--sp-5) 0 var(--sp-2);
+  font-family:var(--font-read);
+  font-size:var(--fs-17);
+  font-weight:700;                  /* 精确 700：600 会被合成，中文发糊 */
+  line-height:1.45;
+  color:var(--c-text);
+}
+/* 一、二级标题（100 Days 里是"今日目标 / 练习"这类分块）比正文抬一档就够 */
+.md .md-h1,
+.md .md-h2{ font-size:var(--fs-18); }
+.md ul,
+.md ol{ margin:0 0 var(--sp-3); padding-left:1.4em; }
+.md ul{ list-style:disc; }
+.md ol{ list-style:decimal; }
+.md li{ margin:2px 0; }
+.md li::marker{ color:var(--c-text-4); }
+.md blockquote{
+  margin:var(--sp-3) 0;
+  padding:var(--sp-2) var(--sp-4);
+  border-left:3px solid var(--c-accent-line);
+  border-radius:0 var(--r-sm) var(--r-sm) 0;
+  background:var(--c-surface-2);
+  color:var(--c-text-2);
+}
+.md code{
+  font-family:var(--font-mono);
+  font-size:.92em;
+  padding:.5px 5px;
+  border-radius:var(--r-xs);
+  background:var(--c-surface-3);
+  color:var(--c-text);
+}
+.md pre code{ background:none; padding:0; font-size:inherit; color:inherit; }
+/* 阅读器里的代码比卡片正文里再小半档（12.5px）：这里的行普遍更长 */
+.md pre.md-pre{ font-size:var(--fs-125); }
+.md a{
+  color:var(--c-accent-ink);
+  text-decoration:underline;
+  text-decoration-thickness:1px;
+  text-underline-offset:2px;
+}
+.md a:hover{ color:var(--c-accent); }
+.md hr.md-hr{ border:0; border-top:1px solid var(--c-line); margin:var(--sp-5) 0; }
+.md img{ margin:var(--sp-3) 0; }
+
+/* 独立成行的公式（两个美元符号包起来的）：居中、略大、行高放宽。
+   不做成代码块 —— 公式不是代码，加边框会让人以为里面藏着可复制的东西。 */
+.md .md-math{
+  display:block;
+  margin:var(--sp-4) 0;
+  padding:2px 0;
+  text-align:center;
+  font-size:1.06em;
+  line-height:2.1;
+  overflow-x:auto;
+}
+.md .md-math sub,
+.md .md-math sup{ font-size:.78em; }
+
+/* 分式：inline-table 竖排（分子 / 分母中间一条线）。
+   不用 table 元素是因为会继承 .md-table 的边框和宽度 —— 分式只是行内的一小块。 */
+.frac{
+  display:inline-table;
+  vertical-align:middle;
+  text-align:center;
+  margin:0 .18em;
+  font-size:.95em;
+  line-height:1.25;
+  border-collapse:collapse;
+}
+.frac > span{ display:table-row; }
+.frac > span > span{ display:table-cell; padding:0 .3em; white-space:nowrap; }
+.frac > span:first-child > span{ border-bottom:1px solid currentColor; }
+
+/* 讲义原稿（notes.md 按行号取出的那一段）：pre-wrap 而不是 pre，
+   原稿里有超长行，宁可折行也不出横向滚动条。 */
+pre.notesPre{
+  margin:var(--sp-3) 0 0;
+  padding:14px 16px;
+  background:var(--c-code);
+  border:1px solid var(--c-code-line);
+  border-radius:var(--r-md);
+  white-space:pre-wrap;
+  word-break:break-word;
+  font:400 var(--fs-125)/1.75 var(--font-mono);
+  color:var(--c-text);
+}
+.noteHead{
+  margin:0 0 var(--sp-2);
+  font:400 var(--fs-125)/1.6 var(--font-ui);
+  color:var(--c-text-3);
+}
+
+/* ============================ 搜索命中高亮 ============================
+   highlightInCard() 会在卡片的文本节点里包 mark.findmark，第一个命中处加 .here。
+   ★ 必须写足三个选择器：讲义自带的 .body mark 是 (0,1,1)，只写 .findmark(0,1,0)
+     会被它压住 —— 命中词就退成讲义那种淡暖黄，等于没高亮。
+   普通 mark = 标记；findmark = 暖底 + 外圈；here = 更重的一档 + 更宽的外圈。 */
+.findmark,
+.body mark.findmark,
+.md mark.findmark{
+  background:var(--c-warn-soft);
+  color:var(--c-warn);
+  border-radius:3px;
+  padding:0 3px;
+  box-shadow:0 0 0 1px var(--c-warn-line);
+}
+.findmark.here,
+.body mark.findmark.here,
+.md mark.findmark.here{
+  background:color-mix(in srgb, var(--c-warn) 24%, transparent);
+  color:var(--c-text);
+  font-weight:700;
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--c-warn) 34%, transparent);
+}
+
+/* ============================ 响应式 ============================
+   只有两档要做：1100（材料栏消失、目录变抽屉）和 1000（卡片内边距被 shell 收小）。
+   正文行宽已经由 42em 兜住，所以这里只收"以大字号顶出来"的那几个元素。 */
+@media (max-width:1100px){
+  h2.cardTitle{ font-size:var(--fs-24); }
+  .body .md-h1{ font-size:var(--fs-20); }
+  .body .md-h2{ font-size:var(--fs-18); }
+  .body .md-h3{ font-size:var(--fs-17); }
+  img.thumb{ width:132px; }
+}
+
+@media (max-width:1000px){
+  /* 正文 17.5 → 17：窗口窄了行长变短，字号不跟着收会显得"字很挤" */
+  .body{ font-size:var(--fs-17); }
+  .videoWrap{ margin-bottom:var(--sp-4); }
+  .warnbar{ margin-bottom:var(--sp-5); }
+  .warnbar.novideo{ margin-bottom:var(--sp-5); }
+  iframe.bili{ border-radius:var(--r-sm); }
+  .refs{ margin-top:var(--sp-5); }
+  .runBlock{ margin-top:var(--sp-5); }
+  .runHead,
+  .runActions{ padding-left:var(--sp-3); padding-right:var(--sp-3); }
+  .runNote{ margin-left:0; flex-basis:100%; }
+  .slides{ margin-top:var(--sp-5); }
+  .emptyCard,
+  .endCard{ padding:var(--sp-6) var(--sp-3) var(--sp-8); }
+  .emptyCard .emptyIco,
+  .endCard .endIco{ width:46px; height:46px; margin-bottom:var(--sp-3); }
+  .emptyCard h2,
+  .endCard h2{ font-size:var(--fs-20); }
+  .thumbRow{ gap:var(--sp-2); }
+  img.thumb{ width:120px; }
+  .body table.md-table{ font-size:var(--fs-125); }
+}

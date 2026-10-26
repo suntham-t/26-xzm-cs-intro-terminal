@@ -1,0 +1,6 @@
+{
+ "id": "chapter-slides-margin",
+ "note": "章首/章末课件块：删内联上间距，节奏交给 token",
+ "old": "  return '<div class=\"slides\" style=\"margin-top:20px\"><div class=\"secHead\">本章课件原图</div>' +",
+ "new": "  return '<div class=\"slides\"><div class=\"secHead\">本章课件原图</div>' +"
+}

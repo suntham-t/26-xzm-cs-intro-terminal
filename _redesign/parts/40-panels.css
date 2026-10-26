@@ -1,0 +1,1084 @@
+/* =====================================================================
+   40-panels.css —— 面板与弹层
+   ---------------------------------------------------------------------
+   负责范围（老样式表 492–812 行那几段）：
+     · 目录三级导航  .tocCh / .tocChId / .tocSec / .tocCnt / .tocNo / .tocTitle /
+                     button.tocPt（.done / .tocMat / .here）
+     · 弹层骨架      #modal / .modalBox / #modalBody / .lbImg / [data-kind=lightbox]
+     · 搜索面板      .searchInput / .searchHit / .sh / .shch / .sn / .searchResults
+                     + 100days 主题行 .topicRow / .topicName / .topicDays
+     · OpenJudge     .ojNote / .ojBtns / .ojRow / .ojUrl(.big2) / .ojSmall
+     · 作业          .hwHead / .hwTitle / .hwDeadline / .hwList / button.hwRow / .hwNo /
+                     .hwRate(.low) / .hwGo / .hwActions / .newHwRow / .hwGroupHead(.first) /
+                     .hwBlock / .tabBar / button.tab / .probHead / .lim / .ptChips
+     · 验证徽章      .vfy(.ok/.skip) / details.vfy.bad / .vfyBox
+     · AI 状态条     .aiBar / .aiNote / .aiStream(.cursor) / .aiErr / details.aiReason / .builtinTag
+     · 测一测        textarea.probCode / .caseRow / .caseLbl / button.caseChip(.on/.ai) /
+                     .caseOps / .caseHint / details.refSol / .refCode / .refActions /
+                     .markDot(.ac/.wa) / button.markBtn(.on) / .allCase / .allHead / .miniPre(.bad) /
+                     .allOk / button.confirming / button.subBtn / .hwStatsBar / .hwStats /
+                     #ojEmail / #ojPass / .resBox / .resHead / .verdict(.pass/.fail/.skip) /
+                     .resGrid / .preRow / .copyMini
+     · AI 设置       .setRow / .setLabel / .setField / .rowIn / .setInput / .setHint / .setOk / .setBad
+     · 100 Days      .daysBar / .dayRow / .dayNo / .dayMeta / .hit / .topicHit / .tk / .daysSec
+   ---------------------------------------------------------------------
+   与老样式表的差异（方向性修改，都写明了为什么）：
+     1) 目录按"文档导航"做：章标题发丝线 + 吸顶，知识点整行可点（显式 display:block ——
+        button 在老基础样式里是 inline-flex，不写就只包住文字，当前项高亮会像贴纸）；
+     2) 弹层统一 18px 圆角 + --sh-xl；搜索做成"命令面板"（贴上部、更窄、输入框无边框）；
+        遮罩仍由 shell 的 #scrim 负责，这里不重复上色（叠两层会糊成一片）；
+     3) textarea.probCode 从浅灰输入框改成深色代码面（--c-term / --c-term-fg），
+        和底部终端同一套 token；它仍是普通 textarea，可选中、可右键粘贴（没碰 user-select）；
+     4) 结果框/样例框一律卡片化（圆角 + 发丝线 + pre 可滚动），长测试数据不再撑爆面板；
+     5) 设置页两列表单（label 固定 84px），窄屏自动改上下排。
+   ★ 不写 html[data-theme="dark"]：深色只覆盖 token（00-tokens.css）。
+   ★ 不重复定义 #scrim / .panelHead / .xclose / #toc / #tocBody / #inlinePanel：盒子归 shell。
+   ★ 助手面板（#modal[data-kind="assistant"] 与 .as* 那一套）在 50-ai.css，这里不碰。
+   ===================================================================== */
+
+/* ════════════════════════════════════════════════════════════════════
+   目录：章 › 节 › 知识点
+   --------------------------------------------------------------------
+   这是应用的主导航，不是"按钮堆"：三级靠字号/字重/缩进/一条引导线区分，
+   而不是三套底色。108 行里唯一能当路标的是章标题，所以它带发丝线并吸顶。
+   ════════════════════════════════════════════════════════════════════ */
+
+.tocCh{
+  margin:var(--sp-4) 4px var(--sp-1);
+  padding:var(--sp-3) 2px 2px;
+  border-top:1px solid var(--c-line);
+  font:600 var(--fs-14)/1.45 var(--font-ui);
+  color:var(--c-text);
+  letter-spacing:.01em;
+  /* 吸顶：目录滚到 ch02 中段时，"现在在哪一章"必须一直看得见。
+     背景必须是实色，否则下面的知识点会从标题缝里透出来。 */
+  position:sticky; top:-8px; z-index:2;
+  background:var(--c-surface);
+}
+.tocCh:first-child{ margin-top:var(--sp-1); padding-top:2px; border-top:0; }
+/* 章号：等宽、压暗 —— 它是坐标，不是标题，别和章名抢 */
+.tocChId{
+  font-family:var(--font-mono);
+  font-size:var(--fs-11);
+  font-weight:600;
+  color:var(--c-text-4);
+  margin-right:7px;
+  letter-spacing:.02em;
+}
+
+.tocSec{
+  display:flex; align-items:baseline; gap:var(--sp-2);
+  margin:10px 4px var(--sp-1);
+  font:600 var(--fs-13)/1.5 var(--font-ui);
+  color:var(--c-text);
+}
+/* 「第 N 节」是坐标、节名才是标题：拆开才能一灰一黑 */
+.tocNo{
+  flex:none;
+  /* 400 而不是 500：11px 的中文在 500 下会明显比右边的计数（400）重，
+     读起来像"第 N 节"是标题 —— 它其实只是个坐标，要比节名轻。 */
+  font:400 var(--fs-11)/1.5 var(--font-ui);
+  color:var(--c-text-4);
+  font-variant-numeric:tabular-nums;
+}
+.tocTitle{ flex:1 1 auto; min-width:0; font-weight:600; }
+.tocCnt{
+  flex:none; margin-left:auto;
+  font:400 var(--fs-11)/1.5 var(--font-ui);
+  color:var(--c-text-4);
+  font-variant-numeric:tabular-nums;
+}
+
+/* 知识点行。
+   ★ display:block + width 必须显式写：button 的默认 display 是 inline-flex、
+     width 是"贴合内容"，不写的话当前项那个蓝底只包住文字（实测 88px），
+     看着像贴纸而不是"这一行是当前位置"。
+   ★ white-space:normal：老基础样式给 button 设了 nowrap，长标题会顶出侧栏。 */
+button.tocPt{
+  display:block;
+  width:calc(100% - 10px);
+  margin-left:10px;
+  padding:5px 10px 5px 12px;
+  text-align:left;
+  white-space:normal;
+  border:0;
+  border-left:1px solid var(--c-line);
+  border-radius:0 var(--r-sm) var(--r-sm) 0;
+  background:none;
+  color:var(--c-text-2);
+  font-size:var(--fs-125);
+  line-height:1.55;
+  transition:background-color var(--dur-2) var(--ease),
+             color var(--dur-2) var(--ease),
+             border-color var(--dur-2) var(--ease);
+}
+button.tocPt:hover:not(:disabled){
+  background:var(--c-surface-3);
+  border:0;                         /* 基础 button 的 1px 边框会挤掉左引导线 */
+  border-left:1px solid var(--c-line-strong);
+  border-radius:0 var(--r-sm) var(--r-sm) 0;
+  color:var(--c-text);
+}
+/* 键盘焦点环往内画：目录是 overflow-x:hidden 的滚动区，外圈会被裁掉一半 */
+button.tocPt:focus-visible{ outline:2px solid var(--c-accent); outline-offset:-2px; }
+/* 已学（进度机制已砍，class 保留：契约要求，也为以后留口子） */
+button.tocPt.done{ color:var(--c-ok); }
+/* 材料入口（本章要学什么 / 本章总结）：强调色 + 600，但**不给底色** ——
+   底色是"当前位置"专用的语义，两者混用就看不出自己在哪了。 */
+button.tocPt.tocMat{ color:var(--c-accent-ink); font-weight:600; }
+/* 当前位置 */
+button.tocPt.here{
+  background:var(--c-accent-soft);
+  color:var(--c-accent-ink);
+  font-weight:600;
+  /* 左边缘从 1px 变 2px：padding 同步减 1px，文字不会横向跳一下 */
+  border-left:2px solid var(--c-accent);
+  padding-left:11px;
+}
+button.tocPt.tocMat.here{ color:var(--c-accent-ink); }
+
+/* ════════════════════════════════════════════════════════════════════
+   弹层骨架
+   --------------------------------------------------------------------
+   #modal 只是"居中容器 + 吃掉背景点击"（老行为：点遮罩不关窗，避免误触）；
+   遮罩和它的 blur 由 shell 的 #scrim 负责 —— 这层再上一次色就会双重变暗。
+   ════════════════════════════════════════════════════════════════════ */
+#modal{
+  position:fixed; inset:0;
+  z-index:var(--z-modal);
+  display:flex; align-items:center; justify-content:center;
+  padding:var(--sp-8) var(--sp-5);
+}
+.modalBox{
+  display:flex; flex-direction:column;
+  width:100%; max-width:780px; max-height:88vh;
+  background:var(--c-surface);
+  border:1px solid var(--c-line);
+  border-radius:var(--r-xl);
+  box-shadow:var(--sh-xl);
+  overflow:hidden;                    /* 圆角要裁住 panelHead 的直角 */
+  animation:popIn var(--dur-3) var(--ease);
+}
+/* 弹层头比面板头稍宽一点内边距：它是"窗口标题"，不是侧栏头 */
+.modalBox > .panelHead{ padding:14px 18px 12px; }
+
+/* 面板正文：唯一滚动区。滚动放在 body 上而不是整个 box 上 ——
+   头（标题 + ✕）必须永远可见，长作业列表滚到底也关得掉。 */
+#modalBody{
+  flex:1 1 auto; min-height:0;
+  overflow:auto;
+  padding:var(--sp-4) var(--sp-5) var(--sp-5);
+}
+
+/* 课件大图：深底 + 无白边（图片本身才是内容，框越少越好） */
+#modal[data-kind="lightbox"] .modalBox{
+  max-width:1100px;
+  background:var(--c-term);
+  border-color:var(--c-term-line);
+}
+#modal[data-kind="lightbox"] .panelHead{ border-bottom-color:var(--c-term-line); }
+#modal[data-kind="lightbox"] .panelHead b{ color:var(--c-term-fg); }
+#modal[data-kind="lightbox"] .xclose{ color:var(--c-term-fg-dim); }
+#modal[data-kind="lightbox"] .xclose:hover:not(:disabled){
+  background:color-mix(in srgb, var(--c-term-fg) 14%, transparent);
+  color:var(--c-term-fg);
+}
+#modal[data-kind="lightbox"] #modalBody{
+  padding:0;
+  display:flex; align-items:center; justify-content:center;
+}
+.lbImg{ max-width:100%; max-height:82vh; display:block; }
+
+/* 「正在取课件第 N 页」那句的深底灰字由 90-polish 的 .lightboxLoading 负责
+   （JS 原来那句内联 color 已经改成这个类了，所以这里不需要再压内联样式）。 */
+
+/* ════════════════════════════════════════════════════════════════════
+   搜索：命令面板
+   --------------------------------------------------------------------
+   和"内容弹层"不同，搜索是**瞬时覆盖**：贴上部、宽度收窄、结果紧贴输入框。
+   这样眼睛不用在屏幕中间来回找，敲完回车就走。
+   ════════════════════════════════════════════════════════════════════ */
+#modal[data-kind="search"]{
+  align-items:flex-start;
+  padding-top:9vh;
+}
+#modal[data-kind="search"] .modalBox{ max-width:660px; max-height:78vh; }
+#modal[data-kind="search"] #modalBody{ padding:var(--sp-4) var(--sp-4) var(--sp-4); }
+
+.searchInput{
+  width:100%;
+  font:400 var(--fs-14)/1.5 var(--font-ui);
+  color:var(--c-text);
+  background:var(--c-surface-2);
+  border:1px solid var(--c-line);
+  border-radius:var(--r-md);
+  padding:9px 12px;
+  outline:none;
+}
+.searchInput::placeholder{ color:var(--c-text-4); }
+.searchInput:focus{
+  background:var(--c-surface);
+  border-color:var(--c-accent);
+  box-shadow:var(--sh-focus);
+}
+/* 命令面板的输入框：更大、无边框（焦点环本身就是"这里在等你打字"）
+   —— 边框 + 焦点环两层会显得脏 */
+#modal[data-kind="search"] .searchInput{
+  font-size:var(--fs-15);
+  padding:12px 14px;
+  border-color:transparent;
+  /* 无边框时靠底色划出"输入区"：--c-surface-2 太接近白，整块看不出是输入框 */
+  background:var(--c-surface-3);
+}
+#modal[data-kind="search"] .searchInput:focus{
+  border-color:var(--c-accent);
+  background:var(--c-surface);
+  box-shadow:var(--sh-focus);
+}
+
+.searchResults{
+  display:flex; flex-direction:column; gap:3px;
+  margin-top:var(--sp-3);
+  /* 底部留一点缝：面板滚到底时最后一行不会被 max-height 的边切在半腰，
+     看起来像"截断 bug"。 */
+  padding-bottom:var(--sp-2);
+}
+/* 搜索面板里的分组标题比正文里的小节标题更紧凑 ——
+   命令面板一屏要放下尽可能多的结果，标题只当"分隔"用 */
+#modal[data-kind="search"] .secHead{ margin:10px 0 4px; }
+
+/* 命中行 = 结果行。
+   ★ display:block + width:100% + text-align:left：button 默认 inline-flex + 居中，
+     不写就变成一列居中的小方块（老样式踩过）。
+   ★ white-space:normal：基础 button 是 nowrap，摘要会顶出一个横向滚动条。 */
+.searchHit{
+  display:block;
+  width:100%;
+  text-align:left;
+  white-space:normal;
+  border:0;
+  background:none;
+  border-radius:var(--r-sm);
+  padding:11px 12px;
+}
+/* hover 给一条左侧强调条：结果行是"跳转入口"，得让人确认"点的是这一行" */
+.searchHit:hover:not(:disabled){
+  background:var(--c-surface-3);
+  border:0;
+  box-shadow:inset 2px 0 0 var(--c-accent);
+}
+.searchHit:focus-visible{ outline:2px solid var(--c-accent); outline-offset:-2px; }
+.searchHit .sh{
+  font-size:var(--fs-14);
+  font-weight:600;
+  color:var(--c-text);
+}
+/* 命中行开头的章号：搜索是跨章的，"第 5 节"在 ch02/ch03 里都存在，
+   不标章号就不知道点下去会被带到哪一章 */
+.searchHit .shch{
+  display:inline-block;
+  font:600 var(--fs-11)/1.6 var(--font-ui);
+  color:var(--c-accent-ink);
+  background:var(--c-accent-soft);
+  border-radius:var(--r-xs);
+  padding:0 5px;
+  margin-right:1px;
+  vertical-align:1px;
+}
+.searchHit .sn{
+  margin-top:4px;
+  font-size:var(--fs-13);
+  color:var(--c-text-2);
+  line-height:1.65;
+  overflow-wrap:anywhere;
+}
+.searchHit .sn b{
+  color:var(--c-accent-ink);
+  background:var(--c-accent-soft);
+  border-radius:var(--r-xs);
+  padding:0 2px;
+  font-weight:700;
+}
+
+/* 100Days 主题索引命中行（搜索面板里的另一种结果） */
+/* 网格而不是 flex-wrap：主题名长短不一时，"哪几天讲过"那一列必须对齐，
+   否则每行 chip 的起点都不一样，扫读时眼睛要重新找列。
+   ★ 密度压到"行 4px / chip 12px"：100Days 主题索引是**附加信息**，
+     而这一屏的主角是下面的知识点命中行 —— 搜索"列表"的人十有八九想跳讲义。 */
+.topicRow{
+  display:grid;
+  grid-template-columns:96px minmax(0,1fr);
+  align-items:start;
+  gap:2px var(--sp-2);
+  padding:4px var(--sp-1);
+  border-bottom:1px solid var(--c-line-2);
+}
+.topicName{
+  font-size:var(--fs-125);
+  font-weight:600;
+  color:var(--c-text-2);
+  padding-top:3px;
+}
+.topicDays{ display:flex; gap:4px; flex-wrap:wrap; }
+/* 主题索引里的 chip 收小一号（.chip 本体在 30-card.css，这里只做面板内的密度调整） */
+.topicRow .chip{ font-size:var(--fs-12); padding:1px 8px; }
+
+/* ════════════════════════════════════════════════════════════════════
+   OpenJudge
+   --------------------------------------------------------------------
+   这一屏唯一要回答的问题是"为什么不在这里嵌 iframe"，所以把解释做成
+   一块柔和的提示条（warn 语义：它是限制，不是错误），按钮纵向排成一列、
+   每个按钮下面永远跟着可复制的地址（新窗口被拦时的唯一退路）。
+   ════════════════════════════════════════════════════════════════════ */
+.ojNote{
+  font-size:var(--fs-135); line-height:1.75;
+  color:var(--c-text-2);
+  background:var(--c-warn-soft);
+  border:1px solid var(--c-warn-line);
+  border-radius:var(--r-md);
+  padding:var(--sp-3) 14px;
+  margin-bottom:var(--sp-4);
+}
+.ojNote b{ color:var(--c-warn); }
+.ojNote code{
+  background:color-mix(in srgb, var(--c-text) 6%, transparent);
+  border-radius:var(--r-xs);
+  padding:1px 5px;
+  font-size:var(--fs-125);
+}
+.ojBtns{ display:flex; flex-direction:column; gap:var(--sp-3); }
+.ojRow{ display:flex; flex-direction:column; gap:var(--sp-1); }
+.ojRow button{ width:100%; }
+.ojUrl{
+  display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap;
+  padding-left:2px;
+}
+.ojUrl code{
+  font-family:var(--font-mono);
+  font-size:var(--fs-12);
+  color:var(--c-text-3);
+  background:var(--c-surface-2);
+  border-radius:var(--r-xs);
+  padding:2px 6px;
+  user-select:all;                    /* 三击即全选：这条地址是给"手动复制"用的 */
+}
+.ojUrl.big2{ margin-top:var(--sp-1); }
+.ojSmall{
+  margin-top:var(--sp-4);
+  font-size:var(--fs-12);
+  color:var(--c-text-3);
+  line-height:1.7;
+}
+
+/* ---- 检查更新 ----
+   这个面板天生很短（一行标题 + 两个按钮 + 一句说明），不撑一点高度会缩成
+   一条窄卡，看起来像"加载失败"。说明句做成左侧 2px 的说明条：
+   读起来是"解释"，不是"报错"。 */
+#modal[data-kind="update"] #modalBody{ min-height:220px; }
+#modal[data-kind="update"] #modalBody > .aiNote{
+  background:var(--c-surface-2);
+  border-left:2px solid var(--c-accent-line);
+  border-radius:0 var(--r-sm) var(--r-sm) 0;
+  padding:10px 12px;
+  color:var(--c-text-2);
+  margin-bottom:var(--sp-3);
+}
+#modal[data-kind="update"] .panelRow{ margin-bottom:var(--sp-3); }
+
+/* ════════════════════════════════════════════════════════════════════
+   作业 / 小测
+   --------------------------------------------------------------------
+   一份题集 = 标题行 + 行式题目列表 + 操作栏；小测和作业共用同一套渲染，
+   只靠 .hwGroupHead 分组。行式列表（而不是卡片网格）是因为题目有 10+ 条、
+   标题很长，网格会变成一堆不等高的方块。
+   ════════════════════════════════════════════════════════════════════ */
+.hwHead{
+  display:flex; align-items:baseline; gap:var(--sp-3); flex-wrap:wrap;
+  margin:2px 0 var(--sp-3);
+}
+.hwHead .hwTitle{
+  font-size:var(--fs-17);
+  font-weight:600;
+  color:var(--c-text);
+}
+.hwDeadline{
+  font-size:var(--fs-125);
+  color:var(--c-warn);
+  background:var(--c-warn-soft);
+  border:1px solid var(--c-warn-line);
+  border-radius:var(--r-pill);
+  padding:1px 10px;
+}
+.hwList{ display:flex; flex-direction:column; gap:0; margin:6px 0 4px; }
+
+/* 整行可点：display:flex + width:100% + text-align:left
+   （button 默认 inline-flex/居中，不写就变成一条居中的小按钮） */
+button.hwRow{
+  display:flex; align-items:center; gap:var(--sp-3);
+  width:100%;
+  text-align:left;
+  white-space:normal;
+  border:0;
+  border-bottom:1px solid var(--c-line-2);
+  border-radius:0;
+  background:none;
+  padding:10px 6px;
+}
+button.hwRow:hover:not(:disabled){
+  background:var(--c-surface-2);
+  border:0;
+  border-bottom:1px solid var(--c-line-2);
+}
+button.hwRow:focus-visible{ outline:2px solid var(--c-accent); outline-offset:-2px; }
+/* 题号：圆形序号。悬停时跟着整行亮起，指路"点的是这一条" */
+.hwNo{
+  flex:none;
+  width:26px; height:26px;
+  display:grid; place-items:center;
+  border-radius:50%;
+  background:var(--c-surface-3);
+  color:var(--c-text-3);
+  font-size:var(--fs-12);
+  font-weight:600;
+  font-variant-numeric:tabular-nums;
+  transition:background-color var(--dur-2) var(--ease),
+             color var(--dur-2) var(--ease);
+}
+button.hwRow:hover .hwNo{ background:var(--c-accent-soft); color:var(--c-accent-ink); }
+.hwRow .t{
+  flex:1 1 auto; min-width:0;
+  font-size:var(--fs-14);
+  color:var(--c-text);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.hwRate{
+  flex:none;
+  font-size:var(--fs-125);
+  color:var(--c-text-4);
+  font-variant-numeric:tabular-nums;
+}
+.hwRate b{ color:var(--c-ok); font-weight:600; }
+.hwRate b.low{ color:var(--c-warn); }
+.hwGo{ flex:none; font-size:var(--fs-12); color:var(--c-accent-ink); }
+
+/* 操作栏：一条上发丝线 + 右侧状态（.sp 把状态顶到最右） */
+.hwActions{
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  margin-top:14px; padding-top:14px;
+  border-top:1px solid var(--c-line-2);
+}
+.newHwRow{
+  display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap;
+  margin-top:var(--sp-2);
+}
+.newHwRow code{
+  font-family:var(--font-mono);
+  font-size:var(--fs-125);
+  background:var(--c-surface-2);
+  border-radius:var(--r-xs);
+  padding:1px 6px;
+}
+
+/* 分组标题（📝 作业 / 🧪 小测）：小测和作业走同一套渲染，只在这里分组 */
+.hwGroupHead{
+  display:flex; align-items:baseline; gap:var(--sp-2);
+  margin:var(--sp-5) 0 2px; padding-top:var(--sp-4);
+  border-top:1px solid var(--c-line);
+  font-size:var(--fs-15);
+  font-weight:600;
+  color:var(--c-text);
+}
+.hwGroupHead.first{ margin-top:6px; padding-top:0; border-top:0; }
+.hwGroupHead .n{ font-weight:400; font-size:var(--fs-125); color:var(--c-text-3); }
+/* 块与块之间画线：上一块的"AI 已就绪…"和下一块标题之间以前是贴着的 */
+.hwBlock + .hwBlock{
+  margin-top:var(--sp-5); padding-top:var(--sp-4);
+  border-top:1px solid var(--c-line-2);
+}
+
+/* 题目页签：下划线指示器（页签是"同一个页面的三个视图"，不是三张卡） */
+.tabBar{
+  display:flex; gap:var(--sp-1);
+  margin:calc(-1 * var(--sp-1)) 0 14px;
+  border-bottom:1px solid var(--c-line);
+}
+button.tab{
+  border:0; border-radius:0;
+  background:none;
+  padding:8px 14px;
+  margin-bottom:-1px;                 /* 指示器压在 .tabBar 那条线上 */
+  font-size:var(--fs-135);
+  color:var(--c-text-3);
+  border-bottom:2px solid transparent;
+}
+button.tab:hover:not(:disabled){
+  background:none;
+  border:0;
+  border-bottom:2px solid var(--c-line-strong);
+  color:var(--c-text);
+}
+button.tab.on{
+  color:var(--c-accent-ink);
+  font-weight:600;
+  border-bottom-color:var(--c-accent);
+}
+button.tab:focus-visible{ outline:2px solid var(--c-accent); outline-offset:-2px; }
+
+.probHead{
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  margin-bottom:4px;
+}
+.probHead .lim{
+  font-size:var(--fs-12);
+  color:var(--c-text-3);
+  font-family:var(--font-mono);
+}
+.ptChips{
+  display:flex; gap:6px; flex-wrap:wrap;
+  margin-top:var(--sp-3); padding-top:var(--sp-3);
+  border-top:1px solid var(--c-line-2);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   验证徽章（AI 代码块下方那条工具栏里的"已用样例验证 / 未验证 / 没过样例"）
+   --------------------------------------------------------------------
+   ok/skip 是 pill；bad 是 <details>（可以展开看用例和期望/实际的差异），
+   所以 bad 不能写成 inline-flex —— 它得是一整块，展开时占满一行。
+   ════════════════════════════════════════════════════════════════════ */
+.vfy{
+  font-size:var(--fs-12);
+  line-height:1.5;
+  border-radius:var(--r-pill);
+  padding:2px 9px;
+  white-space:nowrap;
+}
+span.vfy.ok{
+  background:var(--c-ok-soft);
+  color:var(--c-ok);
+  border:1px solid var(--c-ok-line);
+}
+span.vfy.skip{
+  background:var(--c-surface-3);
+  color:var(--c-text-3);
+  border:1px solid var(--c-line);
+}
+details.vfy.bad{
+  background:var(--c-warn-soft);
+  color:var(--c-warn);
+  border:1px solid var(--c-warn-line);
+  border-radius:var(--r-md);
+  padding:2px 9px;
+  cursor:pointer;
+  white-space:normal;                 /* 理由可能很长（"代码里有大循环…"），必须能折行 */
+}
+details.vfy.bad[open]{ width:100%; padding:8px 12px; }
+details.vfy.bad > summary{
+  cursor:pointer; outline:none; list-style:none;
+  font-size:var(--fs-12); font-weight:600;
+}
+details.vfy.bad > summary::-webkit-details-marker{ display:none; }
+details.vfy.bad > summary:focus-visible{ outline:2px solid var(--c-accent); outline-offset:2px; }
+.vfyBox{
+  margin-top:6px;
+  font-family:var(--font-mono);
+  font-size:var(--fs-125);
+  line-height:1.7;
+  color:var(--c-warn);
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+.vfyBox b{ font-weight:700; }
+.vfyBox b.bad{ color:var(--c-err); }
+
+/* 三个 <details> 共用一个小三角（原生 ▶ 在不同 WebView 版本里粗细不一） */
+details.refSol > summary::before,
+details.aiReason > summary::before,
+details.vfy.bad > summary::before{
+  content:"";
+  display:inline-block;
+  width:5px; height:5px;
+  margin-right:7px;
+  border-right:1.6px solid currentColor;
+  border-bottom:1.6px solid currentColor;
+  transform:rotate(-45deg) translateY(-1px);
+  transition:transform var(--dur-2) var(--ease);
+}
+details.refSol[open] > summary::before,
+details.aiReason[open] > summary::before,
+details.vfy.bad[open] > summary::before{ transform:rotate(45deg) translateY(-1px); }
+
+/* ════════════════════════════════════════════════════════════════════
+   AI 状态条 / 流式输出 / 错误块
+   --------------------------------------------------------------------
+   .aiStream 里是 markdown 正文（排版在 30-card.css），这里只负责
+   "光标"和最小高度 —— 流式时先撑开一块高度，页面不会每来一段就跳一下。
+   ════════════════════════════════════════════════════════════════════ */
+.aiBar{
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  margin-bottom:var(--sp-3);
+}
+.aiNote{
+  font-size:var(--fs-12);
+  color:var(--c-text-3);
+  line-height:1.65;
+}
+.aiStream{ min-height:40px; }
+.aiStream .cursor{
+  display:inline-block;
+  width:7px; height:15px;
+  border-radius:1px;
+  background:var(--c-accent);
+  vertical-align:-2px;
+  animation:blink 1s step-start infinite;   /* 关键帧在 10-base.css */
+}
+.aiErr{
+  border:1px solid var(--c-err-line);
+  background:var(--c-err-soft);
+  border-radius:var(--r-md);
+  padding:10px 13px;
+  color:var(--c-err);
+  font-size:var(--fs-135);
+  line-height:1.7;
+  margin-bottom:var(--sp-3);
+}
+details.aiReason{
+  margin-bottom:var(--sp-3);
+  font-size:var(--fs-125);
+  color:var(--c-text-3);
+}
+details.aiReason > summary{
+  cursor:pointer; outline:none; list-style:none;
+}
+details.aiReason > summary::-webkit-details-marker{ display:none; }
+details.aiReason > summary:hover{ color:var(--c-accent-ink); }
+/* 思考过程 / "我要发送的 JSON"：可能几千行，必须限高 + 换行 + 自己滚
+   （50-ai.css 里有同值的一份：那边也写了"两边取值一致"，改这里同步改那边） */
+details.aiReason pre{
+  margin:6px 0 0;
+  padding:var(--sp-2) 11px;
+  background:var(--c-code);
+  border:1px solid var(--c-code-line);
+  border-radius:var(--r-sm);
+  font:var(--fs-12)/1.7 var(--font-mono);
+  white-space:pre-wrap;
+  word-break:break-word;
+  color:var(--c-text-2);
+  max-height:340px;
+  overflow:auto;
+}
+/* 老样式里有 .builtinTag，但现在的 JS 里已经不再生成这个节点（grep 不到）。
+   规则保留只是为了满足"老 class 不许丢"的覆盖契约。
+   ★ 50-ai.css 里有同名同值的规则（那边也声明了"两边取值一致"）—— 改这里记得同步那边。 */
+.builtinTag{
+  display:inline-block;
+  font-size:var(--fs-11);
+  color:var(--c-text-3);
+  background:var(--c-surface-2);
+  border:1px solid var(--c-line);
+  border-radius:var(--r-pill);
+  padding:0 8px;
+  margin-left:var(--sp-2);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   测一测：代码框 / 用例 / 结果
+   --------------------------------------------------------------------
+   ★ 代码框是全 app 第二块"深色面"（第一块是底部终端）：写代码时眼睛
+     不该在浅色输入框和深色终端之间来回适应。
+   ★ 它仍然是普通 textarea —— 可选中、可右键粘贴、可拖高，
+     只是把配色换到了 --c-term 这套 token 上（别写 user-select:none）。
+   ════════════════════════════════════════════════════════════════════ */
+textarea.probCode{
+  width:100%;
+  min-height:180px;
+  resize:vertical;
+  cursor:text;
+  background:var(--c-term);
+  border:1px solid color-mix(in srgb, var(--c-term-fg) 16%, transparent);
+  border-radius:var(--r-md);
+  padding:14px;
+  font:var(--fs-13)/1.7 var(--font-mono);
+  color:var(--c-term-fg);
+  caret-color:var(--c-term-accent);
+  tab-size:4;
+  white-space:pre;                    /* 代码不自动换行：折行会把缩进打乱 */
+  overflow:auto;
+}
+textarea.probCode:focus{
+  border-color:var(--c-term-accent);
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--c-term-accent) 22%, transparent);
+}
+textarea.probCode::placeholder{ color:var(--c-term-fg-dim); }
+textarea.probCode::selection{
+  background:color-mix(in srgb, var(--c-term-accent) 34%, transparent);
+}
+
+.caseRow{
+  display:flex; align-items:center; gap:7px; flex-wrap:wrap;
+  margin:var(--sp-3) 0;
+}
+.caseLbl{ font-size:var(--fs-125); color:var(--c-text-3); margin-right:2px; }
+button.caseChip{
+  font-size:var(--fs-12);
+  padding:3px 11px;
+  border-radius:var(--r-pill);
+  /* 用例标签来自"用例输入的第一行"，极端情况下会很长：
+     限宽 + 省略，宁可截断也不能把一行撑出面板。 */
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+button.caseChip.on{
+  background:var(--c-accent-soft);
+  border-color:var(--c-accent-line);
+  color:var(--c-accent-ink);
+  font-weight:600;
+}
+/* AI 生成的用例：虚线边 —— 输入是模型出的、期望值是本机算的，
+   和"题目自带样例"不是一个可信度，必须看得见区别 */
+button.caseChip.ai{ border-style:dashed; color:var(--c-text-2); }
+button.caseChip.ai.on{ border-style:dashed; color:var(--c-accent-ink); }
+.caseOps{
+  display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap;
+  margin-top:var(--sp-2);
+}
+.caseHint{ font-size:var(--fs-11); color:var(--c-text-4); }
+
+/* 参考解：折叠 + 浅底，绝不预填进代码框（打开就看见答案，练习变抄） */
+details.refSol{
+  margin:var(--sp-3) 0 0;
+  background:var(--c-surface-2);
+  border:1px solid var(--c-line);
+  border-radius:var(--r-md);
+  overflow:hidden;
+}
+details.refSol > summary{
+  padding:9px 12px;
+  font-size:var(--fs-125);
+  color:var(--c-text-2);
+  list-style:none; cursor:pointer; outline:none;
+}
+details.refSol > summary::-webkit-details-marker{ display:none; }
+details.refSol > summary:hover{ color:var(--c-accent-ink); }
+details.refSol > summary:focus-visible{ outline:2px solid var(--c-accent); outline-offset:-2px; }
+details.refSol .refCode{
+  margin:0; padding:2px 12px 10px;
+  font:var(--fs-13)/1.7 var(--font-mono);
+  color:var(--c-text-2);
+  white-space:pre;                    /* 参考解要保住缩进，横向滚动比折行好读 */
+  overflow:auto;
+  max-height:320px;
+}
+details.refSol .refActions{ display:flex; gap:var(--sp-2); padding:0 12px 10px; }
+
+/* 自己的 AC/WA 标记：题号旁边一颗小圆点 */
+.markDot{
+  width:6px; height:6px;
+  border-radius:50%;
+  display:inline-block;
+  flex:none;
+  margin-right:-4px;                  /* 贴着序号圆，别把 26px 的圆顶歪 */
+}
+.markDot.ac{ background:var(--c-ok); }
+.markDot.wa{ background:var(--c-err); }
+button.markBtn.on.ac{
+  border-color:var(--c-ok-line);
+  background:var(--c-ok-soft);
+  color:var(--c-ok);
+  font-weight:600;
+}
+button.markBtn.on.wa{
+  border-color:var(--c-err-line);
+  background:var(--c-err-soft);
+  color:var(--c-err);
+  font-weight:600;
+}
+
+/* 「全跑一遍」的失败明细 */
+.allCase{ border-top:1px solid var(--c-line-2); padding:10px 12px 3px; }
+.allHead{
+  display:flex; align-items:baseline; gap:var(--sp-2);
+  font-size:var(--fs-125);
+  font-weight:600;
+  color:var(--c-err);
+}
+.allHead .why{ font-weight:400; font-size:var(--fs-11); color:var(--c-text-3); }
+.miniPre{
+  margin:2px 0 7px;
+  padding:5px 9px;
+  background:var(--c-code);
+  border:1px solid var(--c-code-line);
+  border-radius:var(--r-sm);
+  font:var(--fs-12)/1.6 var(--font-mono);
+  white-space:pre-wrap;
+  word-break:break-word;
+  max-height:170px;
+  overflow:auto;                      /* 长测试数据必须自己滚，不能撑爆面板 */
+}
+.miniPre.bad{ background:var(--c-err-soft); border-color:var(--c-err-line); }
+.allOk{ font-size:var(--fs-125); color:var(--c-ok); padding:2px 12px 9px; }
+/* 「全部生成解析」的二次确认态：强调成"再点一次就花钱"的样子 */
+button.confirming{
+  border-color:var(--c-accent);
+  background:var(--c-accent-soft);
+  color:var(--c-accent-ink);
+  font-weight:600;
+}
+/* 题头的「自动提交」：primary 但按页头尺寸收小，别比标题还抢眼 */
+button.subBtn{ padding:4px 12px; font-size:var(--fs-125); border-radius:var(--r-sm); }
+/* 题集头部那行"通过率：12 秒前更新 · 点我刷新" */
+.hwStatsBar{ display:flex; justify-content:flex-end; margin:-6px 2px 6px; }
+button.linkbtn.hwStats{
+  font-size:var(--fs-11);
+  color:var(--c-text-4);
+  text-decoration:none;
+  padding:0 2px;
+  background:none;
+  border:0;
+}
+button.linkbtn.hwStats:hover:not(:disabled){
+  background:none;
+  color:var(--c-accent-ink);
+  text-decoration:underline;
+}
+/* 登录框里的账号/密码要占满一行（.rowIn 是 flex，不写会缩成一小截） */
+#ojEmail,#ojPass{ width:100%; min-width:0; }
+
+/* 结果框：样例 / 本次运行 / 自动提交 / 全跑一遍，四处共用 */
+.resBox{
+  margin-top:14px;
+  background:var(--c-surface);
+  border:1px solid var(--c-line);
+  border-radius:var(--r-md);
+  overflow:hidden;
+}
+.resBox .resHead{
+  display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap;
+  padding:7px 12px;
+  background:var(--c-surface-2);
+  border-bottom:1px solid var(--c-line-2);
+  font-size:var(--fs-125);
+  font-weight:600;
+  color:var(--c-text-2);
+}
+/* 结论药丸钉在最右：从页头一路扫下来，先看到"过没过" */
+.resBox .resHead .verdict{
+  margin-left:auto;
+  font-size:var(--fs-12);
+  font-weight:600;
+  border-radius:var(--r-pill);
+  padding:1px 9px;
+}
+.verdict.pass{ background:var(--c-ok-soft); color:var(--c-ok); border:1px solid var(--c-ok-line); }
+.verdict.fail{ background:var(--c-err-soft); color:var(--c-err); border:1px solid var(--c-err-line); }
+.verdict.skip{ background:var(--c-surface-3); color:var(--c-text-3); border:1px solid var(--c-line); }
+
+.resGrid{
+  display:grid;
+  grid-template-columns:58px minmax(0,1fr);
+  gap:var(--sp-2) var(--sp-3);
+  padding:var(--sp-3);
+  font-size:var(--fs-13);
+}
+.resGrid .k{ color:var(--c-text-3); font-size:var(--fs-125); padding-top:6px; }
+.resGrid pre{
+  margin:0;
+  padding:var(--sp-2) 10px;
+  background:var(--c-code);
+  border:1px solid var(--c-code-line);
+  border-radius:var(--r-sm);
+  font:var(--fs-125)/1.7 var(--font-mono);
+  white-space:pre-wrap;
+  word-break:break-word;
+  max-height:190px;
+  overflow:auto;
+}
+.resGrid .why{ font-size:var(--fs-125); color:var(--c-text-3); line-height:1.7; }
+
+/* 样例值 + 「复制」那一行：样例是数据不是代码，只给复制，不给"跑这段" */
+.preRow{ display:flex; gap:var(--sp-2); align-items:flex-start; min-width:0; }
+.preRow > pre{ flex:1 1 auto; min-width:0; }
+.copyMini{
+  flex:none;
+  margin-top:3px;
+  border:1px solid var(--c-line);
+  background:var(--c-surface);
+  border-radius:var(--r-xs);
+  font-family:var(--font-ui);
+  font-size:var(--fs-11);
+  line-height:1.5;
+  padding:3px 8px;
+  color:var(--c-text-3);
+  cursor:pointer;
+  white-space:nowrap;
+}
+.copyMini:hover:not(:disabled){
+  background:var(--c-accent-soft);
+  border-color:var(--c-accent-line);
+  color:var(--c-accent-ink);
+}
+.copyMini:active{ background:var(--c-accent-soft-2); }
+.copyMini:focus-visible{ outline:2px solid var(--c-accent); outline-offset:1px; }
+
+/* ════════════════════════════════════════════════════════════════════
+   AI 设置
+   --------------------------------------------------------------------
+   两列表单：左列 label 固定 84px（所有输入框左边缘对齐才像"表单"），
+   右列是控件 + 说明。窄屏（<1000px）改成上下排。
+   ════════════════════════════════════════════════════════════════════ */
+.setRow{
+  display:flex; gap:var(--sp-3); align-items:flex-start;
+  padding:var(--sp-3) 0;
+  border-bottom:1px solid var(--c-line-2);
+}
+.setRow:last-of-type{ border-bottom:0; }
+.setLabel{
+  flex:none;
+  /* 92px 而不是 84px：最长的标签「发给 AI 的内容」在 84px 下会折成两行，
+     一折整张表单的左边界就不齐了（只差 8px，肉眼几乎看不出输入框变窄）。 */
+  width:92px;
+  padding-top:5px;
+  font-size:var(--fs-13);
+  font-weight:600;
+  color:var(--c-text);
+}
+.setField{
+  flex:1 1 auto; min-width:0;
+  display:flex; flex-direction:column; gap:7px;
+}
+.setField .rowIn{ display:flex; gap:var(--sp-2); flex-wrap:wrap; align-items:center; }
+input.setInput,select.setInput{
+  font-family:var(--font-ui);
+  font-size:var(--fs-135);
+  padding:6px 10px;
+  background:var(--c-surface);
+  color:var(--c-text);
+  border:1px solid var(--c-line-strong);
+  border-radius:var(--r-sm);
+  outline:none;
+}
+input.setInput{ flex:1 1 auto; min-width:170px; }
+input.setInput:focus,select.setInput:focus{
+  border-color:var(--c-accent);
+  box-shadow:var(--sh-focus);
+}
+select.setInput:disabled,input.setInput:disabled{ opacity:.5; }
+.setHint{
+  font-size:var(--fs-12);
+  color:var(--c-text-3);
+  line-height:1.65;
+}
+.setHint b{ color:var(--c-text-2); font-weight:600; }
+.setHint code{
+  font-family:var(--font-mono);
+  font-size:.95em;
+  background:var(--c-surface-3);
+  border-radius:var(--r-xs);
+  padding:1px 5px;
+}
+.setOk{ color:var(--c-ok); font-weight:600; }
+.setBad{ color:var(--c-err); font-weight:600; }
+
+/* ════════════════════════════════════════════════════════════════════
+   100 Days
+   --------------------------------------------------------------------
+   搜索框 + 按天列表。天数用等宽数字对齐（Day 05 / Day 21 竖着看是一列），
+   每行的"打开 ›"是唯一真正的动作按钮，悬停整行时它才亮起来。
+   ════════════════════════════════════════════════════════════════════ */
+.daysBar{
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  margin:0 0 10px;
+}
+.daysBar .searchInput{ flex:1 1 180px; min-width:180px; }
+.dayRow{
+  display:flex; align-items:center; gap:10px;
+  padding:var(--sp-2) 6px;
+  border-bottom:1px solid var(--c-line-2);
+  transition:background-color var(--dur-2) var(--ease);
+}
+.dayRow:hover{ background:var(--c-surface-2); }
+.dayNo{
+  flex:none; width:52px;
+  font:500 var(--fs-125)/1.6 var(--font-mono);
+  color:var(--c-accent-ink);
+  font-variant-numeric:tabular-nums;
+}
+.dayRow .t{ flex:1 1 auto; min-width:0; font-size:var(--fs-135); color:var(--c-text); }
+.dayMeta{ flex:none; font-size:var(--fs-12); color:var(--c-text-3); }
+.dayRow .hit{
+  margin-top:3px;
+  font-family:var(--font-mono);
+  font-size:var(--fs-11);
+  color:var(--c-text-4);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.dayRow .hit b{ color:var(--c-accent-ink); font-weight:600; }
+.dayRow .copyMini{ margin-top:0; color:var(--c-text-2); }
+.dayRow:hover .copyMini{
+  background:var(--c-accent-soft);
+  border-color:var(--c-accent-line);
+  color:var(--c-accent-ink);
+}
+/* 主题索引命中（搜索时才有）：键名等宽，后面的 chip 是"哪几天讲过" */
+.topicHit{
+  display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap;
+  padding:6px;
+  font-size:var(--fs-13);
+  border-bottom:1px solid var(--c-line-2);
+}
+.topicHit .tk{ font-family:var(--font-mono); color:var(--c-text-2); }
+.daysSec{
+  margin:var(--sp-3) 0 2px;
+  font-size:var(--fs-12);
+  font-weight:600;
+  color:var(--c-text-3);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   可选中：内容 vs chrome
+   --------------------------------------------------------------------
+   面板里能被复制的只有"内容"（代码 / 样例 / 输出 / 命中词）；
+   按钮、药丸、计数不可选 —— 拖选正文时不会顺手把按钮文字带进去。
+   （基础样式已给 button 设了 none，这里只补面板里的非按钮元素。）
+   ════════════════════════════════════════════════════════════════════ */
+/* ★ 这里刻意不列 .probCode：它是 textarea，天生可选中 —— 给它写 user-select
+   反而会让"能不能右键粘贴/能不能选"变成一个 CSS 问题；保持浏览器默认最稳。 */
+.resGrid pre,.resGrid .why,.miniPre,.refCode,.vfyBox,.aiStream,
+.aiReason pre,.setHint,.ojNote code,.ojUrl code,.dayRow .t,.topicHit .tk,
+.hwRow .t,.searchHit .sh,.searchHit .sn{ user-select:text; }
+.vfy,.verdict,.hwRate,.dayMeta,.caseHint,.tocCnt,.tocNo,.tocChId{ user-select:none; }
+
+/* ════════════════════════════════════════════════════════════════════
+   响应式
+   --------------------------------------------------------------------
+   1100：内嵌面板（作业/100 Days）还在用，但横行开始变挤 —— 先砍掉装饰性的
+         「打开 ›」和通过率，保住标题和题号。
+   1000：弹层内边距收小；设置页改上下排；结果表的标签换到值上面。
+   ════════════════════════════════════════════════════════════════════ */
+@media (max-width:1180px){
+  .hwRow .hwGo{ display:none; }       /* 整行本来就能点，这个提示在窄屏是纯占位 */
+}
+@media (max-width:1000px){
+  #modal{ padding:var(--sp-4); }
+  #modal[data-kind="search"]{ padding-top:6vh; }
+  #modal[data-kind="search"] .modalBox{ max-height:84vh; }
+  .modalBox{ max-height:92vh; }
+  #modalBody{ padding:var(--sp-3) var(--sp-3) var(--sp-4); }
+  .modalBox > .panelHead{ padding:12px 14px 10px; }
+
+  .tocCh{ font-size:var(--fs-135); }
+  button.tocPt{ font-size:var(--fs-13); }
+
+  .hwHead{ gap:var(--sp-2); }
+  .hwRate{ display:none; }            /* 窄屏先让位：通过率不是决策信息 */
+  .resGrid{ grid-template-columns:1fr; gap:2px var(--sp-3); }
+  .resGrid .k{ padding-top:var(--sp-2); font-weight:600; }
+  .resBox .resHead .verdict{ margin-left:0; }
+
+  .setRow{ flex-direction:column; gap:6px; padding:10px 0; }
+  .setLabel{ width:auto; padding-top:0; }
+
+  .daysBar .searchInput{ min-width:140px; }
+  .dayMeta{ display:none; }
+  .probHead .lim{ font-size:var(--fs-11); }
+}

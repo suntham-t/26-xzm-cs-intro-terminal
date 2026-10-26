@@ -1,0 +1,6 @@
+{
+ "id": "ai-bal-class",
+ "note": "余额数值的内联字号字重改成类（深色/窄屏要统一控制）",
+ "old": "    '<div class=\"rowIn\"><span class=\"' + cls + '\" id=\"aiBalTxt\" ' +\n      'style=\"font-size:15px;font-weight:600;margin-right:4px\">' + escapeHtml(text) + \"</span>\" +",
+ "new": "    '<div class=\"rowIn\"><span class=\"' + cls + ' aiBalVal\" id=\"aiBalTxt\">' + escapeHtml(text) + \"</span>\" +"
+}

@@ -1,0 +1,6 @@
+{
+ "id": "panel-row-update",
+ "note": "检查更新面板头：内联 flex 行改成类",
+ "old": "  out.push('<div style=\"display:flex;align-items:center;gap:10px;margin-bottom:12px\"><b>检查课程站上的讲义与课件有没有更新</b><span class=\"sp\"></span>');",
+ "new": "  out.push('<div class=\"panelRow\"><b>检查课程站上的讲义与课件有没有更新</b><span class=\"sp\"></span>');"
+}

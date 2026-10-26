@@ -1,0 +1,6 @@
+{
+ "id": "toast-innerhtml",
+ "note": "toast 用 innerHTML（先转义）+ emoji 图标替换：提示条里的 ✅/⚠️ 也能变成图标",
+ "old": "  el.textContent = String(msg || \"\");",
+ "new": "  /* 先 escapeHtml 再用 emojiToIcon：前者挡注入（msg 里有拼接的后端错误文本），\n     后者只把已知 emoji 映射成本地写死的 SVG 字符串。顺序不能反。 */\n  el.innerHTML = emojiToIcon(escapeHtml(String(msg || \"\")));"
+}

@@ -1,0 +1,6 @@
+{
+ "id": "lightbox-loading",
+ "note": "课件放大里的加载文字：内联浅灰只对浅色主题成立，改走类",
+ "old": "openModal(\"lightbox\", title, '<div class=\"loading\" style=\"color:#c9ced6\">正在取课件第 ' + escapeHtml(page) + \" 页…</div>\");",
+ "new": "openModal(\"lightbox\", title, '<div class=\"loading lightboxLoading\">正在取课件第 ' + escapeHtml(page) + \" 页…</div>\");"
+}

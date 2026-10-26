@@ -1,0 +1,6 @@
+{
+ "id": "code-label-class",
+ "note": "测一测的「你的代码：」标签：内联 width 压着 .setLabel，改成类",
+ "old": "  out.push('<div class=\"setLabel\" style=\"width:auto;margin-bottom:6px\">你的代码：</div>');",
+ "new": "  out.push('<div class=\"setLabel codeLbl\">你的代码：</div>');"
+}

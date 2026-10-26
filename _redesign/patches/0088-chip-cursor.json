@@ -1,0 +1,6 @@
+{
+ "id": "chip-cursor",
+ "note": "refsHtml：span.chip 的手型游标交给 CSS，删内联",
+ "old": "      chips.push('<span class=\"chip\" style=\"cursor:default\">📌 ' + escapeHtml(label) + \"</span>\");",
+ "new": "      chips.push('<span class=\"chip\">📌 ' + escapeHtml(label) + \"</span>\");"
+}

@@ -1,0 +1,6 @@
+{
+ "id": "video-search-row",
+ "note": "视频目录的搜索行：内联 flex + flex:1 改成类",
+ "old": "  return '<div style=\"display:flex;align-items:center;gap:10px;margin-bottom:8px\">' +\n    '<input class=\"searchInput\" id=\"vidQ\" placeholder=\"搜分P标题，例如「字符串」「函数」\" ' +\n    'value=\"' + attr(v.vidQ || \"\") + '\" style=\"flex:1\">' +",
+ "new": "  return '<div class=\"panelRow tight\">' +\n    '<input class=\"searchInput grow\" id=\"vidQ\" placeholder=\"搜分P标题，例如「字符串」「函数」\" ' +\n    'value=\"' + attr(v.vidQ || \"\") + '\">' +"
+}

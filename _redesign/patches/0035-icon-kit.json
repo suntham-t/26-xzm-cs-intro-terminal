@@ -1,0 +1,6 @@
+{
+ "id": "icon-kit",
+ "note": "引入统一图标库（85 个内联 SVG + icon() + IEMOJI + emojiToIcon）",
+ "anchor": "applyTheme(storedTheme());",
+ "insert_file": "icon-kit.js"
+}

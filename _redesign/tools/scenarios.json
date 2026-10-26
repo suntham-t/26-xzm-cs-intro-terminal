@@ -1,0 +1,813 @@
+{
+  "defaults": {
+    "viewport": [
+      1280,
+      880
+    ],
+    "settle": 1200,
+    "beforeJs": "var IC = window.__IC__;\nIC.closeAll();\nawait __cap.sleep(250);\nif (!document.querySelector('#repl').hidden) { var rb=document.querySelector('#btnReplClose'); if (rb) { rb.click(); await __cap.sleep(350); } }\nvar wide = document.body.getAttribute('data-wide') === '1';\nvar toc = document.querySelector('#toc');\nif (wide && toc.hidden) { document.querySelector('#btnToc').click(); await __cap.sleep(450); }\nif (!wide && IC.UIDRAWER_STATE.open) { document.querySelector('#btnToc').click(); await __cap.sleep(450); }\nvar m = document.querySelector('main'); if (m) m.scrollTop = 0;\nvar tb = document.querySelector('#tocBody'); if (tb) tb.scrollTop = 0;\nawait __cap.sleep(200);\nreturn {replClosed: document.querySelector('#repl').hidden, tocHidden: toc.hidden, wide: wide};"
+  },
+  "scenarios": [
+    {
+      "name": "card",
+      "desc": "知识卡片 · 默认落地（点阵 + 目录 + 翻卡）",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        },
+        {
+          "w": 1500,
+          "h": 1000
+        },
+        {
+          "w": 1000,
+          "h": 760
+        },
+        {
+          "w": 900,
+          "h": 620
+        }
+      ],
+      "note": "默认落地是第 1 章第 1 个知识点（点阵 1 / 3，#toc 在 1280 默认展开）",
+      "steps": [
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "main scroll top",
+          "js": "document.querySelector('main').scrollTop = 0; await __cap.sleep(300); return true;"
+        },
+        {
+          "desc": "assert card",
+          "expect": "!!document.querySelector('#card h2.cardTitle') && document.querySelector('#card h2.cardTitle').textContent.trim().length > 0 && document.querySelectorAll('#dots .dot').length > 0"
+        }
+      ]
+    },
+    {
+      "name": "card-video",
+      "desc": "有视频的知识卡片（iframe.bili + 视频 meta）",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        },
+        {
+          "w": 1500,
+          "h": 1000
+        }
+      ],
+      "note": "真实路径：点左侧「视频目录」→ 点第一条「看这一条」，卡片跳到有视频的知识点",
+      "steps": [
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "open videos panel",
+          "js": "window.__IC__.openVideos({}); await __cap.sleep(800); return document.querySelectorAll('#inlineBody [data-act=\"vidopen\"]').length;"
+        },
+        {
+          "desc": "click first vidopen",
+          "js": "var b=document.querySelector('#inlineBody [data-act=\"vidopen\"]'); if(!b) throw new Error('no vidopen button'); b.click(); await __cap.sleep(1600); return document.querySelector('#card h2.cardTitle') ? document.querySelector('#card h2.cardTitle').textContent : null;"
+        },
+        {
+          "desc": "scroll top",
+          "js": "document.querySelector('main').scrollTop = 0; await __cap.sleep(400); return true;"
+        },
+        {
+          "desc": "assert video",
+          "expect": "!!document.querySelector('#card iframe.bili') && !!document.querySelector('#card .videoMeta')"
+        }
+      ]
+    },
+    {
+      "name": "card-code",
+      "desc": "正文含 python 代码块的知识卡片（▶ 可视化 / 复制 工具条）",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        },
+        {
+          "w": 1500,
+          "h": 1000
+        }
+      ],
+      "note": "jumpToId('ch02-s01-p05')：本章第一个含 fenced code 的知识点；滚动让代码块落在视口上半部（定位公式固定，before/after 一致）",
+      "steps": [
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "jump code point",
+          "js": "window.__IC__.jumpToId('ch02-s01-p05'); await __cap.sleep(900); return (document.querySelector('#card h2.cardTitle')||{}).textContent;"
+        },
+        {
+          "desc": "scroll code block into view",
+          "js": "var el=document.querySelector('#card .codeBlock'); var m=document.querySelector('main'); if(!el) throw new Error('no #card .codeBlock'); m.scrollTop = Math.max(0, el.getBoundingClientRect().top + m.scrollTop - 210); await __cap.sleep(450); return Math.round(m.scrollTop);"
+        },
+        {
+          "desc": "assert code toolbar",
+          "expect": "document.querySelectorAll('#card .codeBar .tb').length >= 2 && !!document.querySelector('#card pre')"
+        }
+      ]
+    },
+    {
+      "name": "toc",
+      "desc": "目录 · 滚动到中段（3 级结构 + 当前项高亮）",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        },
+        {
+          "w": 1500,
+          "h": 1000
+        }
+      ],
+      "note": "滚动 main 到 45%，等 onTocScroll 更新 here 高亮，再把当前项滚到目录中间",
+      "steps": [
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "ensure toc open",
+          "js": "if(!window.__IC__.tocVisible()) { document.querySelector('#btnToc').click(); await __cap.sleep(500); } return window.__IC__.tocVisible();"
+        },
+        {
+          "desc": "scroll main to mid",
+          "js": "var m=document.querySelector('main'); m.scrollTop = Math.round((m.scrollHeight - m.clientHeight) * 0.45); await __cap.sleep(500); return m.scrollTop;"
+        },
+        {
+          "desc": "center current toc item",
+          "js": "var t=document.querySelector('#tocBody'), here=t.querySelector('.tocPt.here'); if(here){ var top=here.getBoundingClientRect().top - t.getBoundingClientRect().top + t.scrollTop; t.scrollTop = Math.max(0, top - t.clientHeight/2); } await __cap.sleep(500); return here ? here.textContent.trim() : null;"
+        },
+        {
+          "desc": "assert toc",
+          "expect": "document.querySelectorAll('#tocBody .tocCh').length >= 2 && document.querySelectorAll('#tocBody .tocSec').length >= 2 && document.querySelectorAll('#tocBody .tocPt').length >= 10 && !!document.querySelector('#tocBody .tocPt.here')"
+        }
+      ]
+    },
+    {
+      "name": "rail",
+      "desc": "材料栏 · 宽 1500 才出现（当前知识点的讲义/课件材料卡）",
+      "viewport": [
+        1500,
+        1000
+      ],
+      "shots": [
+        {
+          "w": 1500,
+          "h": 1000
+        }
+      ],
+      "note": "1500x1000 下 #rail 可见（1280 下隐藏）；跳到含课件缩略图的 ch01-s01-p01 让材料栏有内容",
+      "steps": [
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "jump slides point",
+          "js": "window.__IC__.jumpToId('ch01-s01-p01'); await __cap.sleep(900); return (document.querySelector('#card h2.cardTitle')||{}).textContent;"
+        },
+        {
+          "desc": "wait rail body",
+          "js": "await __cap.waitFor(function(){ var b=document.querySelector('#railBody'); return b && b.innerHTML.length > 120; }, 5000); document.querySelector('main').scrollTop=0; await __cap.sleep(600); return document.querySelector('#railBody').innerHTML.length;"
+        },
+        {
+          "desc": "assert rail",
+          "expect": "!!document.querySelector('#rail') && !document.querySelector('#rail').hidden && document.querySelector('#rail').getBoundingClientRect().width > 200"
+        }
+      ]
+    },
+    {
+      "name": "search",
+      "desc": "搜索面板 · 输入「列表」后的命中列表（命令面板）",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        },
+        {
+          "w": 1500,
+          "h": 1000
+        }
+      ],
+      "note": "真实路径：点左侧搜索 → 在 .searchInput 里输入「列表」。命中 20 条（含高亮 b）",
+      "steps": [
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "open search",
+          "js": "document.querySelector('#btnSearch').click(); await __cap.sleep(500); return document.querySelector('#modal').getAttribute('data-kind');"
+        },
+        {
+          "desc": "type keyword",
+          "js": "__cap.setVal('#modal .searchInput', '列表'); await __cap.sleep(700); return document.querySelectorAll('.searchHit').length;"
+        },
+        {
+          "desc": "assert hits",
+          "expect": "document.querySelectorAll('.searchHit').length > 0 && !!document.querySelector('.searchHit b')"
+        },
+        {
+          "desc": "scroll to 100DAYS topics",
+          "js": "var mb=document.querySelector('#modalBody'); if(mb) mb.scrollTop = mb.scrollHeight; await __cap.sleep(700); return mb?mb.scrollTop:null;",
+          "shot": "search-topics@1280x880"
+        }
+      ]
+    },
+    {
+      "name": "videos",
+      "desc": "视频目录 · 内嵌面板，列表滚到中段展示分组",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        },
+        {
+          "w": 1500,
+          "h": 1000
+        }
+      ],
+      "note": "真实路径：点左侧「视频目录」；面板落在卡片区内嵌（#inlinePanel），main 是滚动区",
+      "steps": [
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "open videos",
+          "js": "document.querySelector('#btnVideos').click(); await __cap.sleep(800); return document.querySelectorAll('#vidList .newHwRow').length;"
+        },
+        {
+          "desc": "scroll list to mid",
+          "js": "var m=document.querySelector('main'); m.scrollTop = Math.round((m.scrollHeight - m.clientHeight) * 0.42); await __cap.sleep(500); return m.scrollTop;"
+        },
+        {
+          "desc": "assert videos",
+          "expect": "!document.querySelector('#inlinePanel').hidden && !!document.querySelector('#vidQ') && document.querySelectorAll('#vidList .newHwRow').length > 20"
+        }
+      ]
+    },
+    {
+      "name": "days",
+      "desc": "100 Days 列表 · 内嵌面板（22 天）",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        },
+        {
+          "w": 1500,
+          "h": 1000
+        }
+      ],
+      "note": "真实路径：点左侧「100 Days」；滚动到中段展示 Day 列表行",
+      "steps": [
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "open days",
+          "js": "document.querySelector('#btnDays').click(); await __cap.sleep(900); return document.querySelectorAll('.dayRow').length;"
+        },
+        {
+          "desc": "scroll list to mid",
+          "js": "var m=document.querySelector('main'); m.scrollTop = Math.round((m.scrollHeight - m.clientHeight) * 0.4); await __cap.sleep(500); return m.scrollTop;"
+        },
+        {
+          "desc": "assert days",
+          "expect": "!document.querySelector('#inlinePanel').hidden && document.querySelectorAll('.dayRow').length >= 20"
+        }
+      ]
+    },
+    {
+      "name": "day-reader",
+      "desc": "100 Days · 打开某一天的阅读器（markdown 正文）",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        }
+      ],
+      "note": "真实路径：点左侧「100 Days」→ 第一行「打开 ›」；阅读器同样落在卡片区内嵌",
+      "steps": [
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "open days",
+          "js": "document.querySelector('#btnDays').click(); await __cap.sleep(900); return document.querySelectorAll('#inlineBody [data-act=\"daysopen\"]').length;"
+        },
+        {
+          "desc": "open day 1",
+          "js": "document.querySelector('#inlineBody [data-act=\"daysopen\"]').click(); await __cap.sleep(1800); return (document.querySelector('#inlineBody .md h4')||{}).textContent;"
+        },
+        {
+          "desc": "scroll reader to mid",
+          "js": "var m=document.querySelector('main'); m.scrollTop = Math.round((m.scrollHeight - m.clientHeight) * 0.22); await __cap.sleep(500); return m.scrollTop;"
+        },
+        {
+          "desc": "assert reader",
+          "expect": "!document.querySelector('#inlinePanel').hidden && document.querySelectorAll('#inlineBody .md h4').length > 2"
+        }
+      ]
+    },
+    {
+      "name": "hw",
+      "desc": "作业列表 · 内嵌面板（本地 hw1/hw2/hw3 + 小测）",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        },
+        {
+          "w": 1500,
+          "h": 1000
+        }
+      ],
+      "note": "数据来自 content/homework（隔离 QA 实例下本地可见 hw1；共享实例里可能还有 hw2/hw3/小测）。面板内容随环境不同，但版式不变",
+      "steps": [
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "open hw",
+          "js": "document.querySelector('#btnHw').click(); await __cap.sleep(1200); await __cap.waitFor(function(){ return document.querySelectorAll('#inlineBody .hwBlock').length > 0; }, 12000); await __cap.sleep(400); return document.querySelectorAll('#inlineBody .hwBlock').length;"
+        },
+        {
+          "desc": "scroll to top",
+          "js": "document.querySelector('main').scrollTop=0; await __cap.sleep(400); return true;"
+        },
+        {
+          "desc": "assert hw",
+          "expect": "!document.querySelector('#inlinePanel').hidden && document.querySelectorAll('.hwBlock').length > 0 && document.querySelectorAll('.hwRow').length > 0"
+        }
+      ]
+    },
+    {
+      "name": "hw-problem",
+      "desc": "作业题目页 · 题面（样例表格 + 点坑 + 相关知识点）",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        }
+      ],
+      "note": "真实路径：作业列表 → 点第一题；题目页内嵌在卡片区。列表为空时本剧本自动跳过",
+      "readyJs": "window.__IC__.openHomework({}); await __cap.sleep(1000); await __cap.waitFor(function(){ return document.querySelectorAll('.hwRow').length > 0; }, 12000); return document.querySelectorAll('.hwRow').length > 0;",
+      "steps": [
+        {
+          "desc": "open first problem",
+          "js": "document.querySelector('.hwRow').click(); await __cap.sleep(1600); return (document.querySelector('#inlineTitle')||{}).textContent;"
+        },
+        {
+          "desc": "scroll top",
+          "js": "document.querySelector('main').scrollTop=0; await __cap.sleep(400); return true;"
+        },
+        {
+          "desc": "assert problem",
+          "expect": "!document.querySelector('#inlinePanel').hidden && document.querySelectorAll('#inlineBody .tabBar .tab').length >= 3 && !!document.querySelector('#inlineBody .probHead')"
+        }
+      ]
+    },
+    {
+      "name": "repl",
+      "desc": "终端抽屉 · 打开并执行 print(1+1)，输出 2",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        },
+        {
+          "w": 1000,
+          "h": 760
+        }
+      ],
+      "note": "在 #replIn 里设 value 再派发 Enter keydown（与真实敲键同一条代码路径），断言 #replOut 出现 2",
+      "steps": [
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "open repl",
+          "js": "document.querySelector('#btnRepl').click(); await __cap.sleep(900); return !document.querySelector('#repl').hidden;"
+        },
+        {
+          "desc": "run print(1+1)",
+          "js": "var inp=document.querySelector('#replIn'); inp.focus(); inp.value='print(1+1)'; inp.dispatchEvent(new Event('input',{bubbles:true})); inp.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true})); await __cap.sleep(1600); return String(document.querySelector('#replOut').textContent||'').trim();"
+        },
+        {
+          "desc": "assert output 2",
+          "expect": "/2/.test(String(document.querySelector('#replOut').textContent||'')) && document.querySelectorAll('#replOut .rl-out').length > 0"
+        }
+      ]
+    },
+    {
+      "name": "settings",
+      "desc": "AI 设置面板（Key / 余额 / 模型 / 思考模式 / 预览 JSON）",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        }
+      ],
+      "note": "本机没配 AI Key：面板如实显示空 Key + 余额行 + 提示（这是真实状态，不是空状态兜底）",
+      "steps": [
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "open ai settings",
+          "js": "document.querySelector('#btnAiSet').click(); await __cap.sleep(1500); await __cap.waitFor(function(){ return !!document.querySelector('#aiKey'); }, 12000); await __cap.sleep(400); return document.querySelector('#modal').getAttribute('data-kind');"
+        },
+        {
+          "desc": "assert settings",
+          "expect": "document.querySelector('#modal').getAttribute('data-kind') === 'aiset' && !!document.querySelector('#aiKey') && !!document.querySelector('#aiModel') && document.querySelector('#modalBody').innerHTML.length > 500"
+        }
+      ]
+    },
+    {
+      "name": "update",
+      "desc": "检查更新面板",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        }
+      ],
+      "note": "只打开面板、不触发真实网络检查（点「检查更新」会打课程站）",
+      "steps": [
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "open update",
+          "js": "document.querySelector('#btnUpdate').click(); await __cap.sleep(1600); return document.querySelector('#modal').getAttribute('data-kind');"
+        },
+        {
+          "desc": "assert update",
+          "expect": "document.querySelector('#modal').getAttribute('data-kind') === 'update' && document.querySelector('#modalBody').innerHTML.length > 100"
+        }
+      ]
+    },
+    {
+      "name": "assistant-bubble",
+      "desc": "右下角助教气泡（常驻圆钮 → 气泡，读当前上下文）",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        }
+      ],
+      "note": "无 AI Key：气泡显示空状态提示「哪里不懂直接问」",
+      "steps": [
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "click asFab",
+          "js": "document.querySelector('#asFab').click(); await __cap.sleep(900); return !document.querySelector('#asBubble').hidden;"
+        },
+        {
+          "desc": "assert bubble",
+          "expect": "!document.querySelector('#asBubble').hidden && !!document.querySelector('#asBubMsgs') && document.querySelector('#asBubble').getBoundingClientRect().width > 200"
+        }
+      ]
+    },
+    {
+      "name": "assistant-panel",
+      "desc": "助教完整面板（气泡里点 ⤢ 展开）",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        }
+      ],
+      "note": "无 AI Key：面板显示上下文条 + 空消息区 + 底部能力提示",
+      "steps": [
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "open bubble",
+          "js": "document.querySelector('#asFab').click(); await __cap.sleep(700); return !document.querySelector('#asBubble').hidden;"
+        },
+        {
+          "desc": "expand to panel",
+          "js": "document.querySelector('#asBubble [data-act=\"asexpand\"]').click(); await __cap.sleep(1200); return document.querySelector('#modal').getAttribute('data-kind');"
+        },
+        {
+          "desc": "assert panel",
+          "expect": "document.querySelector('#modal').getAttribute('data-kind') === 'assistant' && !!document.querySelector('#asMsgs') && !!document.querySelector('#asInput')"
+        }
+      ]
+    },
+    {
+      "name": "toast",
+      "desc": "toast 提示（底部居中 pill）",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        }
+      ],
+      "note": "直接调用页面全局 toast('测试 toast')（测试工具可以不走 UI）；toast 2.4s 后自动消失，截图在 300ms 内",
+      "steps": [
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "show toast",
+          "js": "toast('测试 toast'); await __cap.sleep(300); return document.querySelector('#toast').textContent;"
+        },
+        {
+          "desc": "assert toast",
+          "expect": "!document.querySelector('#toast').hidden && document.querySelector('#toast').classList.contains('show')"
+        }
+      ]
+    },
+    {
+      "name": "modal-lightbox",
+      "desc": "课件原图放大（卡片缩略图 → lightbox 遮罩）",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        }
+      ],
+      "note": "真实路径：跳到 ch01-s01-p01（有课件缩略图的知识点）→ 点第一张缩略图；等图片解码完再截",
+      "steps": [
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "jump slides point",
+          "js": "window.__IC__.jumpToId('ch01-s01-p01'); await __cap.sleep(900); return (document.querySelector('#card h2.cardTitle')||{}).textContent;"
+        },
+        {
+          "desc": "click thumbnail",
+          "js": "var t=document.querySelector('#card .thumbRow [data-act=\"slide\"]'); if(!t) throw new Error('no slide thumb'); t.click(); await __cap.sleep(1200); return document.querySelector('#modal').getAttribute('data-kind');"
+        },
+        {
+          "desc": "wait image decode",
+          "js": "await __cap.waitFor(function(){ var im=document.querySelector('#modalBody img'); return im && im.complete && im.naturalWidth > 0; }, 6000); await __cap.sleep(400); return (document.querySelector('#modalBody img')||{}).naturalWidth;"
+        },
+        {
+          "desc": "assert lightbox",
+          "expect": "document.querySelector('#modal').getAttribute('data-kind') === 'lightbox' && !!document.querySelector('#modalBody img')"
+        }
+      ]
+    },
+    {
+      "name": "empty",
+      "desc": "窄窗口 1000x760 · #toc 抽屉打开（带遮罩）",
+      "viewport": [
+        1000,
+        760
+      ],
+      "shots": [
+        {
+          "w": 1000,
+          "h": 760
+        }
+      ],
+      "note": "1000x760 下 body[data-wide]=0，#toc 变 fixed 抽屉（340 宽，max 86vw），#scrim 出现",
+      "steps": [
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "narrow check",
+          "js": "window.dispatchEvent(new Event('resize')); await __cap.sleep(600); return JSON.stringify({wide:document.body.getAttribute('data-wide'), tocPos:getComputedStyle(document.querySelector('#toc')).position, tocHidden:document.querySelector('#toc').hidden});"
+        },
+        {
+          "desc": "open toc drawer",
+          "js": "if(document.querySelector('#toc').hidden) { document.querySelector('#btnToc').click(); } await __cap.sleep(800); return JSON.stringify({open:!!window.__IC__.UIDRAWER_STATE.open, scrim:!document.querySelector('#scrim').hidden, w:document.querySelector('#toc').getBoundingClientRect().width});"
+        },
+        {
+          "desc": "assert drawer",
+          "expect": "!document.querySelector('#toc').hidden && getComputedStyle(document.querySelector('#toc')).position === 'fixed' && !document.querySelector('#scrim').hidden"
+        }
+      ]
+    },
+    {
+      "name": "empty-900",
+      "desc": "最小窗口 900x620 · #toc 抽屉打开",
+      "viewport": [
+        900,
+        620
+      ],
+      "shots": [
+        {
+          "w": 900,
+          "h": 620
+        }
+      ],
+      "note": "brief 里的最小窗口 900x620；body[data-wide]=0，#toc fixed 抽屉 + #scrim",
+      "steps": [
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "assert narrow",
+          "js": "window.dispatchEvent(new Event('resize')); await __cap.sleep(600); return JSON.stringify({wide:document.body.getAttribute('data-wide'), tocPos:getComputedStyle(document.querySelector('#toc')).position});"
+        },
+        {
+          "desc": "open toc drawer",
+          "js": "if(document.querySelector('#toc').hidden) { document.querySelector('#btnToc').click(); } await __cap.sleep(800); return JSON.stringify({scrim:!document.querySelector('#scrim').hidden, w:document.querySelector('#toc').getBoundingClientRect().width, top:document.querySelector('#toc').getBoundingClientRect().top});"
+        },
+        {
+          "desc": "assert drawer",
+          "expect": "!document.querySelector('#toc').hidden && getComputedStyle(document.querySelector('#toc')).position === 'fixed' && !document.querySelector('#scrim').hidden"
+        }
+      ]
+    },
+    {
+      "name": "chapter-intro",
+      "desc": "章首卡 · 本章要学什么（不算知识点）",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        }
+      ],
+      "note": "kind='intro'：kicker + 章节大标题 + 知识点清单 + 开始按钮",
+      "steps": [
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "goto intro",
+          "js": "var idx=-1; window.__IC__.S.steps.forEach(function(s,i){ if(idx<0 && s.kind==='intro') idx=i; }); if(idx<0) throw new Error('no intro step'); window.__IC__.goto(idx); await __cap.sleep(900); return JSON.stringify({idx:idx, title:(document.querySelector('#card h2.cardTitle')||{}).textContent, dot:(document.querySelector('#dotCount')||{}).textContent});"
+        },
+        {
+          "desc": "scroll top",
+          "js": "document.querySelector('main').scrollTop=0; await __cap.sleep(350); return true;"
+        },
+        {
+          "desc": "assert card",
+          "expect": "!!document.querySelector('#card h2.cardTitle') && document.querySelector('#card').innerText.trim().length > 40"
+        }
+      ]
+    },
+    {
+      "name": "chapter-end",
+      "desc": "章末卡 · 本章总结/材料",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        }
+      ],
+      "note": "kind='summary'：本章材料 + 回到目录/继续",
+      "steps": [
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "goto summary",
+          "js": "var idx=-1; window.__IC__.S.steps.forEach(function(s,i){ if(idx<0 && s.kind==='summary') idx=i; }); if(idx<0) throw new Error('no summary step'); window.__IC__.goto(idx); await __cap.sleep(900); return JSON.stringify({idx:idx, title:(document.querySelector('#card h2.cardTitle')||{}).textContent, dot:(document.querySelector('#dotCount')||{}).textContent});"
+        },
+        {
+          "desc": "scroll top",
+          "js": "document.querySelector('main').scrollTop=0; await __cap.sleep(350); return true;"
+        },
+        {
+          "desc": "assert card",
+          "expect": "!!document.querySelector('#card h2.cardTitle') && document.querySelector('#card').innerText.trim().length > 40"
+        }
+      ]
+    },
+    {
+      "name": "section-end",
+      "desc": "小节末卡 · 本节收尾",
+      "viewport": [
+        1280,
+        880
+      ],
+      "shots": [
+        {
+          "w": 1280,
+          "h": 880
+        }
+      ],
+      "note": "kind='end'：本节小结 + 下一节入口",
+      "steps": [
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "goto end",
+          "js": "var idx=-1; window.__IC__.S.steps.forEach(function(s,i){ if(idx<0 && s.kind==='end') idx=i; }); if(idx<0) throw new Error('no end step'); window.__IC__.goto(idx); await __cap.sleep(900); return JSON.stringify({idx:idx, title:(document.querySelector('#card h2.cardTitle')||{}).textContent, dot:(document.querySelector('#dotCount')||{}).textContent});"
+        },
+        {
+          "desc": "scroll top",
+          "js": "document.querySelector('main').scrollTop=0; await __cap.sleep(350); return true;"
+        },
+        {
+          "desc": "assert card",
+          "expect": "!!document.querySelector('#card') && document.querySelector('#card').innerText.trim().length > 10"
+        }
+      ]
+    }
+  ]
+}

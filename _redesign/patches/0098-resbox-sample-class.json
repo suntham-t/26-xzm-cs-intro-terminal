@@ -1,0 +1,6 @@
+{
+ "id": "sample-resbox-class",
+ "note": "样例结果框的内联 margin 换成类",
+ "old": "  var out = ['<div class=\"resBox\" style=\"margin:0 0 16px\"><div class=\"resHead\">📋 样例' +",
+ "new": "  var out = ['<div class=\"resBox resBoxSample\"><div class=\"resHead\">📋 样例' +"
+}

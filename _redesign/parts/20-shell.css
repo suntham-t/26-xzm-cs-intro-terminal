@@ -1,0 +1,475 @@
+/* =====================================================================
+   20-shell.css —— 应用外壳（骨架）
+   ---------------------------------------------------------------------
+   横向：左侧深色图标栏 ‖ 右侧工作区
+   右侧工作区竖向：顶栏 / 「继续上次」条 / #shell（目录 ‖ 阅读区 ‖ 材料栏）/ 终端 / 底栏
+
+   ★ 为什么图标栏是 body 的直接子元素：它要从窗口最顶一直画到最底（顶栏不横跨整页），
+     这样"深色脊 + 浅色纸"的结构对比才是完整的。
+   ★ 四段的纵向分配必须写全（顶栏 fixed / 主体 flex:1 / 终端 fixed / 底栏 fixed），
+     否则窗口一矮，主体会被 header/footer 的 flex 挤压（这个坑注释里记过）。
+   ===================================================================== */
+
+body{
+  display:flex; flex-direction:row;
+  background:var(--c-canvas);
+}
+#rightPane{
+  flex:1; min-width:0; min-height:0;
+  display:flex; flex-direction:column;
+  overflow:hidden;
+}
+#rightPane > header,
+#rightPane > footer,
+#rightPane > #repl,
+#rightPane > #resume{ flex:none; }
+
+/* ============================ 左侧图标栏 ============================
+   深墨蓝的"活动栏"（IDE 那种）。上面是品牌标记，中间是功能，下面是设置，
+   中间用一个弹性空白把底部那组顶到底。 */
+#sideBar{
+  flex:none; width:var(--w-rail); height:100%;
+  display:flex; flex-direction:column; align-items:center;
+  gap:2px; padding:10px 0 12px;
+  background:var(--c-rail);
+  border-right:1px solid var(--c-rail-line);
+  z-index:var(--z-rail);
+  overflow-y:auto; overflow-x:hidden;
+  scrollbar-width:none;
+}
+#sideBar::-webkit-scrollbar{ width:0; height:0; }
+
+/* 品牌标记：一块渐变方块。不做按钮（点它不知道该去哪），纯视觉锚点 */
+.sbBrand{
+  flex:none; width:32px; height:32px; margin-bottom:8px;
+  border-radius:9px; display:grid; place-items:center;
+  color:#fff;
+  background:linear-gradient(145deg, var(--c-accent) 0%, var(--c-accent-2) 100%);
+  box-shadow:0 4px 12px color-mix(in srgb, var(--c-accent) 46%, transparent);
+}
+.sbBrand svg{ width:18px; height:18px; display:block; }
+
+/* 图标按钮：44 命中区（40 视觉 + 间距），圆角 11 */
+.sb{
+  position:relative;
+  flex:none; width:40px; height:40px; padding:0;
+  display:grid; place-items:center;
+  border:0; border-radius:11px;
+  background:transparent; color:var(--c-rail-fg);
+  cursor:pointer;
+  transition:background-color var(--dur-2) var(--ease),
+             color var(--dur-2) var(--ease);
+}
+.sb .sbi{ display:block; width:19px; height:19px; }
+.sb:hover:not(:disabled){ background:var(--c-rail-2); color:var(--c-rail-fg-on); }
+.sb:active:not(:disabled){ background:var(--c-rail-3); }
+.sb.on{ background:var(--c-rail-3); color:var(--c-rail-fg-on); }
+/* 选中态：左缘一条 3px 强调条（贴在栏的边上，不是按钮的边上） */
+.sb.on::before{
+  content:""; position:absolute; left:-10px; top:50%;
+  width:3px; height:18px; border-radius:0 3px 3px 0;
+  background:linear-gradient(180deg, var(--c-accent-2), var(--c-accent));
+  transform:translateY(-50%);
+}
+.sb:focus-visible{ outline:2px solid var(--c-accent-2); outline-offset:-2px; }
+/* 分组分隔：在"这一组第一个"的上方画一条发丝线（用 ::after 给 .on 的 ::before 让路） */
+.sb[data-group]{ margin-top:9px; }
+.sb[data-group]::after{
+  content:""; position:absolute; top:-5px; left:8px; right:8px;
+  height:1px; background:var(--c-rail-line);
+}
+.sbSp{ flex:1 1 auto; min-height:6px; }
+/* 主题按钮：太阳/月亮两个图标都在 DOM 里，靠主题属性显示其中一个。
+   为什么不交给 JS 换 innerHTML：那样每次切主题都要重建按钮节点，
+   悬停态/焦点会被打断；纯 CSS 切换零成本。 */
+#btnTheme .icoMoon{ display:none; }
+html[data-theme="dark"] #btnTheme .icoSun{ display:none; }
+html[data-theme="dark"] #btnTheme .icoMoon{ display:block; }
+
+/* 悬停提示：图标栏自己 overflow-y:auto，气泡必须挂在 body 上（否则被裁）。
+   深色栏上用浅色气泡：反相才看得见。 */
+#sbTip{
+  position:fixed; z-index:var(--z-tip); pointer-events:none;
+  max-width:280px; padding:7px 11px;
+  background:var(--c-surface); color:var(--c-text);
+  border:1px solid var(--c-line); border-radius:var(--r-md);
+  box-shadow:var(--sh-lg);
+  font:500 var(--fs-125)/1.45 var(--font-ui); white-space:nowrap;
+  opacity:0; transform:translateX(-3px);
+  transition:opacity var(--dur-2) var(--ease), transform var(--dur-2) var(--ease);
+}
+#sbTip.on{ opacity:1; transform:none; }
+
+/* ============================ 顶栏 ============================
+   只回答"我在哪"：品牌 › 章 › 节；右侧是连续天数。
+   动作按钮全在图标栏（这是上一轮就定下的方向，别往这里加按钮）。 */
+header{
+  height:var(--h-header);
+  display:flex; align-items:center; gap:10px;
+  padding:0 20px;
+  background:var(--c-surface);
+  border-bottom:1px solid var(--c-line);
+  z-index:2;
+}
+.hrow{
+  display:flex; align-items:center; gap:0;
+  flex:1 1 auto; min-width:0;
+  overflow:hidden;
+}
+/* 品牌：一颗强调色小圆点 + "计算概论 B"。不是按钮，别做成按钮的样式 */
+.brand{
+  display:inline-flex; align-items:center; gap:7px;
+  font:600 var(--fs-125)/1 var(--font-ui);
+  letter-spacing:.04em; color:var(--c-text);
+  white-space:nowrap;
+}
+.brand::before{
+  content:""; width:6px; height:6px; border-radius:50%;
+  background:var(--c-accent);
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--c-accent) 16%, transparent);
+}
+/* 分隔符由 ::before 生成，空元素不画（:not(:empty) 是关键 —— chapterTitle 在空状态时是空的） */
+.chapterTitle,.secLabel{
+  display:inline-flex; align-items:center; min-width:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.chapterTitle:not(:empty)::before,.secLabel:not(:empty)::before{
+  content:"›"; margin:0 9px; color:var(--c-text-4);
+  font-weight:400; font-size:var(--fs-13);
+}
+.chapterTitle{
+  font-size:var(--fs-13); color:var(--c-text-2); font-weight:500;
+}
+.secLabel{ font-size:var(--fs-13); color:var(--c-text-3); font-weight:400; }
+.secLabel .secTitleInl{ color:var(--c-text); font-weight:600; margin-left:5px; }
+
+/* 连续天数：一枚 chip。数字用强调色，火的图标（JS 里会换成 SVG）跟着走 */
+.streak{
+  display:inline-flex; align-items:center; gap:5px;
+  flex:none;
+  font:500 var(--fs-125)/1 var(--font-ui);
+  color:var(--c-text-2);
+  background:var(--c-surface-3);
+  border-radius:var(--r-pill);
+  padding:5px 11px;
+  white-space:nowrap;
+}
+.streak b{ color:var(--c-accent); font-weight:700; font-variant-numeric:tabular-nums; }
+.streak .ico{ color:var(--c-accent); }
+
+/* 「继续上次」：一条比顶栏更轻的横幅，用浅强调底把它和正文区分开 */
+#resume{
+  height:38px; display:flex; align-items:center;
+  padding:0 20px;
+  background:var(--c-accent-soft);
+  border-bottom:1px solid var(--c-accent-line);
+}
+#resume button{
+  font-size:var(--fs-125); font-weight:500; color:var(--c-accent-ink);
+  display:inline-flex; align-items:center; gap:6px;
+}
+#resume button:hover:not(:disabled){ color:var(--c-accent); }
+/* ★ 不要再给 #resume 按钮加 ::after 箭头：JS 塞进去的文案本身就以 "→" 结尾
+   （renderResume 拼的是 "继续上次：… →"），再加一个就变成两个箭头。 */
+
+/* ============================ 主体三栏 ============================ */
+#shell{
+  flex:1 1 auto; min-height:0;
+  display:flex; align-items:stretch;
+  overflow:hidden;
+}
+
+/* 阅读区是唯一的纵向滚动容器（翻卡时只有它在动） */
+main{
+  flex:1 1 auto; min-width:0; min-height:0;
+  overflow-y:auto;
+  display:flex; justify-content:center; align-items:flex-start;
+  padding:24px 24px 72px;
+}
+
+/* 阅读卡 / 内嵌面板：同一个"纸面"外观。
+   ★ 内容样式（标题/正文/代码块…）在 30-card.css —— 那里不要重复定义这两个选择器的盒子，
+     否则内边距会加倍。 */
+#card,#inlinePanel{
+  width:100%; max-width:var(--w-card); min-width:0;
+  background:var(--c-surface);
+  border:1px solid var(--c-line);
+  border-radius:var(--r-xl);
+  box-shadow:var(--sh-md);
+  padding:36px 44px 40px;
+  position:relative;
+}
+#inlinePanel{ padding:22px 32px 36px; }
+/* 内嵌面板的头：比卡片标题轻一档，别和"知识点标题"抢层级 */
+#inlinePanel > .panelHead{
+  margin:0 0 16px; padding:0 0 12px;
+  min-height:0;
+  border-bottom:1px solid var(--c-line-2);
+}
+/* 翻卡动画：只动 opacity + 4px 位移。走 GPU 合成，不触发布局 */
+#card.enter{ animation:riseIn var(--dur-3) var(--ease); }
+/* 空状态卡 / 收尾卡自己已经有内边距 */
+#card > .emptyCard:only-child,
+#card > .endCard:only-child{ padding:10px 8px 6px; }
+
+/* 内嵌面板 / 材料栏里常出现的"块级小节标题"（其实 .secHead 在卡里也用） */
+.secHead{
+  font:600 var(--fs-11)/1.4 var(--font-ui);
+  letter-spacing:.1em; text-transform:uppercase;
+  color:var(--c-text-4);
+  margin-bottom:8px;
+}
+
+/* ---------------------------- 左栏：目录 ---------------------------- */
+#toc{
+  flex:none; width:var(--w-toc); min-height:0;
+  display:flex; flex-direction:column;
+  background:var(--c-surface);
+  border-right:1px solid var(--c-line);
+}
+#tocBody{
+  flex:1 1 auto; min-height:0;
+  overflow-y:auto; overflow-x:hidden;
+  padding:8px 12px 28px;
+}
+/* 窄屏（<1100px）：目录变成从左边滑出的抽屉。left 要给图标栏让位，
+   否则抽屉会被 60px 的图标栏盖掉一条（原来 left:0 就踩过这个）。 */
+body[data-wide="0"] #toc{
+  /* ★ 抽屉从顶栏**下面**开始：面包屑是"我在哪"，被抽屉盖掉之后
+     用户就不知道自己正翻到哪一章了。左边仍然给 60px 图标栏让位。 */
+  position:fixed; top:var(--h-header); left:var(--w-rail); bottom:0;
+  width:min(340px, 82vw); z-index:50;
+  background:var(--c-surface);
+  border-right:1px solid var(--c-line);
+  box-shadow:var(--sh-xl);
+  animation:drawerIn var(--dur-3) var(--ease);
+}
+@keyframes drawerIn{ from{ opacity:0; transform:translateX(-10px) } to{ opacity:1; transform:none } }
+
+/* ---------------------------- 右栏：材料 ---------------------------- */
+#rail{
+  flex:none; width:var(--w-materials); min-height:0;
+  display:flex; flex-direction:column;
+  background:transparent;
+  border-left:1px solid var(--c-line);
+}
+#railBody{
+  flex:1 1 auto; min-height:0;
+  overflow-y:auto;
+  padding:16px 16px 28px;
+}
+.railHint{
+  font-family:var(--font-read);
+  font-size:var(--fs-13); line-height:1.85;
+  color:var(--c-text-3);
+  padding:4px 2px;
+}
+.railHint b{ color:var(--c-text-2); }
+/* 材料栏里的"一节"做成一张小卡：参考列表和课件缩略图各自独立成块，
+   滚动时容易分清"这块结束了"。 */
+#railBody .railSec,
+#railBody .slides{
+  background:var(--c-surface);
+  border:1px solid var(--c-line);
+  border-radius:var(--r-lg);
+  padding:12px 12px 14px;
+  box-shadow:var(--sh-xs);
+}
+#railBody .slides{ margin-top:12px; }
+#railBody .secHead{ margin:0 2px 8px; }
+/* 参考项在右栏是"列表行"而不是 chip：整行可点、右侧一个 › */
+#railBody .refs{
+  display:flex; flex-direction:column; gap:1px;
+  margin:0; padding:0; border:0;
+}
+#railBody .refs button.chip,
+#railBody .refs span.chip{
+  width:100%; text-align:left;
+  border-radius:var(--r-sm);
+  border-color:transparent; background:transparent;
+  display:flex; align-items:center; gap:8px;
+  padding:6px 8px;
+  font-size:var(--fs-125); color:var(--c-text-2);
+  box-shadow:none;
+}
+#railBody .refs button.chip::after{
+  content:"›"; margin-left:auto; color:var(--c-text-4); font-size:var(--fs-14);
+}
+#railBody .refs button.chip:hover:not(:disabled){
+  background:var(--c-surface-2); color:var(--c-accent-ink); border-color:transparent;
+}
+#railBody .refs button.chip:hover::after{ color:var(--c-accent); }
+/* 右栏的课件缩略图排成一列大图 */
+#railBody .thumbRow{ display:flex; flex-direction:column; gap:8px; }
+#railBody button.thumbBtn{ width:100%; }
+
+/* 收起状态：只剩一条 46px 的窄边 + 一个箭头，永远找得回来 */
+#rail.collapsed{ width:46px; }
+#rail.collapsed .panelHead{
+  padding:10px 0; min-height:44px;
+  justify-content:center; border-bottom:0;
+}
+#rail.collapsed #railTitle,
+#rail.collapsed #railBody{ display:none; }
+
+/* ---------------------------- 面板头（四处共用）---------------------------
+   #toc / #rail / #modalBox / #inlinePanel 都用这一套。
+   ✕ 用 margin-left:auto 顶到右边（不用 absolute，标题再长也不会压到它）。 */
+.panelHead{
+  flex:none;
+  display:flex; align-items:center; gap:10px;
+  padding:12px 14px;
+  min-height:52px;
+  border-bottom:1px solid var(--c-line-2);
+}
+.panelHead b{
+  font:600 var(--fs-135)/1.3 var(--font-ui);
+  color:var(--c-text);
+  letter-spacing:.01em;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.panelHead .xclose{ margin-left:auto; }
+
+/* 关闭按钮：30×30 的图标按钮。以前是带下划线的蓝字，看起来像正文链接 */
+.xclose{
+  flex:none; width:30px; height:30px; padding:0;
+  display:inline-flex; align-items:center; justify-content:center;
+  border:0; border-radius:var(--r-sm);
+  background:transparent; color:var(--c-text-3);
+  cursor:pointer; text-decoration:none;
+  transition:background-color var(--dur-2) var(--ease), color var(--dur-2) var(--ease);
+}
+.xclose:hover:not(:disabled){ background:var(--c-surface-3); border:0; color:var(--c-text); }
+.xclose:active{ background:var(--c-surface-4); }
+.xclose svg{ display:block; }
+.xclose .ico{ width:15px; height:15px; stroke-width:2; }
+
+/* 右栏折叠箭头 */
+.railToggle{
+  flex:none; width:28px; height:28px; padding:0;
+  display:inline-flex; align-items:center; justify-content:center;
+  border:0; border-radius:var(--r-sm);
+  background:transparent; color:var(--c-text-3);
+  font-size:var(--fs-15); line-height:1; cursor:pointer;
+  transition:background-color var(--dur-2) var(--ease), color var(--dur-2) var(--ease);
+}
+.railToggle:hover:not(:disabled){ background:var(--c-surface-3); border:0; color:var(--c-text); }
+#rail .panelHead .railToggle{ margin-left:auto; }
+
+/* ============================ 底栏 ============================
+   翻卡控件是**导航**不是主操作：左/右两个按钮做成"上一页/下一页"的软按钮，
+   中间是点阵 + 计数。右侧那行快捷键提示固定靠右，且要给右下角助教圆钮让位。 */
+footer{
+  height:var(--h-footer);
+  display:flex; align-items:center; justify-content:center;
+  gap:14px; padding:0 20px;
+  background:var(--c-surface);
+  border-top:1px solid var(--c-line);
+  position:relative;
+  z-index:3;
+}
+footer button{
+  padding:7px 14px; font-size:var(--fs-125); border-radius:var(--r-md);
+  color:var(--c-text-2);
+}
+#btnNext:not(:disabled){
+  background:var(--c-accent-soft);
+  border-color:var(--c-accent-line);
+  color:var(--c-accent-ink);
+  font-weight:600;
+}
+#btnNext:hover:not(:disabled){
+  background:var(--c-accent); border-color:var(--c-accent); color:#fff;
+}
+footer .dots{ margin:0 2px; }
+footer .dotCount{ margin-left:2px; }
+
+/* 点阵：按钮 15×15 的可点区域，里面画 7px 的点。
+   这样 9 个点也能点得中（原来 9px 的点在 1080p 上很难点）。 */
+.dots{ display:flex; align-items:center; gap:3px; flex-wrap:wrap; }
+.dot{
+  width:16px; height:16px; padding:0;
+  border:0; background:none; border-radius:50%;
+  display:grid; place-items:center;
+  cursor:pointer;
+  transition:transform var(--dur-2) var(--ease);
+}
+.dot::after{
+  content:""; width:7px; height:7px; border-radius:50%;
+  background:var(--c-surface-4);
+  box-shadow:inset 0 0 0 1px var(--c-line-strong);
+  transition:background-color var(--dur-2) var(--ease),
+             box-shadow var(--dur-2) var(--ease),
+             transform var(--dur-2) var(--ease);
+}
+.dot:hover{ transform:scale(1.1); }
+.dot:hover::after{ background:var(--c-accent-soft-2); box-shadow:inset 0 0 0 1px var(--c-accent); }
+.dot.on::after{ background:var(--c-accent); box-shadow:none; }
+/* 当前位置：实心 + 一圈浅环（空心的环和"没学"分不清，所以位置必须更重） */
+.dot.cur::after{
+  background:var(--c-accent);
+  box-shadow:0 0 0 4px color-mix(in srgb, var(--c-accent) 16%, transparent);
+  transform:scale(1.05);
+}
+.dot:focus-visible{ outline:2px solid var(--c-accent); outline-offset:0; }
+
+.dotCount{
+  font:500 var(--fs-11)/1 var(--font-ui);
+  color:var(--c-text-3);
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.02em;
+  padding:4px 9px; border-radius:var(--r-pill);
+  background:var(--c-surface-3);
+  white-space:nowrap;
+}
+footer .navhint{
+  position:absolute; right:84px;
+  font-size:var(--fs-11); color:var(--c-text-4);
+  letter-spacing:.01em; white-space:nowrap;
+}
+
+/* ============================ 遮罩 / 终端容器 ============================ */
+#scrim{
+  position:fixed; inset:0;
+  background:var(--c-scrim);
+  z-index:var(--z-scrim);
+  backdrop-filter:blur(1.5px);
+  animation:fadeIn var(--dur-2) var(--ease);
+}
+
+/* 终端是底部抽屉：占版面而不是盖住卡片（翻卡阅读不受影响）。
+   内部样式在 50-ai.css；这里只定盒子与那条拖拽条。 */
+#repl{
+  position:relative;
+  display:flex; flex-direction:column;
+  height:300px;                        /* JS 会用 ui.replh 覆盖成内联 height */
+  min-height:140px;
+  background:var(--c-term);
+  border-top:1px solid color-mix(in srgb, #fff 10%, transparent);
+  box-shadow:0 -8px 28px rgba(9,13,24,.20);
+  z-index:var(--z-repl);
+}
+#replResize{
+  position:absolute; top:-5px; left:0; right:0;
+  height:10px; cursor:ns-resize; z-index:2;
+}
+#replResize::after{
+  content:""; position:absolute; left:50%; top:4px;
+  width:44px; height:3px; margin-left:-22px;
+  border-radius:3px; background:transparent;
+  transition:background-color var(--dur-2) var(--ease);
+}
+#replResize:hover::after{ background:color-mix(in srgb, var(--c-term-fg) 34%, transparent); }
+
+/* ============================ 响应式 ============================
+   断点：1100（目录常驻/抽屉）、1400（材料栏出现）—— 与 JS 的 TOCOPE_W/RAIL_W 一致。
+   这里只管"宽度变窄时把内边距收小"，布局切换由 JS 的 data-wide 属性驱动。 */
+@media (max-width:1000px){
+  header{ padding:0 14px; }
+  #resume{ padding:0 14px; }
+  main{ padding:16px 14px 56px; }
+  #card{ padding:26px 22px 30px; }
+  #inlinePanel{ padding:16px 18px 28px; }
+  footer{ padding:0 12px; gap:8px; }
+  footer .navhint{ display:none; }
+}

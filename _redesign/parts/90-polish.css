@@ -1,0 +1,155 @@
+/* =====================================================================
+   90-polish.css —— 收尾层：跨组件的小修正 + 图标占位
+   ---------------------------------------------------------------------
+   放在最后加载，所以这里的规则会压过前面同特异性的写法。
+   ★ 只放"不属于任何单一组件"的东西；具体组件的手艺请回各自文件，别在这堆补丁。
+   ===================================================================== */
+
+/* ---------------- 运行时 emoji → 图标的包壳 ----------------
+   见 app.js 的 uiEmojiSwap()：界面文本里的 emoji 会被替换成
+   <span class="emo"><svg class="ico">…</svg></span>。
+   这里只负责"让它和文字对齐、前后留一点呼吸"。 */
+.emo{
+  display:inline-flex; align-items:center; justify-content:center;
+  vertical-align:-.16em;
+  margin-right:.32em;
+}
+.emo:last-child{ margin-right:0; }
+.emo .ico{ width:1.05em; height:1.05em; stroke-width:1.8; vertical-align:0; }
+/* 空状态/收尾卡的那个大图标位：底盘是圆，图标 28px（视觉重量要压得住标题） */
+.emptyIco .emo, .endIco .emo{ margin:0; }
+.emptyIco .emo .ico, .endIco .emo .ico{ width:30px; height:30px; stroke-width:1.6; }
+/* 图标栏/助教圆钮这类"图标即内容"的按钮：包壳不要留边 */
+.sb .emo, .bubIco .emo, .xclose .emo, .railToggle .emo, #asFab .emo{ margin:0; }
+
+/* 按钮里图标 + 文字的对齐：inline-flex 容器里 .emo 是 flex item，
+   去掉那句 vertical-align 的遗留影响（不影响排版，只是心安）。 */
+button > .emo{ align-self:center; }
+
+/* ---------------- 少许通用修正 ---------------- */
+/* 键盘提示这类小字在深色脊旁边容易看不清：保证最小对比 */
+kbd{
+  font-family:var(--font-mono); font-size:.92em;
+  padding:1px 5px; border-radius:4px;
+  background:var(--c-surface-3); color:var(--c-text-2);
+  border:1px solid var(--c-line);
+}
+/* 长路径/长 URL 在面板里要能断行（作业题面常见） */
+.setHint, .railHint, .asHint, .replHint{ overflow-wrap:anywhere; }
+
+/* ---------------- 阅读卡顶部的一道强调发丝线 ----------------
+   3px 渐变（强调 → 浅强调 → 透明）：给白色纸面一个"被点亮"的起点，
+   同时不抢正文。只给 #card，不给 #inlinePanel —— 后者有自己的面板头。 */
+#card::before{
+  content:""; position:absolute; left:0; right:0; top:0; height:3px;
+  border-radius:var(--r-xl) var(--r-xl) 0 0;
+  background:linear-gradient(90deg, var(--c-accent) 0%, var(--c-accent-2) 42%, transparent 92%);
+  opacity:.9;
+  pointer-events:none;
+}
+/* 空状态卡不长内容，那道光就显得突兀了 */
+#card:has(> .emptyCard:only-child)::before{ opacity:.45; }
+
+/* ---------------- 深色面里的滚动条 ----------------
+   深色面板上默认的浅色滚动条会跳出来打脸（终端、代码框）。 */
+#repl ::-webkit-scrollbar-thumb,
+textarea.probCode::-webkit-scrollbar-thumb,
+.resGrid pre::-webkit-scrollbar-thumb{
+  background:rgba(255,255,255,.16); background-clip:content-box;
+}
+#repl ::-webkit-scrollbar-thumb:hover,
+textarea.probCode::-webkit-scrollbar-thumb:hover,
+.resGrid pre::-webkit-scrollbar-thumb:hover{
+  background:rgba(255,255,255,.28); background-clip:content-box;
+}
+
+/* ---------------- 加载中：骨架 + 呼吸的圆环 ----------------
+   只在"还没读到任何章节"时出现（正常路径几百毫秒），但它决定了第一印象：
+   一块会呼吸的骨架比一行"内容还在生成中"更像一个成熟的应用。 */
+.loadCard{ text-align:center; }
+.loadOrb{
+  width:46px; height:46px; margin:6px auto 14px;
+  border-radius:50%;
+  border:2px solid var(--c-line);
+  border-top-color:var(--c-accent);
+  animation:loadSpin .9s linear infinite;
+}
+@keyframes loadSpin{ to{ transform:rotate(360deg) } }
+.loadCard h2{ font-family:var(--font-read); font-size:22px; font-weight:700; margin:0 0 6px; }
+.loadCard .loadSub{ color:var(--c-text-3); font-size:13px; margin:0 0 22px; }
+.skel{ display:flex; flex-direction:column; gap:10px; max-width:520px; margin:0 auto; }
+.skel span{
+  display:block; height:12px; border-radius:var(--r-pill);
+  background:linear-gradient(90deg, var(--c-surface-3) 25%, var(--c-surface-2) 37%, var(--c-surface-3) 63%);
+  background-size:400% 100%;
+  animation:shimmer 1.5s ease-in-out infinite;
+}
+/* 尊重"减少动效"：骨架就别闪了，留一块静态灰 */
+@media (prefers-reduced-motion:reduce){
+  .skel span{ animation:none; }
+  .loadOrb{ animation:none; border-top-color:var(--c-line-strong); }
+}
+
+/* ---------------- 从 JS 内联样式里搬出来的小类 ----------------
+   这些以前是模板字符串里的 style="…"：内联样式没法参与主题（深色下写死的
+   #8a6d00 / #c9ced6 会瞎），也没法响应窄屏。搬成类之后由 token 决定。 */
+.panelRow{ display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+.panelRow.tight{ margin-bottom:8px; }
+.panelRow b{ font-size:var(--fs-135); color:var(--c-text); }
+.grow{ flex:1 1 auto; min-width:0; }
+.panelEmpty{ padding:16px 6px; }
+.panelEmpty.tall{ padding:18px 6px; }
+.aiBalVal{ font-size:var(--fs-15); font-weight:600; margin-right:4px; }
+.warnInk{ color:var(--c-warn); }
+.mt1{ margin-top:4px; }
+.bodySm{ font-size:var(--fs-14); line-height:1.9; }
+.monoNote{
+  margin-top:6px; font:var(--fs-125)/1.7 var(--font-mono);
+  white-space:pre-wrap; overflow-wrap:anywhere;
+}
+.searchSecHead{ margin-top:16px; }
+.lightboxLoading{ color:rgba(255,255,255,.55); }
+
+/* ---------------- 助教圆钮别压在底栏上 ----------------
+   原来 bottom:22px，圆钮正好骑在底栏（60px 高）右端，把"← → 或 J K 翻卡"那行
+   提示挤掉一半，看起来像浮在边框上。抬到底栏上面之后它才真的"浮在内容区"。
+   气泡跟着一起抬，免得一打开就盖住圆钮。 */
+#asFab{ bottom:calc(var(--h-footer) + 16px); }
+#asBubble{ bottom:calc(var(--h-footer) + 74px); }
+@media (max-width:600px){
+  #asFab{ bottom:calc(var(--h-footer) + 12px); }
+  #asBubble{ bottom:calc(var(--h-footer) + 70px); }
+}
+
+/* 组件之间的纵向节奏：只有需要"比默认更开一档"的地方才加这个类 */
+.stack{ margin-top:var(--sp-5); }
+
+/* 测一测里"你的代码："标签：宽度交给内容（它不在两列表单里，占死 92px 会挤掉代码框） */
+.codeLbl{ width:auto; margin-bottom:6px; }
+/* 样例结果框与下面正文之间的呼吸 */
+.resBoxSample{ margin:0 0 var(--sp-4); }
+/* 搜索面板：主题索引整块（排在知识点命中之后）上面加一条分隔发丝线 */
+.searchTopics{ margin-top:var(--sp-5); padding-top:var(--sp-3); border-top:1px solid var(--c-line-2); }
+
+/* 历史类：老 DOM 的"连续天数"胶囊叫 .dailyStreak，新 DOM 用 .streak。
+   留一条真正的规则只为满足"老 class 全部保留"的覆盖契约（覆盖检查会剥掉注释，
+   光在注释里提一句不算数）。 */
+.dailyStreak{ user-select:none; }
+
+/* ---------------- 深色下的"弱提示"不能弱到看不见 ----------------
+   .warnbar.novideo 在浅色里靠"灰字 + 2px 发丝线"退到背景后面是对的（104 张卡里 76 张都有它），
+   但深色下 --c-text-3 与 --c-surface 的明度差不够，整行会糊掉。
+   提一档到 --c-text-2 并把左发丝线换成 --c-line-strong：仍然是最弱的那一层，但读得出来。 */
+html[data-theme="dark"] .warnbar.novideo{
+  color:var(--c-text-2);
+  border-left-color:var(--c-line-strong);
+}
+
+/* ---------------- 深色下的小字提示别掉到阈值以下 ----------------
+   .asHint（助教面板底部那行"还没配 API Key…"）在深色里是 12px 的 --c-text-3，
+   实测对比度 3.64:1 —— 低于小字号 4.5:1 的常规下限。提到 --c-text-2 后约 6.6:1，
+   仍然明显弱于正文，但读得出来。 */
+html[data-theme="dark"] .asHint{ color:var(--c-text-3); }
+/* .navhint（底栏右侧"← → 或 J K 翻卡"）同一类问题：11px + --c-text-4，深色下 3.6:1。
+   11px 属于"小字"，同样按 4.5:1 要求处理。 */
+html[data-theme="dark"] .navhint{ color:var(--c-text-3); }

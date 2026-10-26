@@ -1,0 +1,174 @@
+/* =====================================================================
+   00-tokens.css —— 设计变量（唯一的颜色/尺寸权威）
+   ---------------------------------------------------------------------
+   为什么单独一个文件：深色模式只允许在这一层做覆盖。
+   组件文件里出现任何写死的 hex/rgba，深色模式一定会漏。
+   ---------------------------------------------------------------------
+   主题切换方式：<html data-theme="light"|"dark">。
+   浅色是默认；JS 只负责设属性 + 记住选择，不参与任何配色计算。
+   ===================================================================== */
+
+:root{
+  /* ---------- 面 ---------- */
+  --c-canvas:#F2F4F8;          /* 应用底 */
+  --c-canvas-2:#E9EDF4;        /* 更深的底（极少用：滚动条槽） */
+  --c-surface:#FFFFFF;         /* 卡/面板/输入 */
+  --c-surface-2:#F8FAFD;       /* 次级面：代码、表头、静态条 */
+  --c-surface-3:#EDF1F7;       /* hover / 选中底 */
+  --c-surface-4:#E3E9F2;       /* 再深一档：按下态 */
+  --c-glass:rgba(255,255,255,.82);   /* 半透明浮层底（tooltip/toast/补全） */
+  /* ---------- 导航脊（左侧图标栏）---------- */
+  --c-rail:#101728;
+  --c-rail-2:#18213A;
+  --c-rail-3:#212C4A;
+  --c-rail-fg:#93A2BF;
+  --c-rail-fg-on:#FFFFFF;
+  --c-rail-line:rgba(255,255,255,.08);
+  /* ---------- 线 ---------- */
+  --c-line:#E2E7F0;
+  --c-line-2:#EFF2F7;          /* 比 line 更淡：卡片内分隔 */
+  --c-line-strong:#CBD3E1;
+  /* ---------- 字 ---------- */
+  --c-text:#131A26;
+  --c-text-2:#4B5668;
+  --c-text-3:#7F8A9C;
+  --c-text-4:#A8B2C1;          /* 极弱：占位、计数、禁用 */
+  --c-text-inv:#FFFFFF;
+  /* ---------- 强调 ---------- */
+  --c-accent:#3B5BFD;
+  --c-accent-2:#6C86FF;
+  --c-accent-ink:#1B34C4;      /* 浅底上的强调文字（对比度够） */
+  --c-accent-soft:#EDF0FF;
+  --c-accent-soft-2:#DDE3FF;
+  --c-accent-line:#C3CDFF;
+  /* 强调色/强调渐变之上的前景色。两套主题下都接近白 —— 强调色本身在深色模式会变亮，
+     真正需要跟着变的是它"后面"的那一层，所以这里不需要深色覆盖。 */
+  --c-on-accent:#FFFFFF;
+  --c-on-accent-dim:rgba(255,255,255,.78);
+  /* ---------- 语义色 ---------- */
+  --c-ok:#0E9F6E;   --c-ok-2:#12B981;   --c-ok-soft:#E6F7F1;   --c-ok-line:#B7E8D7;
+  --c-warn:#B45309; --c-warn-soft:#FFF7EA; --c-warn-line:#F5DDB6;
+  --c-err:#D92D20;  --c-err-soft:#FEECEB;  --c-err-line:#F6C4C0;
+  /* ---------- 代码 / 终端 ----------
+     终端是全 app 唯一的深色内容面（和左侧深色脊呼应）。
+     它不跟主题走：深色模式下只是"更深一点"，浅色模式下也是深底 —— 终端就该是黑的。 */
+  --c-term:#0B1220;
+  --c-term-2:#0F1729;          /* 输出区（更深） */
+  --c-term-3:#141F36;          /* 输入行 / 头部 */
+  --c-term-fg:#D7E0F0;
+  --c-term-fg-dim:#7C8BA8;
+  --c-term-accent:#7DD3FC;     /* >>> 提示符：青蓝，和主强调蓝区分开 */
+  --c-term-line:rgba(255,255,255,.07);
+  --c-term-err:#FFB4AB;
+  --c-term-err-bg:rgba(217,45,32,.14);
+  --c-term-ok:#7BE3B4;
+  --c-code:#F6F8FC;            /* 正文里的代码块底 */
+  --c-code-line:#E4E9F2;
+  /* ---------- 遮罩 ---------- */
+  --c-scrim:rgba(11,16,28,.42);
+  --c-shadow-tint:16,23,40;    /* 阴影用的 rgb 分量 */
+
+  /* ---------- 字体 ----------
+     ★ 中文正文必须宋体（用户硬要求）。三套字体各司其职，别混：
+       read → 讲义原文、AI 正文、100days 正文
+       ui   → 按钮 / chip / 计数 / 章节号 / 提示
+       mono → 代码 / 终端 / 行号 / 时长 */
+  --font-read:Georgia,Cambria,"Times New Roman",SimSun,"宋体",
+              "Source Han Serif SC","Noto Serif CJK SC",serif;
+  --font-ui:system-ui,"Segoe UI","Microsoft YaHei","PingFang SC","Hiragino Sans GB",sans-serif;
+  --font-mono:Consolas,"Cascadia Mono","Courier New",monospace;
+
+  --fs-11:11px;  --fs-105:10.5px; --fs-12:12px;  --fs-125:12.5px; --fs-13:13px;
+  --fs-135:13.5px; --fs-14:14px; --fs-15:15px;  --fs-16:16px;
+  --fs-17:17px;  --fs-18:18px;  --fs-20:20px;   --fs-24:24px; --fs-28:28px;
+  --lh-ui:1.6; --lh-read:1.95; --lh-title:1.35;
+
+  /* ---------- 形状 ---------- */
+  --r-xs:6px; --r-sm:8px; --r-md:10px; --r-12:12px; --r-lg:14px; --r-xl:18px; --r-pill:999px;
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px;
+  --sp-7:28px; --sp-8:32px; --sp-10:40px; --sp-12:48px; --sp-16:64px;
+
+  /* ---------- 阴影：三层叠出"纸浮起来"的感觉，单层会显得脏 ---------- */
+  --sh-xs:0 1px 2px rgba(var(--c-shadow-tint),.05);
+  --sh-sm:0 1px 2px rgba(var(--c-shadow-tint),.05),0 2px 8px rgba(var(--c-shadow-tint),.05);
+  --sh-md:0 1px 2px rgba(var(--c-shadow-tint),.04),0 8px 24px rgba(var(--c-shadow-tint),.07);
+  --sh-lg:0 2px 6px rgba(var(--c-shadow-tint),.06),0 18px 48px rgba(var(--c-shadow-tint),.13);
+  --sh-xl:0 4px 12px rgba(var(--c-shadow-tint),.08),0 32px 72px rgba(var(--c-shadow-tint),.18);
+  --sh-focus:0 0 0 3px color-mix(in srgb, var(--c-accent) 22%, transparent);
+  --sh-focus-err:0 0 0 3px color-mix(in srgb, var(--c-err) 20%, transparent);
+  --sh-rail:0 6px 18px rgba(9,13,24,.34);
+  --sh-fab:0 8px 24px color-mix(in srgb, var(--c-accent) 34%, transparent);
+
+  /* ---------- 动效 ---------- */
+  --dur-1:100ms; --dur-2:140ms; --dur-3:200ms; --dur-4:280ms;
+  --ease:cubic-bezier(.2,.7,.3,1);
+
+  /* ---------- 层次（沿用 JS/CSS 的既有契约，只补名字）---------- */
+  --z-scrim:40; --z-repl:45; --z-rail:52; --z-modal:60; --z-fab:70;
+  --z-bubble:75; --z-toast:80; --z-tip:90;
+
+  /* ---------- 布局尺寸（组件与 shell 共用，改一处就够）---------- */
+  --w-rail:60px;        /* 左侧图标栏 */
+  --w-toc:296px;        /* 目录 */
+  --w-materials:336px;  /* 材料栏 */
+  --h-header:56px;
+  --h-footer:60px;
+  --w-card:840px;       /* 阅读卡最大宽度 */
+  --measure-read:42em;  /* 正文行宽上限（中文一行的舒适上限） */
+
+  color-scheme: light;
+}
+
+/* =====================================================================
+   深色模式：只覆盖 token。
+   ---------------------------------------------------------------------
+   不是"浅色反相"：深色下纸面用 #141A26 而不是纯黑（纯黑 + 白字对比过强，
+   读长文会累）；发丝线用半透明白（在任何一层面板上都成立）；
+   强调色提亮一档（深底上 #3B5BFD 会发暗，看不清）。
+   ===================================================================== */
+html[data-theme="dark"]{
+  --c-canvas:#0B0F18;
+  --c-canvas-2:#080B12;
+  --c-surface:#141A26;
+  --c-surface-2:#19202E;
+  --c-surface-3:#212938;
+  --c-surface-4:#2A3346;
+  --c-glass:rgba(20,26,38,.88);
+  --c-rail:#080B12;
+  --c-rail-2:#151C2B;
+  --c-rail-3:#1D2637;
+  --c-rail-fg:#8B9AB8;
+  --c-rail-fg-on:#FFFFFF;
+  --c-rail-line:rgba(255,255,255,.06);
+  --c-line:#232C3D;
+  --c-line-2:#1C2432;
+  --c-line-strong:#33405A;
+  --c-text:#E5EAF4;
+  --c-text-2:#B2BDD1;
+  --c-text-3:#8794AA;
+  --c-text-4:#66738A;
+  --c-text-inv:#0B0F18;
+  --c-accent:#6C86FF;
+  --c-accent-2:#8DA2FF;
+  --c-accent-ink:#A9BAFF;
+  --c-accent-soft:#1B2440;
+  --c-accent-soft-2:#222E52;
+  --c-accent-line:#2E3C63;
+  --c-ok:#34D399;   --c-ok-2:#4BD5A8;   --c-ok-soft:#0F2A22;    --c-ok-line:#1E4A3C;
+  --c-warn:#F0B25A; --c-warn-soft:#2A2113; --c-warn-line:#4A3A1C;
+  --c-err:#FF8A80;  --c-err-soft:#2C1614;  --c-err-line:#4E2724;
+  --c-term:#070B13;
+  --c-term-2:#05080E;
+  --c-term-3:#0D1523;
+  --c-term-fg:#D7E0F0;
+  --c-term-fg-dim:#6E7C96;
+  --c-code:#101724;
+  --c-code-line:#1F2937;
+  --c-scrim:rgba(3,6,12,.62);
+  --c-shadow-tint:0,0,0;
+  --sh-md:0 1px 2px rgba(0,0,0,.30),0 8px 24px rgba(0,0,0,.38);
+  --sh-lg:0 2px 6px rgba(0,0,0,.34),0 18px 48px rgba(0,0,0,.48);
+  --sh-xl:0 4px 12px rgba(0,0,0,.40),0 32px 72px rgba(0,0,0,.56);
+  --sh-fab:0 8px 24px color-mix(in srgb, var(--c-accent) 40%, transparent);
+  color-scheme: dark;
+}

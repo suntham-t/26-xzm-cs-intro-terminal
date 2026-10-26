@@ -20,3 +20,15 @@ venv/
 .idea/
 Thumbs.db
 desktop.ini
+
+# 前端重设计的中间产物（源码分片在 _redesign/parts、shell.html、patches —— 那些要进仓库；
+# 下面是可再生的：截图、基线副本、从补丁链生成的 JS、预览页）
+_redesign/shots/
+_redesign/baseline/
+_redesign/src/app.js
+_redesign/_probe*.js
+_redesign/_p_*.js
+_redesign/_shot*.png
+web/_pv*.html
+# ����Ŀ¼���»��߿�ͷ������ʱ�ű��������ֿ�
+_redesign/tools/_*

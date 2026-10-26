@@ -1,0 +1,6 @@
+{
+ "id": "rail-toggle-icon",
+ "note": "材料栏折叠箭头：字符 ‹› 换成内联 SVG（与旁边图标同观感）",
+ "old": "    $(\"btnRailClose\").textContent = open ? \"‹\" : \"›\";",
+ "new": "    /* 箭头必须是矢量：字符 ‹ › 在不同字体里粗细和基线都不一致，而且这里要跟\n       旁边那套 24×24 / 1.8 描边的图标同一观感。朝向沿用原语义：\n       展开时显示\"收起\"（指进右栏），收起时显示\"展开\"。 */\n    $(\"btnRailClose\").innerHTML = open\n      ? '<svg viewBox=\"0 0 24 24\" width=\"15\" height=\"15\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9.5 5.5L16 12l-6.5 6.5\"/></svg>'\n      : '<svg viewBox=\"0 0 24 24\" width=\"15\" height=\"15\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M14.5 5.5L8 12l6.5 6.5\"/></svg>';"
+}

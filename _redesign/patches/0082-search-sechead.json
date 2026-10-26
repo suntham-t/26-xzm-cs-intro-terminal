@@ -1,0 +1,6 @@
+{
+ "id": "search-sechead",
+ "note": "搜索结果分组标题：内联间距改成类",
+ "old": "    parts.push('<div class=\"secHead\" style=\"margin-top:16px\">知识点（' + escapeHtml(res.length) + \" 条）</div>\");",
+ "new": "    parts.push('<div class=\"secHead searchSecHead\">知识点（' + escapeHtml(res.length) + \" 条）</div>\");"
+}

@@ -1,0 +1,6 @@
+{
+ "id": "chapter-endbtns-margin",
+ "note": "章级卡按钮组：内联上间距删掉（.endCard .endBtns 已定 24px）",
+ "old": "  out.push('<div class=\"endBtns\" style=\"margin-top:22px\">');",
+ "new": "  out.push('<div class=\"endBtns\">');"
+}

@@ -1,0 +1,6 @@
+{
+ "id": "oj-consent-body",
+ "note": "自动提交说明页的正文：内联字号行高改成类",
+ "old": "    '<div class=\"body\" style=\"font-size:14px;line-height:1.9\">' +",
+ "new": "    '<div class=\"body bodySm\">' +"
+}

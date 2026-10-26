@@ -1,0 +1,190 @@
+<body>
+
+<!-- ============================ 左侧图标栏 ============================
+     横向顺序：图标栏 → 目录区 → 阅读区 → 材料栏。
+     图标分三组（用竖直空白和发丝线隔开）：阅读工具 ‖ 资源面板 ‖ 系统。
+     ★ data-act 与上一版完全一致（toc/repl/tutor/videos/days/hw/search/update/aiset），
+       所以 onDocClick 的分发逻辑一行都不用改；新增的 theme 是这一版新加的（见 applyTheme）。
+     ★ 图标全部内联 SVG：24×24 网格、1.8 描边、currentColor。
+       emoji 在这个位置的问题是不跟随颜色、字重由系统字体决定、选中态只能靠底色。 -->
+<div id="sideBar" role="toolbar" aria-label="功能区">
+  <div class="sbBrand" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l4 4-4 4M12.5 16.5h6.5"/></svg>
+  </div>
+
+  <button class="sb" id="btnToc" data-act="toc" data-tip="目录 · 章节 / 小节 / 知识点" aria-label="目录">
+    <svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="4.5" cy="6.5" r="1.15" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r="1.15" fill="currentColor" stroke="none"/><circle cx="4.5" cy="17.5" r="1.15" fill="currentColor" stroke="none"/><path d="M9 6.5h11M9 12h11M9 17.5h7"/></svg>
+  </button>
+  <button class="sb" id="btnRepl" data-act="repl" data-tip="试一试 · 敲几行立刻看结果" aria-label="试一试">
+    <svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.6"/><path d="M7.6 10.2l2.3 1.9-2.3 1.9M12.8 14.6h4"/></svg>
+  </button>
+  <button class="sb" id="btnTutor" data-act="tutor" data-tip="可视化 · 逐步单步执行，看变量怎么变" aria-label="可视化">
+    <svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 7h4.5M4.5 12h4.5M4.5 17h4.5"/><path d="M12.5 7h7M12.5 12h7M12.5 17h3.5"/><circle cx="11.2" cy="12" r="2.1" fill="currentColor" stroke="none"/></svg>
+  </button>
+
+  <button class="sb" id="btnVideos" data-act="videos" data-group="1" data-tip="视频目录 · 整套 164 个分P，可搜" aria-label="视频目录">
+    <svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2.6"/><path d="M10.4 9.6v4.8l4.1-2.4z" fill="currentColor" stroke="none"/></svg>
+  </button>
+  <button class="sb" id="btnDays" data-act="days" data-tip="100 Days · 22 天 Python 练习" aria-label="100 Days">
+    <svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2.6"/><path d="M3.5 10h17M8 3.6v3M16 3.6v3"/><circle cx="12" cy="15.2" r="1.6" fill="currentColor" stroke="none"/></svg>
+  </button>
+  <button class="sb" id="btnHw" data-act="hw" data-tip="作业 · 题面 / 解析 / 用样例测" aria-label="作业">
+    <svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4.5h9.5L19 8v11.5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1z"/><path d="M15 4.6V8.2h3.6M9 12.5h6M9 16h4"/></svg>
+  </button>
+
+  <span class="sbSp"></span>
+
+  <button class="sb" id="btnSearch" data-act="search" data-group="1" data-tip="搜索 · 标题 + 正文（Ctrl+K）" aria-label="搜索">
+    <svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.6" cy="10.6" r="5.6"/><path d="M14.9 14.9L19 19"/></svg>
+  </button>
+  <button class="sb" id="btnUpdate" data-act="update" data-tip="检查更新 · 讲义 / 课件变了没有" aria-label="检查更新">
+    <svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19.6 12a7.6 7.6 0 1 1-2.2-5.4"/><path d="M19.6 4.6v3.6h-3.6"/></svg>
+  </button>
+  <!-- 主题切换：两个图标叠在一起，靠 [data-theme] 显示其中一个（比 JS 换 innerHTML 稳） -->
+  <button class="sb" id="btnTheme" data-act="theme" data-tip="主题 · 浅色 / 深色" aria-label="切换主题">
+    <svg class="sbi icoSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.1"/><path d="M12 2.8v2.2M12 19v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.8 12H5M19 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>
+    <svg class="sbi icoMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.2A8.2 8.2 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"/></svg>
+  </button>
+  <button class="sb" id="btnAiSet" data-act="aiset" data-tip="AI 设置 · Key / 模型 / 余额" aria-label="AI 设置">
+    <svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2.1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="12" r="2.1" fill="currentColor" stroke="none"/><circle cx="7.5" cy="17" r="2.1" fill="currentColor" stroke="none"/></svg>
+  </button>
+</div>
+<!-- 悬停提示挂在 body 层：图标栏自己 overflow-y:auto，放里面会被裁掉 -->
+<div id="sbTip" role="tooltip" hidden></div>
+
+<div id="rightPane">
+<header>
+  <!-- 顶栏只回答"我在哪"：品牌 › 章 › 节。动作按钮全在图标栏里（别再往这加）。 -->
+  <div class="hrow top">
+    <span class="brand">计算概论 B</span>
+    <span class="chapterTitle" id="chapterTitle"></span>
+    <span class="secLabel" id="secLabel"></span>
+    <span class="sp"></span>
+    <span class="streak" id="streak"></span>
+  </div>
+</header>
+
+<div id="resume" hidden><button class="linkbtn" id="btnResume"></button></div>
+
+<div id="shell">
+  <aside id="toc">
+    <div class="panelHead"><b>目录</b>
+      <button class="xclose" id="btnTocClose" data-act="tocclose" aria-label="关闭" title="关闭（Esc）">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button></div>
+    <div id="tocBody"></div>
+  </aside>
+
+  <main>
+    <!-- 卡片区两个互斥视图：
+         #card        正常的知识卡片（翻卡流）
+         #inlinePanel 100 Days / 作业 / 视频目录 —— 直接在卡片区显示，不盖弹层
+         谁显示由 openModal() 的落点逻辑决定（见 §surface）。 -->
+    <section id="card"></section>
+    <section id="inlinePanel" hidden>
+      <div class="panelHead"><b id="inlineTitle"></b>
+        <button class="xclose" data-act="closemodal" aria-label="关闭" title="关闭（Esc）">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button></div>
+      <div id="inlineBody"></div>
+    </section>
+  </main>
+
+  <aside id="rail">
+    <div class="panelHead"><b id="railTitle">材料</b>
+      <button class="railToggle" id="btnRailClose" data-act="railclose" aria-label="收起材料栏" title="收起材料栏">‹</button>
+    </div>
+    <div id="railBody"></div>
+  </aside>
+</div>
+
+<!-- ============================ 内置终端 ============================
+     真 Python 3.13，有状态、跨块保留变量。
+     ★ 这是全 app 唯一的深色内容面（和左侧深色脊呼应）：终端本来就该是黑的。
+     ★ 高度由 JS 的 ui.replh 用内联 height 控制；这里只给默认值和最小高度。
+     ★ 拖拽条在顶部（#replResize），往上拖变高。 -->
+<section id="repl" hidden>
+  <div class="replHead">
+    <span class="termLights" aria-hidden="true"><i></i><i></i><i></i></span>
+    <b>试一试</b>
+    <span class="replHint" id="replHint">这是一个真的 Python 3.13，变量会留在会话里</span>
+    <span class="sp"></span>
+    <button class="tb" id="btnReplClear" data-act="replclear">清空会话</button>
+    <button class="tb" id="btnReplClose" data-act="replclose">收起</button>
+  </div>
+  <div id="replOut" class="replOut"></div>
+  <div class="replInputRow">
+    <span class="replPrompt" id="replPrompt">&gt;&gt;&gt; </span>
+    <textarea id="replIn" class="replIn" rows="1" spellcheck="false" autocomplete="off"
+      placeholder="敲一行 Python，回车执行（Shift+Enter 换行，↑/↓ 翻历史，Ctrl+Space 补全）"></textarea>
+    <div id="replComp" hidden></div>
+  </div>
+  <div id="replResize" title="拖动改高度"></div>
+</section>
+
+<footer>
+  <button id="btnPrev" data-act="prev">← 上一条</button>
+  <!-- 点阵 + 计数放在翻卡控件中间：它们是"在卡片流里前进/后退"的一部分 -->
+  <span class="dots" id="dots"></span>
+  <span class="dotCount" id="dotCount"></span>
+  <button id="btnNext" data-act="next">下一条 →</button>
+  <span class="navhint" id="navHint">← → 或 J K 翻卡 · Esc 关闭</span>
+</footer>
+</div><!-- /#rightPane -->
+
+<div id="scrim" data-act="scrim" hidden></div>
+
+<!-- ============================ 常驻助教（右下角） ============================
+     为什么不复用 #modal：openModal 是单例全屏弹层 + 遮罩，而 modalOpen() 被 30 多处
+     当作"有没有弹层"的判据。做成常驻会把整个层栈搞坏，所以这里是一套独立浮层，
+     只共享 AS.msgs 这一份会话状态（长对话仍可展开到完整面板）。 -->
+<button id="asFab" data-act="asfab" hidden
+  title="助教：哪里不会问哪里（Enter 发送，Shift+Enter 换行）"
+  aria-label="打开助教" aria-expanded="false" aria-controls="asBubble">
+  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M12 3.6l1.9 4.6 4.6 1.9-4.6 1.9L12 16.6l-1.9-4.6L5.5 10l4.6-1.9z" fill="currentColor" stroke="none"/>
+    <path d="M17.6 15.4l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" fill="currentColor" stroke="none"/>
+  </svg>
+  <span id="asFabDot" aria-hidden="true"></span>
+</button>
+
+<div id="asBubble" hidden role="dialog" aria-label="助教">
+  <div class="bubHead">
+    <span class="bubAvatar" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6l1.9 4.6 4.6 1.9-4.6 1.9L12 16.6l-1.9-4.6L5.5 10l4.6-1.9z" fill="currentColor" stroke="none"/></svg>
+    </span>
+    <b>助教</b>
+    <button class="bubCtx" id="asBubCtx" data-act="asctx" title="点一下重新读取当前页面内容（读的是应用自己的状态，不是截图）">…</button>
+    <span class="sp"></span>
+    <button class="bubIco" data-act="asexpand" title="展开成完整面板（长对话用）" aria-label="展开">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4H4v5M15 20h5v-5M20 9V4h-5M4 15v5h5"/></svg>
+    </button>
+    <button class="bubIco" data-act="asbclear" title="清空对话" aria-label="清空">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 7h15M9.5 4.5h5M7 7l.7 11.2a1.5 1.5 0 0 0 1.5 1.4h5.6a1.5 1.5 0 0 0 1.5-1.4L17 7"/></svg>
+    </button>
+    <button class="bubIco" data-act="asbclose" title="收起（Esc）" aria-label="收起">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div class="bubMsgs" id="asBubMsgs" data-bubble-msgs="1"></div>
+  <div class="bubInRow">
+    <textarea id="asBubIn" class="bubIn" data-assistant-input="1" rows="1" spellcheck="false"
+      autocomplete="off" placeholder="这里哪里不懂？"
+      title="Enter 发送 · Shift+Enter 换行 · Esc 收起"></textarea>
+    <button class="bubSend" data-act="assend" aria-label="发送">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12L20 5l-6.2 15-2.6-6.2L4.5 12z"/></svg>
+    </button>
+  </div>
+</div>
+
+<div id="modal" hidden data-kind="">
+  <div class="modalBox">
+    <div class="panelHead"><b id="modalTitle"></b>
+      <button class="xclose" id="modalClose" data-act="closemodal" aria-label="关闭" title="关闭（Esc）">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button></div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<div id="toast" hidden></div>

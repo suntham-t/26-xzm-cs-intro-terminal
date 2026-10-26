@@ -1,0 +1,6 @@
+{
+ "id": "mono-note",
+ "note": "服务端跑样例的结果块：内联 mono 样式改成类",
+ "old": "    '<div style=\"margin-top:6px;font:12.5px/1.7 var(--font-mono);white-space:pre-wrap\">' +",
+ "new": "    '<div class=\"monoNote\">' +"
+}

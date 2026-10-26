@@ -1,0 +1,6 @@
+{
+ "id": "panel-empty-a",
+ "note": "面板内空状态：内联内边距改成类",
+ "old": "    return '<div class=\"emptyCard\" style=\"padding:16px 6px\"><div class=\"emptyIco\">📺</div>' +",
+ "new": "    return '<div class=\"emptyCard panelEmpty\"><div class=\"emptyIco\">📺</div>' +"
+}

@@ -2474,7 +2474,12 @@ def load_ai_config():
            "thinking": AI_DEFAULT_THINKING, "base_url": AI_DEFAULT_BASE}
     try:
         with open(AI_CONFIG_FILE, "r", encoding="utf-8") as fh:
-            obj = json.load(fh)
+            raw = fh.read()
+        # ★ 用 raw_decode 而不是 json.load：只认**第一个** JSON 对象，尾巴上的垃圾忽略。
+        #   起因是一次真实事故：这份文件被外部工具写成「一个合法对象 + 结尾两段垃圾」，
+        #   json.load 整份报错 → 应用当作"没配置"，用户只觉得 key 凭空消失了
+        #   （而说明只写进了日志，界面上仍是"还没配置"）。容错读取能把配置救回来。
+        obj, _end = json.JSONDecoder().raw_decode(raw.lstrip())
         if isinstance(obj, dict):
             for k in ("key", "model", "thinking", "base_url"):
                 v = obj.get(k)
@@ -2483,7 +2488,9 @@ def load_ai_config():
     except FileNotFoundError:
         pass
     except (OSError, ValueError) as exc:
-        _log("读取 AI 配置失败（当作没配置）：%s" % _redact(repr(exc)))
+        # 日志里带上**路径**：出了事至少能指着文件说"是它坏了"，而不是只看到一句 JSON 报错。
+        _log("读取 AI 配置失败（当作没配置）：%s  文件=%s"
+             % (_redact(repr(exc)), AI_CONFIG_FILE))
     if cfg["thinking"] not in AI_THINKING_CHOICES:
         cfg["thinking"] = AI_DEFAULT_THINKING
     cfg["base_url"] = cfg["base_url"].rstrip("/")
@@ -2511,6 +2518,14 @@ def save_ai_config(cfg):
     with AI_CONFIG_LOCK:
         try:
             os.makedirs(DATA_DIR, exist_ok=True)
+            # 覆盖前先留一代副本：万一这次写入的是一份坏配置（外部工具/半截写入），
+            # 上一把能用的 key 还在 deepseek.json.bak 里，不至于彻底找不回来。
+            try:
+                if os.path.exists(AI_CONFIG_FILE):
+                    import shutil as _shutil                          # noqa: PLC0415
+                    _shutil.copy2(AI_CONFIG_FILE, AI_CONFIG_FILE + ".bak")
+            except OSError:
+                pass
             tmp = AI_CONFIG_FILE + ".tmp"
             with open(tmp, "w", encoding="utf-8") as fh:
                 fh.write(blob)

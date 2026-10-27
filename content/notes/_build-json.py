@@ -721,6 +721,13 @@ def unrewrite_img_src(text):
 #       This is what catches an off-by-one page shift.
 # ===========================================================================
 AGENDA_MARK = '本章内容'
+
+# 对齐自愈最多允许多少页「课件有、讲义无」。
+# 旧值是写死的 3；实测 2026-10 站上 ch04 的新课件比讲义多 5 页
+# （content=117 vs markers=111+1），上限 3 让自愈根本不会启动 →
+# 整章永远装不进来。放宽到 12；每一页仍然必须通过 window_check
+# （0 违规 + 覆盖率）才会被接受，不存在无条件放行。
+MAX_AUTO_SKIP = 12
 UA = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
       '(KHTML, like Gecko) Chrome/124.0 Safari/537.36')
 
@@ -1074,7 +1081,7 @@ def detect_chapter(chapter, notes_path, pdf_path, tmpdir, quiet=False, raw=None)
     #   排除后必须重新过同一套 check 3（0 违规 + 覆盖率 ≥60%），否则原样退回 MISMATCH。
     auto_skipped = []
     _need = len(content) - (M + 1)
-    if 0 < _need <= 3 and M >= 10:
+    if 0 < _need <= MAX_AUTO_SKIP and M >= 10:
 
         def _probe_assign(content_list):
             """每页最匹配哪个窗口（探针投票）。None = 探针全落空。"""

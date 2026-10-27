@@ -13,7 +13,7 @@ PKU《计算概论 B》的**离线桌面学习终端**：把课程平台的讲�
 | 部分 | 位置 | 说明 |
 |---|---|---|
 | 桌面壳 | `app/main.py`（约 6000 行） | 一个进程干三件事：`ThreadingHTTPServer` + pywebview 窗口 + 复用可视化引擎 |
-| 前端 | `web/index.html`（单文件，约 580 KB） | 卡片流 UI，零外部依赖；由桌面壳在返回时注入「导航桥」脚本（文件本身不改）。**设计系统见 [DESIGN.md](DESIGN.md)**（源码分片在 `_redesign/`，`apply.py` 拼成单文件） |
+| 前端 | `web/index.html`（单文件，约 590 KB） | 卡片流 UI，零外部依赖；由桌面壳在返回时注入「导航桥」脚本（文件本身不改）。**设计系统见 [DESIGN.md](DESIGN.md)**（源码分片在 `_redesign/`，`apply.py` 拼成单文件） |
 | 内容 | `content/` | 讲义 markdown、课件 PNG、知识点 JSON、视频映射、作业、100days |
 | 可视化引擎 | **不在本仓库** | `pytracer` / `explain` / `viewer.html` 是独立项目，见「运行」 |
 
@@ -97,8 +97,8 @@ powershell -ExecutionPolicy Bypass -File app\build.ps1
 - 产物：`app\dist\计算概论学习终端.exe`（PyInstaller onefile，约 **147 MB**，内含 web/content/引擎）+ 桌面快捷方式
 - `build.ps1` 必须保持 **UTF-8 with BOM**：Windows PowerShell 5.1 读无 BOM 的 `.ps1` 会按 GBK 解码，中文直接解析失败
 - **exe 不进仓库**（超过 GitHub 单文件 100 MB 硬限制），发布在 Release 里
-- 已构建版本：[Releases · v1.1.5](https://github.com/suntham-t/26-xzm-cs-intro-terminal/releases/tag/v1.1.5) —— `course-terminal-1.1.5-win64.exe`（154.7 MB，内含 web/content/引擎；双击即用）
-- 历史版本：[v1.1.4](https://github.com/suntham-t/26-xzm-cs-intro-terminal/releases/tag/v1.1.4) · [v1.1.3](https://github.com/suntham-t/26-xzm-cs-intro-terminal/releases/tag/v1.1.3) · [v1.1.2](https://github.com/suntham-t/26-xzm-cs-intro-terminal/releases/tag/v1.1.2) · [v1.1.1](https://github.com/suntham-t/26-xzm-cs-intro-terminal/releases/tag/v1.1.1) · [v1.1.0](https://github.com/suntham-t/26-xzm-cs-intro-terminal/releases/tag/v1.1.0) · [v1.0.0](https://github.com/suntham-t/26-xzm-cs-intro-terminal/releases/tag/v1.0.0)（v1.0.0 附 `course-terminal-manual-1.0.0.pdf` 使用说明书）
+- 已构建版本：[Releases · v1.2.0](https://github.com/suntham-t/26-xzm-cs-intro-terminal/releases/tag/v1.2.0) —— `course-terminal-1.2.0-win64.exe`（**148.6 MB**，内含 web/content/引擎；双击即用）。这一版是**前端整体重做**（深色导航脊 / 纸感阅读面 / 84 个内联 SVG 图标 / 浅色·深色·跟随系统三种主题）+ AI 配置容错修复，功能与 v1.1.x 一致
+- 历史版本：[v1.1.5](https://github.com/suntham-t/26-xzm-cs-intro-terminal/releases/tag/v1.1.5) · [v1.1.4](https://github.com/suntham-t/26-xzm-cs-intro-terminal/releases/tag/v1.1.4) · [v1.1.3](https://github.com/suntham-t/26-xzm-cs-intro-terminal/releases/tag/v1.1.3) · [v1.1.2](https://github.com/suntham-t/26-xzm-cs-intro-terminal/releases/tag/v1.1.2) · [v1.1.1](https://github.com/suntham-t/26-xzm-cs-intro-terminal/releases/tag/v1.1.1) · [v1.1.0](https://github.com/suntham-t/26-xzm-cs-intro-terminal/releases/tag/v1.1.0) · [v1.0.0](https://github.com/suntham-t/26-xzm-cs-intro-terminal/releases/tag/v1.0.0)（v1.0.0 附 `course-terminal-manual-1.0.0.pdf` 使用说明书）
 
 ---
 

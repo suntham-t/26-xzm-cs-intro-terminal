@@ -10444,11 +10444,18 @@ function hwSubmitCode(){
 }
 function hwSubmitHint(){
   var pick = hwSubmitCode();
+  var base;
   if (pick.from === "ai"){
-    return aiFinalCodeIndex() > 0 ? "提交「解析」里 AI 修正后的代码" : "提交「解析」里 AI 写的那份代码";
+    base = aiFinalCodeIndex() > 0 ? "提交「解析」里 AI 修正后的代码" : "提交「解析」里 AI 写的那份代码";
+  }else if (pick.from === "mine"){
+    base = "提交「测一测」里你自己的代码";
+  }else{
+    base = "用你自己的 OJ 账号直接提交这道题，并读回评测结果";
   }
-  if (pick.from === "mine") return "提交「测一测」里你自己的代码";
-  return "用你自己的 OJ 账号直接提交这道题，并读回评测结果";
+  /* 小测和作业在 OJ 上是同一类题集，自动提交完全一样 —— 只提醒时间窗 */
+  var quiz = false;
+  try{ quiz = hwIsQuiz(HW.hw); }catch(e){}
+  return quiz ? (base + "（小测同样能自动提交，注意截止时间）") : base;
 }
 function hwAutoSubmit(){
   var p = HW.prob;

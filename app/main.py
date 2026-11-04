@@ -3680,6 +3680,12 @@ def oj_submit(hw_id, no, code):
     if status == 401:
         return {"ok": False, "need_login": True,
                 "error": "还没登录 OpenJudge（或者登录已过期）"}
+    if status == 403:
+        return {"ok": False,
+                "error": "打不开提交页（HTTP 403）—— 这道小测/作业可能已经关闭，"
+                         "或者你的账号不在这个班里"}
+    if status == 404:
+        return {"ok": False, "error": "提交页不存在（HTTP 404）—— OJ 上的题号可能变了"}
     if status != 200:
         return {"ok": False, "error": "打不开提交页：HTTP %s" % status}
     form = _oj_parse_form(html)

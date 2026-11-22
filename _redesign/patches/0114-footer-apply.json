@@ -1,0 +1,6 @@
+{
+  "id": "0114-footer-apply",
+  "note": "打开内嵌面板时立刻刷新底栏状态",
+  "old": "    asFabSync();\n    return;\n  }\n  /* ---- 普通弹层 ---- */",
+  "new": "    asFabSync();\n    renderFooter();              /* 底栏翻卡跟着停用（见 renderFooter 里的 inPanel） */\n    return;\n  }\n  /* ---- 普通弹层 ---- */"
+}

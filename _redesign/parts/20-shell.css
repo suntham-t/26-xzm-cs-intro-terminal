@@ -216,7 +216,7 @@ main{
 .secHead{
   font:600 var(--fs-11)/1.4 var(--font-ui);
   letter-spacing:.1em; text-transform:uppercase;
-  color:var(--c-text-4);
+  color:var(--c-text-3);
   margin-bottom:8px;
 }
 
@@ -424,7 +424,7 @@ footer .dotCount{ margin-left:2px; }
 }
 footer .navhint{
   position:absolute; right:84px;
-  font-size:var(--fs-11); color:var(--c-text-4);
+  font-size:var(--fs-12); color:var(--c-text-3);
   letter-spacing:.01em; white-space:nowrap;
 }
 
@@ -473,3 +473,40 @@ footer .navhint{
   footer{ padding:0 12px; gap:8px; }
   footer .navhint{ display:none; }
 }
+
+/* ≥1400：图标下面加一行 10.5px 文字标签。
+   为什么：#sideBar 是开场唯一的决策点，10 个纯图标要逐个 hover 才知道是什么，
+   >4 个无标签选项正是认知负荷清单里失败的那一项。窄屏仍是纯图标（栏宽 60 放不下字）。 */
+.sb[data-label]::after{
+  content:attr(data-label);
+  display:none;
+  font:500 var(--fs-105)/1 var(--font-ui);
+  letter-spacing:.01em;
+  color:inherit;
+}
+
+@media (min-width:1400px){
+  :root{ --w-rail:76px; }
+  #sideBar{ gap:4px; }
+  .sb{ width:56px; height:52px; grid-template-rows:19px auto; align-content:center; row-gap:4px; }
+  .sb .sbi{ width:19px; height:19px; }
+  .sb[data-label]::after{ display:block; }
+}
+
+/* 帮助面板里的按键：等宽 + 轻底，和正文分开 */
+kbd{
+  font-family:var(--font-mono);
+  font-size:var(--fs-12);
+  padding:1px 6px;
+  border:1px solid var(--c-line);
+  border-bottom-width:2px;
+  border-radius:var(--r-xs);
+  background:var(--c-surface-2);
+  color:var(--c-text-2);
+  white-space:nowrap;
+}
+
+/* 最小窗口护栏：应用自定的下限是 900×620（DESIGN.md §4）。
+   窗口比它小的时候要求有滚动条，而不是静默裁掉面包屑和按钮 ——
+   390 宽下"我在哪"（章 / 节）被 chip 吃掉，就是这么没的。 */
+html, body{ min-width:900px; min-height:620px; }

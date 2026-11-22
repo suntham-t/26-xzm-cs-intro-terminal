@@ -1,0 +1,6 @@
+{
+  "id": "0102-reflow-card",
+  "note": "卡片正文/讲义开启段落重排，AI 对话文本不开",
+  "old": "function cardMarkdown(md, p, sink){\n  return renderMarkdown(md, {\n    codeBlock: function(info){",
+  "new": "function cardMarkdown(md, p, sink){\n  return renderMarkdown(md, {\n    /* 讲义/题面是「一句一行」，按句末标点分段；AI 对话文本保持原来的 <br> */\n    paragraphs: !(p && p.id === \"assistant\"),\n    codeBlock: function(info){"
+}

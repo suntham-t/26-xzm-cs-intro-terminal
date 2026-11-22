@@ -1,0 +1,6 @@
+{
+  "id": "0119-help-entry",
+  "note": "帮助入口：图标栏底部加「?」，开一张快捷键表（原来 help 图标在库里但没接线）",
+  "old": "  else if (act === \"closemodal\") closeLayer();",
+  "new": "  else if (act === \"help\") openHelpPanel();\n  else if (act === \"closemodal\") closeLayer();"
+}

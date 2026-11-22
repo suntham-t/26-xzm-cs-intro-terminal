@@ -1,0 +1,6 @@
+{
+  "id": "0116-modal-a11y",
+  "note": "弹层接上焦点：打开搬进去、关上还回来（键盘用户别被丢回页首）",
+  "old": "  $(\"modal\").hidden = false;\n  $(\"modal\").setAttribute(\"data-kind\", kind);\n  $(\"modalTitle\").innerHTML = escapeHtml(title || \"\");",
+  "new": "  $(\"modal\").hidden = false;\n  $(\"modal\").setAttribute(\"data-kind\", kind);\n  $(\"modalTitle\").innerHTML = escapeHtml(title || \"\");\n  /* 读屏/键盘：把焦点搬进弹层，关上再还回去。role/aria-modal/aria-labelledby 写在 shell.html 上。 */\n  try{\n    MODAL_RETURN_FOCUS = (document.activeElement && document.activeElement.focus) ? document.activeElement : null;\n    var mb0 = $(\"modalBody\");\n    if (mb0 && mb0.focus) mb0.focus();\n  }catch(e){}"
+}

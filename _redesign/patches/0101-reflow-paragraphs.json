@@ -1,0 +1,6 @@
+{
+  "id": "0101-reflow-paragraphs",
+  "note": "讲义正文按句末标点重新分段（原来整段只有 <br>，段距永远不生效）",
+  "old": "    out.push(\"<p>\" + para.map(inline).join(\"<br>\") + \"</p>\");",
+  "new": "    /* 讲义原文是「一句一行」（从 PDF 抽出来的硬换行）。原来一律 join(\"<br>\")，\n       于是整段只有一个 <p>，`.body p` 的段距从来没生效过 —— 长卡就成了一堵墙。\n       只有 opts.paragraphs 时才重排（AI 对话文本保持原来的 <br> 行为）：\n       上一行以句末标点收尾、且下一行不是续行（以标点开头）→ 另起一段。 */\n    if (!(opts && opts.paragraphs)){\n      out.push(\"<p>\" + para.map(inline).join(\"<br>\") + \"</p>\");\n    }else{\n      var pgroups = [[para[0]]];\n      for (var pgi = 1; pgi < para.length; pgi++){\n        var gLast = pgroups[pgroups.length - 1];\n        var prevLine = String(gLast[gLast.length - 1]).replace(/\\s+$/, \"\");\n        var prevEnds = /[。！？；：…”』」）)]$/.test(prevLine);\n        var nextIsTail = /^\\s*[，、；：。！？）」』…]/.test(para[pgi]);\n        if (prevEnds && !nextIsTail) pgroups.push([para[pgi]]);\n        else gLast.push(para[pgi]);\n      }\n      out.push(pgroups.map(function(g){\n        return \"<p>\" + g.map(inline).join(\"<br>\") + \"</p>\";\n      }).join(\"\"));\n    }"
+}

@@ -65,16 +65,10 @@
   background:var(--c-term-3);
   border-bottom:1px solid var(--c-term-line);
 }
-/* 三个窗口圆点：纯装饰（模拟真终端的窗口按钮），HTML 上带 aria-hidden。
-   不用写死的红黄绿：语义 token 会和终端前景混一档，深底上才不发脏。 */
-.termLights{ display:inline-flex; align-items:center; gap:6px; flex:none; margin-right:2px; }
-.termLights i{
-  display:block; width:9px; height:9px; border-radius:50%;
-  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--c-term) 34%, transparent);
-}
-.termLights i:nth-child(1){ background:color-mix(in srgb, var(--c-err) 74%, var(--c-term-fg)); }
-.termLights i:nth-child(2){ background:color-mix(in srgb, var(--c-warn) 62%, var(--c-term-fg)); }
-.termLights i:nth-child(3){ background:color-mix(in srgb, var(--c-ok) 70%, var(--c-term-fg)); }
+/* 终端头：一个终端字形，不再画三个 macOS 窗口圆点 —— 这是个 Windows 单平台应用，
+   红黄绿窗口灯是借来的符号，也是"深色终端"最老套的一层装饰。用图标库里已有的终端字形，
+   和左栏「试一试」是同一个形象。 */
+.termIco{ width:16px; height:16px; flex:none; color:var(--c-term-accent); }
 
 .replHead b{
   font:600 var(--fs-13)/1.3 var(--font-ui);
@@ -209,7 +203,7 @@
   margin-top:4px; padding:5px 9px 3px;
   border-top:1px solid var(--c-line-2);
   font-family:var(--font-ui); font-size:var(--fs-11);
-  color:var(--c-text-4); white-space:nowrap;
+  color:var(--c-text-3); white-space:nowrap;
 }
 
 /* ---- 输出行 ----
@@ -478,7 +472,7 @@ details.aiReason pre{
 .asWho{
   margin-bottom:4px;
   font-family:var(--font-ui);
-  font-size:var(--fs-12); color:var(--c-text-4);
+  font-size:var(--fs-12); color:var(--c-text-3);
   letter-spacing:.02em;
 }
 .asRow.user .asWho{ text-align:right; }
@@ -524,7 +518,7 @@ details.aiReason pre{
   border-color:var(--c-accent);
   box-shadow:var(--sh-focus);
 }
-.asIn::placeholder{ color:var(--c-text-4); }
+.asIn::placeholder{ color:var(--c-text-3); }
 .asFoot button{ flex:none; }
 /* 底部那行说明：比正文弱两档，但不能消失（"对话只存在这个窗口里"是重要信息） */
 .asHint{
@@ -533,7 +527,7 @@ details.aiReason pre{
   background:var(--c-surface);
   font-family:var(--font-ui);
   font-size:var(--fs-12); line-height:1.6;
-  color:var(--c-text-4);
+  color:var(--c-text-3);
 }
 
 
@@ -760,7 +754,7 @@ details.aiReason pre{
   border-color:var(--c-accent);
   box-shadow:var(--sh-focus);
 }
-#asBubble .bubIn::placeholder{ color:var(--c-text-4); }
+#asBubble .bubIn::placeholder{ color:var(--c-text-3); }
 /* 发送键：强调色方块里放一个 16px 发送图标。
    padding:0 + 固定 34×34 是因为内容只有图标 —— 用文字键的 padding 会把它拉成胶囊。 */
 #asBubble .bubSend{

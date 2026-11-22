@@ -1,0 +1,6 @@
+{
+  "id": "0112-kicker-provenance",
+  "note": "卡片 kicker 改说「讲义原文 · 一字未改」——这一条只有这个产品有",
+  "old": "  out.push('<div class=\"kicker\">第 <b>' + escapeHtml(sec.no) + \"</b> 节 · 知识点 \" +\n    escapeHtml(p.no) + \"</div>\");",
+  "new": "  /* 特异性：这行小字原来只报位置（面包屑/目录/底栏点阵都在报同一件事）。\n     现在它说一件只有这个产品才成立的事实 —— 正文是讲义原稿，一字未改；\n     位置降为后面的次要说明，信息一个没丢。 */\n  out.push('<div class=\"kicker\">讲义原文 · 一字未改' +\n    ' <span class=\"secTitleInl\">第 ' + escapeHtml(sec.no) + \" 节 · 知识点 \" + escapeHtml(p.no) + \"</span></div>\");"
+}

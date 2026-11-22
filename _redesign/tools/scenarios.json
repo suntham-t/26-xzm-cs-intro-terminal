@@ -170,18 +170,18 @@
     },
     {
       "name": "rail",
-      "desc": "材料栏 · 宽 1500 才出现（当前知识点的讲义/课件材料卡）",
+      "desc": "材料栏 · 宽 1580 才出现（当前知识点的讲义/课件材料卡）",
       "viewport": [
-        1500,
+        1600,
         1000
       ],
       "shots": [
         {
-          "w": 1500,
+          "w": 1600,
           "h": 1000
         }
       ],
-      "note": "1500x1000 下 #rail 可见（1280 下隐藏）；跳到含课件缩略图的 ch01-s01-p01 让材料栏有内容",
+      "note": "1600x1000 下 #rail 可见（<1580 时隐藏，材料改在卡片底部内联）；跳到含课件缩略图的 ch01-s01-p01 让材料栏有内容",
       "steps": [
         {
           "desc": "close overlays",
@@ -806,6 +806,47 @@
         {
           "desc": "assert card",
           "expect": "!!document.querySelector('#card') && document.querySelector('#card').innerText.trim().length > 10"
+        }
+      ]
+    },
+    {
+      "name": "rail-fallback",
+      "desc": "材料栏断点 · 1440 下材料栏收起，材料改在卡片底部内联（主卡保持 840）",
+      "viewport": [
+        1440,
+        900
+      ],
+      "shots": [
+        {
+          "w": 1440,
+          "h": 900
+        }
+      ],
+      "note": "v3 把 RAIL_W 提到 1580：1440 宽不再硬塞 336 材料栏（那样主卡只有 700），改为收起并在卡片底部渲染「参考 / 课件原图」",
+      "steps": [
+        {
+          "desc": "close overlays",
+          "js": "window.__IC__.closeAll(); await __cap.sleep(350);"
+        },
+        {
+          "desc": "jump slides point",
+          "js": "window.__IC__.jumpToId('ch01-s01-p01'); await __cap.sleep(900); return (document.querySelector('#card h2.cardTitle')||{}).textContent;"
+        },
+        {
+          "desc": "scroll to bottom",
+          "js": "var m=document.querySelector('main'); m.scrollTop=m.scrollHeight; await __cap.sleep(500); return document.querySelector('#card').getBoundingClientRect().width;"
+        },
+        {
+          "desc": "assert rail hidden",
+          "expect": "!document.querySelector('#rail') || document.querySelector('#rail').hidden || document.querySelector('#rail').getBoundingClientRect().width < 60"
+        },
+        {
+          "desc": "assert materials inline",
+          "expect": "!!document.querySelector('#card .refs') || !!document.querySelector('#card .slides')"
+        },
+        {
+          "desc": "assert card width wide",
+          "expect": "document.querySelector('#card').getBoundingClientRect().width > 760"
         }
       ]
     }

@@ -1,0 +1,6 @@
+{
+  "id": "0103-reflow-statement",
+  "note": "作业题面同样按句分段（题面也是一句一行）",
+  "old": "  out.push('<div class=\"body\">' + renderMarkdown(p.statement_md || \"（这道题还没有题面）\") + \"</div>\");",
+  "new": "  out.push('<div class=\"body\">' + renderMarkdown(p.statement_md || \"（这道题还没有题面）\", { paragraphs: true }) + \"</div>\");"
+}

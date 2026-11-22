@@ -129,7 +129,7 @@ input,select,textarea{
   outline:none;
   transition:border-color var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease);
 }
-input::placeholder,textarea::placeholder{ color:var(--c-text-4); }
+input::placeholder,textarea::placeholder{ color:var(--c-text-3); }
 input:focus,select:focus,textarea:focus{
   border-color:var(--c-accent);
   box-shadow:var(--sh-focus);

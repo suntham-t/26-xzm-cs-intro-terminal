@@ -1,0 +1,6 @@
+{
+  "id": "0110-dotcount-scope",
+  "note": "点阵计数说清是「本节」内位置，不是全书",
+  "old": "      ? (curNo ? (curNo + \" / \" + pts.length) : (\"共 \" + pts.length + \" 个\")) : \"\";",
+  "new": "      ? (curNo ? (\"本节 \" + curNo + \" / \" + pts.length) : (\"本节共 \" + pts.length + \" 个\")) : \"\";"
+}

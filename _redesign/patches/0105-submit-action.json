@@ -1,0 +1,6 @@
+{
+  "id": "0105-submit-action",
+  "note": "确认块的两个动作：确认提交钉住的那份 / 取消不提交",
+  "old": "  else if (act === \"ojconsent\"){\n    try{ localStorage.setItem(\"ic.oj.consent\", \"1\"); }catch(e){}\n    closeModal();\n    stashProbCode();\n    var pick0 = hwSubmitCode();\n    hwDoAutoSubmit(pick0.code, pick0.from);\n  }",
+  "new": "  else if (act === \"ojsubmit\"){\n    var pend = HW.pendingSubmit;\n    HW.pendingSubmit = null;\n    if (!pend || !String(pend.code || \"\").trim()){ toast(\"没有待提交的代码\"); renderProblem(); return; }\n    hwDoAutoSubmit(pend.code, pend.from);\n  }\n  else if (act === \"ojsubcancel\"){ HW.pendingSubmit = null; renderProblem(); }"
+}

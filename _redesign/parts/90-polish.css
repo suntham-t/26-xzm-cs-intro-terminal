@@ -149,7 +149,6 @@ html[data-theme="dark"] .warnbar.novideo{
    .asHint（助教面板底部那行"还没配 API Key…"）在深色里是 12px 的 --c-text-3，
    实测对比度 3.64:1 —— 低于小字号 4.5:1 的常规下限。提到 --c-text-2 后约 6.6:1，
    仍然明显弱于正文，但读得出来。 */
-html[data-theme="dark"] .asHint{ color:var(--c-text-3); }
-/* .navhint（底栏右侧"← → 或 J K 翻卡"）同一类问题：11px + --c-text-4，深色下 3.6:1。
-   11px 属于"小字"，同样按 4.5:1 要求处理。 */
-html[data-theme="dark"] .navhint{ color:var(--c-text-3); }
+/* .asHint 已经在 50-ai.css 里走 --c-text-3，与主题无关，补丁删掉。 */
+/* .navhint（底栏右侧"← → 或 J K 翻卡"）：原来浅色是 11px + --c-text-4（2.14:1），
+   只补了深色。现在两套主题统一走 --c-text-3 + 12px，不再需要按主题打补丁。 */

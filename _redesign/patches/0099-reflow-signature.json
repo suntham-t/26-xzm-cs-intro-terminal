@@ -1,0 +1,6 @@
+{
+  "id": "0099-reflow-signature",
+  "note": "renderTextBlock 接受 opts：段落重排只在需要的面开启",
+  "old": "function renderTextBlock(text){",
+  "new": "function renderTextBlock(text, opts){"
+}

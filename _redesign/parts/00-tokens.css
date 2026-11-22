@@ -31,8 +31,8 @@
   /* ---------- 字 ---------- */
   --c-text:#131A26;
   --c-text-2:#4B5668;
-  --c-text-3:#7F8A9C;
-  --c-text-4:#A8B2C1;          /* 极弱：占位、计数、禁用 */
+  --c-text-3:#5E6A7C;
+  --c-text-4:#A8B2C1;          /* 纯装饰：分隔符 ›、列表 marker、滚动条、禁用；不承载文字 */
   --c-text-inv:#FFFFFF;
   /* ---------- 强调 ---------- */
   --c-accent:#3B5BFD;
@@ -46,9 +46,9 @@
   --c-on-accent:#FFFFFF;
   --c-on-accent-dim:rgba(255,255,255,.78);
   /* ---------- 语义色 ---------- */
-  --c-ok:#0E9F6E;   --c-ok-2:#12B981;   --c-ok-soft:#E6F7F1;   --c-ok-line:#B7E8D7;
+  --c-ok:#067647;   --c-ok-2:#12B981;   --c-ok-soft:#E6F7F1;   --c-ok-line:#B7E8D7;
   --c-warn:#B45309; --c-warn-soft:#FFF7EA; --c-warn-line:#F5DDB6;
-  --c-err:#D92D20;  --c-err-soft:#FEECEB;  --c-err-line:#F6C4C0;
+  --c-err:#B42318;  --c-err-soft:#FEECEB;  --c-err-line:#F6C4C0;
   /* ---------- 代码 / 终端 ----------
      终端是全 app 唯一的深色内容面（和左侧深色脊呼应）。
      它不跟主题走：深色模式下只是"更深一点"，浅色模式下也是深底 —— 终端就该是黑的。 */
@@ -146,7 +146,7 @@ html[data-theme="dark"]{
   --c-text:#E5EAF4;
   --c-text-2:#B2BDD1;
   --c-text-3:#8794AA;
-  --c-text-4:#66738A;
+  --c-text-4:#66738A;   /* 同上：纯装饰 */
   --c-text-inv:#0B0F18;
   --c-accent:#6C86FF;
   --c-accent-2:#8DA2FF;

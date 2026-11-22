@@ -1,0 +1,6 @@
+{
+  "id": "0120-help-panel",
+  "note": "帮助面板的内容：快捷键表 + 说明书位置",
+  "old": "var OVERLAY_MODAL = false;",
+  "new": "var OVERLAY_MODAL = false;\n/* 帮助面板：把散落在各处的键盘能力收成一张表。原来没有入口 ——\n   图标库里有 help 字形却从来没接线，等于\"能力存在但用户学不到\"。 */\nfunction openHelpPanel(){\n  var rows = [\n    [\"← → 或 J K\", \"上一张 / 下一张卡\"],\n    [\"Ctrl + K\", \"搜索（标题 + 正文）\"],\n    [\"Esc\", \"关闭当前面板 / 弹层 / 只付一次退栈\"],\n    [\"空格 / Enter\", \"打开当前聚焦的按钮\"],\n    [\"终端 ↑ ↓\", \"翻命令历史\"],\n    [\"终端 Tab / Ctrl + Space\", \"补全 / 列出候选\"],\n    [\"终端 Shift + Enter\", \"换行（不执行）\"]\n  ];\n  openModal(\"help\", \"快捷键与帮助\",\n    '<div class=\"body\" style=\"font-size:14px;line-height:1.8\">' +\n      '<table class=\"md-table\"><thead><tr><th>按键</th><th>作用</th></tr></thead><tbody>' +\n      rows.map(function(r){\n        return \"<tr><td><kbd>\" + escapeHtml(r[0]) + \"</kbd></td><td>\" + escapeHtml(r[1]) + \"</td></tr>\";\n      }).join(\"\") +\n      \"</tbody></table>\" +\n      \"<p>完整说明见仓库根目录的 <code>计算概论学习终端-使用说明书.pdf</code>；\" +\n      \"题库与课件每周会更新，顶栏「更新」里可以先查有没有新内容。</p>\" +\n      '<p class=\"asHint\" style=\"padding:0\">所有数据都在本机：讲义、课件、100 Days 副本可离线读；' +\n      \"AI 解析与自动提交才需要联网。</p>\" +\n    \"</div>\" +\n    '<div class=\"hwActions\"><button data-act=\"closemodal\">知道了</button></div>');\n}"
+}

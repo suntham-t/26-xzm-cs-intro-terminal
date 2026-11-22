@@ -61,7 +61,7 @@
   font-family:var(--font-mono);
   font-size:var(--fs-11);
   font-weight:600;
-  color:var(--c-text-4);
+  color:var(--c-text-3);
   margin-right:7px;
   letter-spacing:.02em;
 }
@@ -78,14 +78,14 @@
   /* 400 而不是 500：11px 的中文在 500 下会明显比右边的计数（400）重，
      读起来像"第 N 节"是标题 —— 它其实只是个坐标，要比节名轻。 */
   font:400 var(--fs-11)/1.5 var(--font-ui);
-  color:var(--c-text-4);
+  color:var(--c-text-3);
   font-variant-numeric:tabular-nums;
 }
 .tocTitle{ flex:1 1 auto; min-width:0; font-weight:600; }
 .tocCnt{
   flex:none; margin-left:auto;
   font:400 var(--fs-11)/1.5 var(--font-ui);
-  color:var(--c-text-4);
+  color:var(--c-text-3);
   font-variant-numeric:tabular-nums;
 }
 
@@ -215,7 +215,7 @@ button.tocPt.tocMat.here{ color:var(--c-accent-ink); }
   padding:9px 12px;
   outline:none;
 }
-.searchInput::placeholder{ color:var(--c-text-4); }
+.searchInput::placeholder{ color:var(--c-text-3); }
 .searchInput:focus{
   background:var(--c-surface);
   border-color:var(--c-accent);
@@ -454,7 +454,7 @@ button.hwRow:hover .hwNo{ background:var(--c-accent-soft); color:var(--c-accent-
 .hwRate{
   flex:none;
   font-size:var(--fs-125);
-  color:var(--c-text-4);
+  color:var(--c-text-3);
   font-variant-numeric:tabular-nums;
 }
 .hwRate b{ color:var(--c-ok); font-weight:600; }
@@ -742,7 +742,7 @@ button.caseChip.ai.on{ border-style:dashed; color:var(--c-accent-ink); }
   display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap;
   margin-top:var(--sp-2);
 }
-.caseHint{ font-size:var(--fs-11); color:var(--c-text-4); }
+.caseHint{ font-size:var(--fs-12); color:var(--c-text-3); }
 
 /* 参考解：折叠 + 浅底，绝不预填进代码框（打开就看见答案，练习变抄） */
 details.refSol{
@@ -830,7 +830,7 @@ button.subBtn{ padding:4px 12px; font-size:var(--fs-125); border-radius:var(--r-
 .hwStatsBar{ display:flex; justify-content:flex-end; margin:-6px 2px 6px; }
 button.linkbtn.hwStats{
   font-size:var(--fs-11);
-  color:var(--c-text-4);
+  color:var(--c-text-3);
   text-decoration:none;
   padding:0 2px;
   background:none;
@@ -1009,7 +1009,7 @@ select.setInput:disabled,input.setInput:disabled{ opacity:.5; }
   margin-top:3px;
   font-family:var(--font-mono);
   font-size:var(--fs-11);
-  color:var(--c-text-4);
+  color:var(--c-text-3);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 .dayRow .hit b{ color:var(--c-accent-ink); font-weight:600; }
@@ -1082,3 +1082,43 @@ select.setInput:disabled,input.setInput:disabled{ opacity:.5; }
   .dayMeta{ display:none; }
   .probHead .lim{ font-size:var(--fs-11); }
 }
+
+/* ============================ 自动提交的「交的是哪一份」 ============================
+   P0：提交是全产品唯一不可撤销的动作，按钮旁边必须常显来源，确认层里要能看见代码开头。 */
+.probHead .subSrc{
+  font-size:var(--fs-12);
+  color:var(--c-text-3);
+  max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.probHead .subSrc.ai{ color:var(--c-warn); }
+.subFrom{ color:var(--c-text-2); }
+.subFrom.ai b{ color:var(--c-warn); }
+.subPreview{
+  margin:6px 0 12px;
+  padding:10px 12px;
+  background:var(--c-code);
+  border:1px solid var(--c-code-line);
+  border-radius:var(--r-sm);
+  font-family:var(--font-mono);
+  font-size:var(--fs-12); line-height:1.7;
+  color:var(--c-text-2);
+  max-height:126px; overflow:auto;
+  white-space:pre;
+}
+
+
+/* 题面内的「确认提交」块：不遮题面、不换页面，就在你正在看的那道题下面展开 */
+.subConfirm{
+  margin:10px 0 2px;
+  padding:12px 14px;
+  border:1px solid var(--c-accent-line);
+  border-radius:var(--r-md);
+  background:var(--c-accent-soft);
+}
+.subConfirmHead{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
+  font:600 var(--fs-13)/1.5 var(--font-ui); color:var(--c-accent-ink); margin-bottom:6px; }
+.subConfirmHead .subSrc{ font-weight:400; }
+.subWarn{ margin:0 0 8px; font-size:var(--fs-125); color:var(--c-warn); }
+.subNote{ margin:8px 0 0; font-size:var(--fs-12); color:var(--c-text-3); }
+.subActions{ display:flex; gap:10px; align-items:center; margin-top:10px; }
+

@@ -1,0 +1,6 @@
+{
+  "id": "0111-rail-title",
+  "note": "材料栏标题不再逐字重复面包屑",
+  "old": "    $(\"railTitle\").textContent = (st && st.kind === \"point\" && st.sec)\n      ? (\"第 \" + st.sec.no + \" 节 · 知识点 \" + st.p.no) : \"材料\";",
+  "new": "    /* 右栏唯一一行标题不该重复\"第 N 节 · 知识点 N\"（顶栏面包屑、目录、卡片 kicker 都在报同一件事），\n       它只要说明\"这一栏是材料\"。 */\n    $(\"railTitle\").textContent = (st && st.kind === \"point\") ? \"本页材料\" : \"材料\";"
+}

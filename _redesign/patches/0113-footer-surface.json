@@ -1,0 +1,6 @@
+{
+  "id": "0113-footer-surface",
+  "note": "面板开着时停用翻卡、清空点阵；关掉再回来",
+  "old": "function renderFooter(){\n  var st = stepAt(S.cur);\n  if ($(\"btnPrev\")) $(\"btnPrev\").disabled = !(S.cur > 0);\n  if ($(\"btnNext\")) $(\"btnNext\").disabled = !(S.cur < S.steps.length - 1);",
+  "new": "function renderFooter(){\n  var st = stepAt(S.cur);\n  /* 内嵌面板（作业 / 100 Days / 视频目录）开着时，底栏的\"上一条 / 下一条\"就是\"退出面板\"键，\n     一点就把人踢出去，而且没有任何说明。所以面板开着时它们停用、点阵清空（点阵属于卡片）。 */\n  var inPanel = surfaceIsInline();\n  if ($(\"btnPrev\")) $(\"btnPrev\").disabled = inPanel || !(S.cur > 0);\n  if ($(\"btnNext\")) $(\"btnNext\").disabled = inPanel || !(S.cur < S.steps.length - 1);\n  if (inPanel){\n    if ($(\"dots\")) $(\"dots\").innerHTML = \"\";\n    if ($(\"dotCount\")) $(\"dotCount\").textContent = \"\";\n  }"
+}

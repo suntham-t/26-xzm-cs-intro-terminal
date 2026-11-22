@@ -1,0 +1,6 @@
+{
+  "id": "0118-modal-focus-var",
+  "note": "声明焦点暂存变量",
+  "old": "var OVERLAY_MODAL = false;",
+  "new": "var OVERLAY_MODAL = false;\nvar MODAL_RETURN_FOCUS = null;   /* 打开弹层前焦点在哪：关的时候还回去 */"
+}

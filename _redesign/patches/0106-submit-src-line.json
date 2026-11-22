@@ -1,0 +1,6 @@
+{
+  "id": "0106-submit-src-line",
+  "note": "P0：自动提交按钮左边常显『将提交：…』，AI 的代码用警示色",
+  "old": "    (p.oj_url ? '<button class=\"primary subBtn\" data-act=\"hwautosubmit\" title=\"' + attr(hwSubmitHint()) + '\">🚀 自动提交</button>' : \"\") +",
+  "new": "    (p.oj_url ? '<span class=\"subSrc' + (hwSubmitCode().from === \"ai\" ? \" ai\" : \"\") + '\" title=\"' + attr(hwSubmitHint()) + '\">将提交：' + escapeHtml(hwSubmitSrcText()) + \"</span>\" : \"\") +\n    (p.oj_url ? '<button class=\"primary subBtn\" data-act=\"hwautosubmit\" title=\"' + attr(hwSubmitHint()) + '\">🚀 自动提交</button>' : \"\") +"
+}

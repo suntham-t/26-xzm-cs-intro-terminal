@@ -217,7 +217,7 @@ button.vlink.on .vno{ color:var(--c-accent); }
 .vno{
   flex:none; min-width:30px;
   font-family:var(--font-mono); font-size:var(--fs-12);
-  color:var(--c-text-4);
+  color:var(--c-text-3);
   font-variant-numeric:tabular-nums;
 }
 .vttl{
@@ -228,7 +228,7 @@ button.vlink.on .vno{ color:var(--c-accent); }
 .vdur{
   flex:none; margin-left:var(--sp-2);
   font-family:var(--font-mono); font-size:var(--fs-11);
-  color:var(--c-text-4);
+  color:var(--c-text-3);
   font-variant-numeric:tabular-nums; white-space:nowrap;
 }
 /* 级别标签（主线 / 基础 / 补充 / 拔高 / 拓展 / 回顾）：极小号 pill，不能抢标题的位置。
@@ -337,7 +337,7 @@ button.vlink.on .vno{ color:var(--c-accent); }
 
 /* 段落间距 14px：1.95 行高下，12px 会让两段粘成一块，16px 又散；
    这个值是两档 token 之间的半步，视觉上最接近"书里的段距"。 */
-.body p{ margin:0 0 14px; text-wrap:pretty; }
+.body p{ margin:0 0 1.15em; text-wrap:pretty; }
 .body li{ margin:var(--sp-1) 0; text-wrap:pretty; }
 
 /* 卡内小标题：h1-h3 用衬线 700（教材感），h4-h6 换成无衬线 700 的一行"导读"。

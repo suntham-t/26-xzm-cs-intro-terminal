@@ -1,0 +1,6 @@
+{
+  "id": "0107-submit-confirm-render",
+  "note": "题面渲染时带上确认块（有 pendingSubmit 才出现）",
+  "old": "  openModal(\"problem\", title, head + bar + body);",
+  "new": "  openModal(\"problem\", title, head + hwSubmitConfirmHtml() + bar + body);"
+}

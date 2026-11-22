@@ -1,0 +1,6 @@
+{
+  "id": "0115-footer-restore",
+  "note": "关掉面板时把底栏和顶栏状态还回来",
+  "old": "  if ($(\"card\")) $(\"card\").hidden = false;\n  renderRail();                      /* 材料栏回到当前知识卡片 */\n}",
+  "new": "  if ($(\"card\")) $(\"card\").hidden = false;\n  renderRail();                      /* 材料栏回到当前知识卡片 */\n  renderTop();                       /* 底栏翻卡 + 点阵 + 顶栏面包屑跟着回来 */\n}"
+}

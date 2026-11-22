@@ -1,0 +1,6 @@
+{
+  "id": "0100-reflow-plumb",
+  "note": "把 renderMarkdown 的 opts 透传给 renderTextBlock",
+  "old": "      out.push(renderTextBlock(applyTokens(sg.v, plans[si])));",
+  "new": "      out.push(renderTextBlock(applyTokens(sg.v, plans[si]), opts));"
+}

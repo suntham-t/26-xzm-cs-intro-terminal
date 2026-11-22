@@ -40,8 +40,8 @@
   /* ---------- 字 ---------- */
   --c-text:#131A26;
   --c-text-2:#4B5668;
-  --c-text-3:#7F8A9C;
-  --c-text-4:#A8B2C1;          /* 极弱：占位、计数、禁用 */
+  --c-text-3:#5E6A7C;
+  --c-text-4:#A8B2C1;          /* 纯装饰：分隔符 ›、列表 marker、滚动条、禁用；不承载文字 */
   --c-text-inv:#FFFFFF;
   /* ---------- 强调 ---------- */
   --c-accent:#3B5BFD;
@@ -55,9 +55,9 @@
   --c-on-accent:#FFFFFF;
   --c-on-accent-dim:rgba(255,255,255,.78);
   /* ---------- 语义色 ---------- */
-  --c-ok:#0E9F6E;   --c-ok-2:#12B981;   --c-ok-soft:#E6F7F1;   --c-ok-line:#B7E8D7;
+  --c-ok:#067647;   --c-ok-2:#12B981;   --c-ok-soft:#E6F7F1;   --c-ok-line:#B7E8D7;
   --c-warn:#B45309; --c-warn-soft:#FFF7EA; --c-warn-line:#F5DDB6;
-  --c-err:#D92D20;  --c-err-soft:#FEECEB;  --c-err-line:#F6C4C0;
+  --c-err:#B42318;  --c-err-soft:#FEECEB;  --c-err-line:#F6C4C0;
   /* ---------- 代码 / 终端 ----------
      终端是全 app 唯一的深色内容面（和左侧深色脊呼应）。
      它不跟主题走：深色模式下只是"更深一点"，浅色模式下也是深底 —— 终端就该是黑的。 */
@@ -155,7 +155,7 @@ html[data-theme="dark"]{
   --c-text:#E5EAF4;
   --c-text-2:#B2BDD1;
   --c-text-3:#8794AA;
-  --c-text-4:#66738A;
+  --c-text-4:#66738A;   /* 同上：纯装饰 */
   --c-text-inv:#0B0F18;
   --c-accent:#6C86FF;
   --c-accent-2:#8DA2FF;
@@ -314,7 +314,7 @@ input,select,textarea{
   outline:none;
   transition:border-color var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease);
 }
-input::placeholder,textarea::placeholder{ color:var(--c-text-4); }
+input::placeholder,textarea::placeholder{ color:var(--c-text-3); }
 input:focus,select:focus,textarea:focus{
   border-color:var(--c-accent);
   box-shadow:var(--sh-focus);
@@ -595,7 +595,7 @@ main{
 .secHead{
   font:600 var(--fs-11)/1.4 var(--font-ui);
   letter-spacing:.1em; text-transform:uppercase;
-  color:var(--c-text-4);
+  color:var(--c-text-3);
   margin-bottom:8px;
 }
 
@@ -803,7 +803,7 @@ footer .dotCount{ margin-left:2px; }
 }
 footer .navhint{
   position:absolute; right:84px;
-  font-size:var(--fs-11); color:var(--c-text-4);
+  font-size:var(--fs-12); color:var(--c-text-3);
   letter-spacing:.01em; white-space:nowrap;
 }
 
@@ -852,6 +852,43 @@ footer .navhint{
   footer{ padding:0 12px; gap:8px; }
   footer .navhint{ display:none; }
 }
+
+/* ≥1400：图标下面加一行 10.5px 文字标签。
+   为什么：#sideBar 是开场唯一的决策点，10 个纯图标要逐个 hover 才知道是什么，
+   >4 个无标签选项正是认知负荷清单里失败的那一项。窄屏仍是纯图标（栏宽 60 放不下字）。 */
+.sb[data-label]::after{
+  content:attr(data-label);
+  display:none;
+  font:500 var(--fs-105)/1 var(--font-ui);
+  letter-spacing:.01em;
+  color:inherit;
+}
+
+@media (min-width:1400px){
+  :root{ --w-rail:76px; }
+  #sideBar{ gap:4px; }
+  .sb{ width:56px; height:52px; grid-template-rows:19px auto; align-content:center; row-gap:4px; }
+  .sb .sbi{ width:19px; height:19px; }
+  .sb[data-label]::after{ display:block; }
+}
+
+/* 帮助面板里的按键：等宽 + 轻底，和正文分开 */
+kbd{
+  font-family:var(--font-mono);
+  font-size:var(--fs-12);
+  padding:1px 6px;
+  border:1px solid var(--c-line);
+  border-bottom-width:2px;
+  border-radius:var(--r-xs);
+  background:var(--c-surface-2);
+  color:var(--c-text-2);
+  white-space:nowrap;
+}
+
+/* 最小窗口护栏：应用自定的下限是 900×620（DESIGN.md §4）。
+   窗口比它小的时候要求有滚动条，而不是静默裁掉面包屑和按钮 ——
+   390 宽下"我在哪"（章 / 节）被 chip 吃掉，就是这么没的。 */
+html, body{ min-width:900px; min-height:620px; }
 
 /* ===== 30-card.css ===== */
 /* =====================================================================
@@ -1073,7 +1110,7 @@ button.vlink.on .vno{ color:var(--c-accent); }
 .vno{
   flex:none; min-width:30px;
   font-family:var(--font-mono); font-size:var(--fs-12);
-  color:var(--c-text-4);
+  color:var(--c-text-3);
   font-variant-numeric:tabular-nums;
 }
 .vttl{
@@ -1084,7 +1121,7 @@ button.vlink.on .vno{ color:var(--c-accent); }
 .vdur{
   flex:none; margin-left:var(--sp-2);
   font-family:var(--font-mono); font-size:var(--fs-11);
-  color:var(--c-text-4);
+  color:var(--c-text-3);
   font-variant-numeric:tabular-nums; white-space:nowrap;
 }
 /* 级别标签（主线 / 基础 / 补充 / 拔高 / 拓展 / 回顾）：极小号 pill，不能抢标题的位置。
@@ -1193,7 +1230,7 @@ button.vlink.on .vno{ color:var(--c-accent); }
 
 /* 段落间距 14px：1.95 行高下，12px 会让两段粘成一块，16px 又散；
    这个值是两档 token 之间的半步，视觉上最接近"书里的段距"。 */
-.body p{ margin:0 0 14px; text-wrap:pretty; }
+.body p{ margin:0 0 1.15em; text-wrap:pretty; }
 .body li{ margin:var(--sp-1) 0; text-wrap:pretty; }
 
 /* 卡内小标题：h1-h3 用衬线 700（教材感），h4-h6 换成无衬线 700 的一行"导读"。
@@ -1877,7 +1914,7 @@ pre.notesPre{
   font-family:var(--font-mono);
   font-size:var(--fs-11);
   font-weight:600;
-  color:var(--c-text-4);
+  color:var(--c-text-3);
   margin-right:7px;
   letter-spacing:.02em;
 }
@@ -1894,14 +1931,14 @@ pre.notesPre{
   /* 400 而不是 500：11px 的中文在 500 下会明显比右边的计数（400）重，
      读起来像"第 N 节"是标题 —— 它其实只是个坐标，要比节名轻。 */
   font:400 var(--fs-11)/1.5 var(--font-ui);
-  color:var(--c-text-4);
+  color:var(--c-text-3);
   font-variant-numeric:tabular-nums;
 }
 .tocTitle{ flex:1 1 auto; min-width:0; font-weight:600; }
 .tocCnt{
   flex:none; margin-left:auto;
   font:400 var(--fs-11)/1.5 var(--font-ui);
-  color:var(--c-text-4);
+  color:var(--c-text-3);
   font-variant-numeric:tabular-nums;
 }
 
@@ -2031,7 +2068,7 @@ button.tocPt.tocMat.here{ color:var(--c-accent-ink); }
   padding:9px 12px;
   outline:none;
 }
-.searchInput::placeholder{ color:var(--c-text-4); }
+.searchInput::placeholder{ color:var(--c-text-3); }
 .searchInput:focus{
   background:var(--c-surface);
   border-color:var(--c-accent);
@@ -2270,7 +2307,7 @@ button.hwRow:hover .hwNo{ background:var(--c-accent-soft); color:var(--c-accent-
 .hwRate{
   flex:none;
   font-size:var(--fs-125);
-  color:var(--c-text-4);
+  color:var(--c-text-3);
   font-variant-numeric:tabular-nums;
 }
 .hwRate b{ color:var(--c-ok); font-weight:600; }
@@ -2558,7 +2595,7 @@ button.caseChip.ai.on{ border-style:dashed; color:var(--c-accent-ink); }
   display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap;
   margin-top:var(--sp-2);
 }
-.caseHint{ font-size:var(--fs-11); color:var(--c-text-4); }
+.caseHint{ font-size:var(--fs-12); color:var(--c-text-3); }
 
 /* 参考解：折叠 + 浅底，绝不预填进代码框（打开就看见答案，练习变抄） */
 details.refSol{
@@ -2646,7 +2683,7 @@ button.subBtn{ padding:4px 12px; font-size:var(--fs-125); border-radius:var(--r-
 .hwStatsBar{ display:flex; justify-content:flex-end; margin:-6px 2px 6px; }
 button.linkbtn.hwStats{
   font-size:var(--fs-11);
-  color:var(--c-text-4);
+  color:var(--c-text-3);
   text-decoration:none;
   padding:0 2px;
   background:none;
@@ -2825,7 +2862,7 @@ select.setInput:disabled,input.setInput:disabled{ opacity:.5; }
   margin-top:3px;
   font-family:var(--font-mono);
   font-size:var(--fs-11);
-  color:var(--c-text-4);
+  color:var(--c-text-3);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 .dayRow .hit b{ color:var(--c-accent-ink); font-weight:600; }
@@ -2899,6 +2936,45 @@ select.setInput:disabled,input.setInput:disabled{ opacity:.5; }
   .probHead .lim{ font-size:var(--fs-11); }
 }
 
+/* ============================ 自动提交的「交的是哪一份」 ============================
+   P0：提交是全产品唯一不可撤销的动作，按钮旁边必须常显来源，确认层里要能看见代码开头。 */
+.probHead .subSrc{
+  font-size:var(--fs-12);
+  color:var(--c-text-3);
+  max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.probHead .subSrc.ai{ color:var(--c-warn); }
+.subFrom{ color:var(--c-text-2); }
+.subFrom.ai b{ color:var(--c-warn); }
+.subPreview{
+  margin:6px 0 12px;
+  padding:10px 12px;
+  background:var(--c-code);
+  border:1px solid var(--c-code-line);
+  border-radius:var(--r-sm);
+  font-family:var(--font-mono);
+  font-size:var(--fs-12); line-height:1.7;
+  color:var(--c-text-2);
+  max-height:126px; overflow:auto;
+  white-space:pre;
+}
+
+
+/* 题面内的「确认提交」块：不遮题面、不换页面，就在你正在看的那道题下面展开 */
+.subConfirm{
+  margin:10px 0 2px;
+  padding:12px 14px;
+  border:1px solid var(--c-accent-line);
+  border-radius:var(--r-md);
+  background:var(--c-accent-soft);
+}
+.subConfirmHead{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
+  font:600 var(--fs-13)/1.5 var(--font-ui); color:var(--c-accent-ink); margin-bottom:6px; }
+.subConfirmHead .subSrc{ font-weight:400; }
+.subWarn{ margin:0 0 8px; font-size:var(--fs-125); color:var(--c-warn); }
+.subNote{ margin:8px 0 0; font-size:var(--fs-12); color:var(--c-text-3); }
+.subActions{ display:flex; gap:10px; align-items:center; margin-top:10px; }
+
 /* ===== 50-ai.css ===== */
 /* =====================================================================
    50-ai.css —— 内置终端（REPL）· 助教（AI）· toast
@@ -2967,16 +3043,10 @@ select.setInput:disabled,input.setInput:disabled{ opacity:.5; }
   background:var(--c-term-3);
   border-bottom:1px solid var(--c-term-line);
 }
-/* 三个窗口圆点：纯装饰（模拟真终端的窗口按钮），HTML 上带 aria-hidden。
-   不用写死的红黄绿：语义 token 会和终端前景混一档，深底上才不发脏。 */
-.termLights{ display:inline-flex; align-items:center; gap:6px; flex:none; margin-right:2px; }
-.termLights i{
-  display:block; width:9px; height:9px; border-radius:50%;
-  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--c-term) 34%, transparent);
-}
-.termLights i:nth-child(1){ background:color-mix(in srgb, var(--c-err) 74%, var(--c-term-fg)); }
-.termLights i:nth-child(2){ background:color-mix(in srgb, var(--c-warn) 62%, var(--c-term-fg)); }
-.termLights i:nth-child(3){ background:color-mix(in srgb, var(--c-ok) 70%, var(--c-term-fg)); }
+/* 终端头：一个终端字形，不再画三个 macOS 窗口圆点 —— 这是个 Windows 单平台应用，
+   红黄绿窗口灯是借来的符号，也是"深色终端"最老套的一层装饰。用图标库里已有的终端字形，
+   和左栏「试一试」是同一个形象。 */
+.termIco{ width:16px; height:16px; flex:none; color:var(--c-term-accent); }
 
 .replHead b{
   font:600 var(--fs-13)/1.3 var(--font-ui);
@@ -3111,7 +3181,7 @@ select.setInput:disabled,input.setInput:disabled{ opacity:.5; }
   margin-top:4px; padding:5px 9px 3px;
   border-top:1px solid var(--c-line-2);
   font-family:var(--font-ui); font-size:var(--fs-11);
-  color:var(--c-text-4); white-space:nowrap;
+  color:var(--c-text-3); white-space:nowrap;
 }
 
 /* ---- 输出行 ----
@@ -3380,7 +3450,7 @@ details.aiReason pre{
 .asWho{
   margin-bottom:4px;
   font-family:var(--font-ui);
-  font-size:var(--fs-12); color:var(--c-text-4);
+  font-size:var(--fs-12); color:var(--c-text-3);
   letter-spacing:.02em;
 }
 .asRow.user .asWho{ text-align:right; }
@@ -3426,7 +3496,7 @@ details.aiReason pre{
   border-color:var(--c-accent);
   box-shadow:var(--sh-focus);
 }
-.asIn::placeholder{ color:var(--c-text-4); }
+.asIn::placeholder{ color:var(--c-text-3); }
 .asFoot button{ flex:none; }
 /* 底部那行说明：比正文弱两档，但不能消失（"对话只存在这个窗口里"是重要信息） */
 .asHint{
@@ -3435,7 +3505,7 @@ details.aiReason pre{
   background:var(--c-surface);
   font-family:var(--font-ui);
   font-size:var(--fs-12); line-height:1.6;
-  color:var(--c-text-4);
+  color:var(--c-text-3);
 }
 
 
@@ -3662,7 +3732,7 @@ details.aiReason pre{
   border-color:var(--c-accent);
   box-shadow:var(--sh-focus);
 }
-#asBubble .bubIn::placeholder{ color:var(--c-text-4); }
+#asBubble .bubIn::placeholder{ color:var(--c-text-3); }
 /* 发送键：强调色方块里放一个 16px 发送图标。
    padding:0 + 固定 34×34 是因为内容只有图标 —— 用文字键的 padding 会把它拉成胶囊。 */
 #asBubble .bubSend{
@@ -3876,10 +3946,9 @@ html[data-theme="dark"] .warnbar.novideo{
    .asHint（助教面板底部那行"还没配 API Key…"）在深色里是 12px 的 --c-text-3，
    实测对比度 3.64:1 —— 低于小字号 4.5:1 的常规下限。提到 --c-text-2 后约 6.6:1，
    仍然明显弱于正文，但读得出来。 */
-html[data-theme="dark"] .asHint{ color:var(--c-text-3); }
-/* .navhint（底栏右侧"← → 或 J K 翻卡"）同一类问题：11px + --c-text-4，深色下 3.6:1。
-   11px 属于"小字"，同样按 4.5:1 要求处理。 */
-html[data-theme="dark"] .navhint{ color:var(--c-text-3); }
+/* .asHint 已经在 50-ai.css 里走 --c-text-3，与主题无关，补丁删掉。 */
+/* .navhint（底栏右侧"← → 或 J K 翻卡"）：原来浅色是 11px + --c-text-4（2.14:1），
+   只补了深色。现在两套主题统一走 --c-text-3 + 12px，不再需要按主题打补丁。 */
 </style>
 </head>
 <body>
@@ -3896,40 +3965,43 @@ html[data-theme="dark"] .navhint{ color:var(--c-text-3); }
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l4 4-4 4M12.5 16.5h6.5"/></svg>
   </div>
 
-  <button class="sb" id="btnToc" data-act="toc" data-tip="目录 · 章节 / 小节 / 知识点" aria-label="目录">
+  <button class="sb" id="btnToc" data-act="toc" data-label="目录" data-tip="目录 · 章节 / 小节 / 知识点" aria-label="目录">
     <svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="4.5" cy="6.5" r="1.15" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r="1.15" fill="currentColor" stroke="none"/><circle cx="4.5" cy="17.5" r="1.15" fill="currentColor" stroke="none"/><path d="M9 6.5h11M9 12h11M9 17.5h7"/></svg>
   </button>
-  <button class="sb" id="btnRepl" data-act="repl" data-tip="试一试 · 敲几行立刻看结果" aria-label="试一试">
+  <button class="sb" id="btnRepl" data-act="repl" data-label="试一试" data-tip="试一试 · 敲几行立刻看结果" aria-label="试一试">
     <svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.6"/><path d="M7.6 10.2l2.3 1.9-2.3 1.9M12.8 14.6h4"/></svg>
   </button>
-  <button class="sb" id="btnTutor" data-act="tutor" data-tip="可视化 · 逐步单步执行，看变量怎么变" aria-label="可视化">
+  <button class="sb" id="btnTutor" data-act="tutor" data-label="可视化" data-tip="可视化 · 逐步单步执行，看变量怎么变" aria-label="可视化">
     <svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 7h4.5M4.5 12h4.5M4.5 17h4.5"/><path d="M12.5 7h7M12.5 12h7M12.5 17h3.5"/><circle cx="11.2" cy="12" r="2.1" fill="currentColor" stroke="none"/></svg>
   </button>
 
-  <button class="sb" id="btnVideos" data-act="videos" data-group="1" data-tip="视频目录 · 整套 164 个分P，可搜" aria-label="视频目录">
+  <button class="sb" id="btnVideos" data-act="videos" data-label="视频" data-group="1" data-tip="视频目录 · 整套 164 个分P，可搜" aria-label="视频目录">
     <svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2.6"/><path d="M10.4 9.6v4.8l4.1-2.4z" fill="currentColor" stroke="none"/></svg>
   </button>
-  <button class="sb" id="btnDays" data-act="days" data-tip="100 Days · 22 天 Python 练习" aria-label="100 Days">
+  <button class="sb" id="btnDays" data-act="days" data-label="100天" data-tip="100 Days · 22 天 Python 练习" aria-label="100 Days">
     <svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2.6"/><path d="M3.5 10h17M8 3.6v3M16 3.6v3"/><circle cx="12" cy="15.2" r="1.6" fill="currentColor" stroke="none"/></svg>
   </button>
-  <button class="sb" id="btnHw" data-act="hw" data-tip="作业 · 题面 / 解析 / 用样例测" aria-label="作业">
+  <button class="sb" id="btnHw" data-act="hw" data-label="作业" data-tip="作业 · 题面 / 解析 / 用样例测" aria-label="作业">
     <svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4.5h9.5L19 8v11.5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1z"/><path d="M15 4.6V8.2h3.6M9 12.5h6M9 16h4"/></svg>
   </button>
 
   <span class="sbSp"></span>
 
-  <button class="sb" id="btnSearch" data-act="search" data-group="1" data-tip="搜索 · 标题 + 正文（Ctrl+K）" aria-label="搜索">
+  <button class="sb" id="btnSearch" data-act="search" data-label="搜索" data-group="1" data-tip="搜索 · 标题 + 正文（Ctrl+K）" aria-label="搜索">
     <svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.6" cy="10.6" r="5.6"/><path d="M14.9 14.9L19 19"/></svg>
   </button>
-  <button class="sb" id="btnUpdate" data-act="update" data-tip="检查更新 · 讲义 / 课件变了没有" aria-label="检查更新">
+  <button class="sb" id="btnUpdate" data-act="update" data-label="更新" data-tip="检查更新 · 讲义 / 课件变了没有" aria-label="检查更新">
     <svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19.6 12a7.6 7.6 0 1 1-2.2-5.4"/><path d="M19.6 4.6v3.6h-3.6"/></svg>
   </button>
   <!-- 主题切换：两个图标叠在一起，靠 [data-theme] 显示其中一个（比 JS 换 innerHTML 稳） -->
-  <button class="sb" id="btnTheme" data-act="theme" data-tip="主题 · 浅色 / 深色" aria-label="切换主题">
+  <button class="sb" id="btnTheme" data-act="theme" data-label="主题" data-tip="主题 · 浅色 / 深色" aria-label="切换主题">
     <svg class="sbi icoSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.1"/><path d="M12 2.8v2.2M12 19v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.8 12H5M19 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>
     <svg class="sbi icoMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.2A8.2 8.2 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"/></svg>
   </button>
-  <button class="sb" id="btnAiSet" data-act="aiset" data-tip="AI 设置 · Key / 模型 / 余额" aria-label="AI 设置">
+  <button class="sb" id="btnHelp" data-act="help" data-group="1" data-label="帮助" data-tip="帮助 · 快捷键 / 说明书" aria-label="帮助">
+    <svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .9-1 1.6v.4"/><circle cx="12" cy="16.9" r="1.05" fill="currentColor" stroke="none"/></svg>
+  </button>
+  <button class="sb" id="btnAiSet" data-act="aiset" data-label="AI" data-tip="AI 设置 · Key / 模型 / 余额" aria-label="AI 设置">
     <svg class="sbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2.1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="12" r="2.1" fill="currentColor" stroke="none"/><circle cx="7.5" cy="17" r="2.1" fill="currentColor" stroke="none"/></svg>
   </button>
 </div>
@@ -3989,7 +4061,7 @@ html[data-theme="dark"] .navhint{ color:var(--c-text-3); }
      ★ 拖拽条在顶部（#replResize），往上拖变高。 -->
 <section id="repl" hidden>
   <div class="replHead">
-    <span class="termLights" aria-hidden="true"><i></i><i></i><i></i></span>
+    <svg class="termIco" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="2.6"/><path d="M7.6 10.2l2.3 1.9-2.3 1.9M12.8 14.6h4"/></svg>
     <b>试一试</b>
     <span class="replHint" id="replHint">这是一个真的 Python 3.13，变量会留在会话里</span>
     <span class="sp"></span>
@@ -4061,17 +4133,17 @@ html[data-theme="dark"] .navhint{ color:var(--c-text-3); }
   </div>
 </div>
 
-<div id="modal" hidden data-kind="">
+<div id="modal" hidden data-kind="" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
   <div class="modalBox">
     <div class="panelHead"><b id="modalTitle"></b>
       <button class="xclose" id="modalClose" data-act="closemodal" aria-label="关闭" title="关闭（Esc）">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button></div>
-    <div id="modalBody"></div>
+    <div id="modalBody" tabindex="-1"></div>
   </div>
 </div>
 
-<div id="toast" hidden></div>
+<div id="toast" hidden role="status" aria-live="polite"></div>
 <script>
 "use strict";
 /* =====================================================================
@@ -5223,7 +5295,7 @@ function renderListItem(x){
   return "<li>" + inline(x) + "</li>";
 }
 
-function renderTextBlock(text){
+function renderTextBlock(text, opts){
   var lines = String(text).split("\n");
   var out = [], i = 0;
   function stops(l){ return BLOCK_START.test(l) || lineIsTagBlock(l); }
@@ -5305,7 +5377,26 @@ function renderTextBlock(text){
     while (i < lines.length && !isBlank(lines[i]) && !stops(lines[i])){
       para.push(lines[i]); i++;
     }
-    out.push("<p>" + para.map(inline).join("<br>") + "</p>");
+    /* 讲义原文是「一句一行」（从 PDF 抽出来的硬换行）。原来一律 join("<br>")，
+       于是整段只有一个 <p>，`.body p` 的段距从来没生效过 —— 长卡就成了一堵墙。
+       只有 opts.paragraphs 时才重排（AI 对话文本保持原来的 <br> 行为）：
+       上一行以句末标点收尾、且下一行不是续行（以标点开头）→ 另起一段。 */
+    if (!(opts && opts.paragraphs)){
+      out.push("<p>" + para.map(inline).join("<br>") + "</p>");
+    }else{
+      var pgroups = [[para[0]]];
+      for (var pgi = 1; pgi < para.length; pgi++){
+        var gLast = pgroups[pgroups.length - 1];
+        var prevLine = String(gLast[gLast.length - 1]).replace(/\s+$/, "");
+        var prevEnds = /[。！？；：…”』」）)]$/.test(prevLine);
+        var nextIsTail = /^\s*[，、；：。！？）」』…]/.test(para[pgi]);
+        if (prevEnds && !nextIsTail) pgroups.push([para[pgi]]);
+        else gLast.push(para[pgi]);
+      }
+      out.push(pgroups.map(function(g){
+        return "<p>" + g.map(inline).join("<br>") + "</p>";
+      }).join(""));
+    }
   }
   return out.join("\n");
 }
@@ -5374,7 +5465,7 @@ function renderMarkdown(md, opts){
       codeIdx++;
       out.push(html);
     }else{
-      out.push(renderTextBlock(applyTokens(sg.v, plans[si])));
+      out.push(renderTextBlock(applyTokens(sg.v, plans[si]), opts));
     }
   });
   return out.join("\n");
@@ -5478,7 +5569,7 @@ function markToday(){
 var UIKEY = "ic.ui.v1";
 var ui = { toc: "1", rail: "1", repl: "0", replh: 300 };
 var TOCOPE_W = 1100;      /* ≥ 这个宽度：目录常驻左栏 */
-var RAIL_W = 1400;        /* ≥ 这个宽度：材料栏常驻右侧 */
+var RAIL_W = 1580;        /* ≥ 这个宽度：材料栏常驻右侧（60+296+840+48+336=1580；开在 1400 会把主卡挤到 700px，比 1280 还窄） */
 var S_TOcDRAWER = { open: false };   /* 窄屏抽屉的临时开关，不落盘 */
 
 function loadUi(){
@@ -6262,6 +6353,8 @@ var VIZ_TITLE = "逐步执行这段代码，看变量和引用怎么变（会打
    只挂「▶ 可视化」+「📋 复制」；作业题才有的「🧪 用样例测」这里不给。 */
 function cardMarkdown(md, p, sink){
   return renderMarkdown(md, {
+    /* 讲义/题面是「一句一行」，按句末标点分段；AI 对话文本保持原来的 <br> */
+    paragraphs: !(p && p.id === "assistant"),
     codeBlock: function(info){
       var pre = '<pre class="md-pre"><code>' + escapeHtml(info.code) + "</code></pre>";
       if (!isPythonLang(info.lang)) return pre;          /* text / c / xml / 无标记 → 不挂 */
@@ -6429,8 +6522,11 @@ function buildPointCardHtml(st, railMode){
      上一版把视频区放在最前面，于是「黑马这套没讲这块」这种提示会压在大标题**上面** ——
      读者第一眼看到的是一条灰提示，而不是「这张卡讲什么」。标题永远是第一信息；
      "没视频"是补充说明，它只配出现在标题下面。 */
-  out.push('<div class="kicker">第 <b>' + escapeHtml(sec.no) + "</b> 节 · 知识点 " +
-    escapeHtml(p.no) + "</div>");
+  /* 特异性：这行小字原来只报位置（面包屑/目录/底栏点阵都在报同一件事）。
+     现在它说一件只有这个产品才成立的事实 —— 正文是讲义原稿，一字未改；
+     位置降为后面的次要说明，信息一个没丢。 */
+  out.push('<div class="kicker">讲义原文 · 一字未改' +
+    ' <span class="secTitleInl">第 ' + escapeHtml(sec.no) + " 节 · 知识点 " + escapeHtml(p.no) + "</span></div>");
   out.push('<h2 class="cardTitle">' + escapeHtml(p.title || "(无标题)") + "</h2>");
   out.push(videoAreaHtml(p));
   /* 正文里的 ```python 块也挂按钮，顺手把它们的代码按顺序收进 codes */
@@ -6506,7 +6602,7 @@ function emptyStateHtml(){
     return '<div class="emptyCard loadCard">' +
       '<div class="loadOrb" aria-hidden="true"><i></i></div>' +
       "<h2>正在准备讲义</h2>" +
-      '<p class="loadSub">读取章节数据与学习进度…</p>' +
+      '<p class="loadSub">正在读取章节与上次位置…</p>' +
       '<div class="skel" aria-hidden="true">' +
         '<span style="width:34%"></span><span style="width:96%"></span>' +
         '<span style="width:88%"></span><span style="width:72%"></span>' +
@@ -6517,7 +6613,7 @@ function emptyStateHtml(){
       return "<li><code>" + escapeHtml(e) + "</code></li>"; }).join("") + "</ul>";
   return '<div class="emptyCard"><div class="emptyIco">📭</div>' +
     "<h2>还没读到内容</h2>" +
-    "<p>不到 <code>content/chNN.json</code>。内容管道还没跑完，或者这份内容层不完整。<br>" +
+    "<p>读不到 <code>content/chNN.json</code>。内容管道还没跑完，或者这份内容层不完整。<br>" +
     "跑完之后点下面按钮（或按 F5）就有卡片了。</p>" + errs +
     '<button class="primary" data-act="reload">🔄 重新载入</button></div>';
 }
@@ -6629,8 +6725,9 @@ function renderRail(st){
   if (el.scrollTop !== undefined) el.scrollTop = 0;
   hydrate(el, st ? st.ch : null);        /* 材料栏里的课件缩略图也要解析出真实路径 */
   if ($("railTitle")){
-    $("railTitle").textContent = (st && st.kind === "point" && st.sec)
-      ? ("第 " + st.sec.no + " 节 · 知识点 " + st.p.no) : "材料";
+    /* 右栏唯一一行标题不该重复"第 N 节 · 知识点 N"（顶栏面包屑、目录、卡片 kicker 都在报同一件事），
+       它只要说明"这一栏是材料"。 */
+    $("railTitle").textContent = (st && st.kind === "point") ? "本页材料" : "材料";
   }
 }
 
@@ -6659,7 +6756,7 @@ function renderTop(){
     var txt;
     /* ★ 原来这里还会看「有没有学过任何东西」（已学标记的数量）—— 进度砍了，只剩日期 streak */
     if (n > 0) txt = "🔥 连续 <b>" + n + "</b> 天";
-    else txt = "🔥 连续 <b>0</b> 天 · 今天翻一张卡就重新开始";
+    else txt = "🔥 今天翻一张卡，开始记连续";   /* 不说"重新开始"、不显示 0：开机第一眼不该是失败态 */
     $("streak").innerHTML = txt;   /* 右值全部是本函数写死的字面量 + 数字，无外部串 */
   }
   var sec = st ? st.sec : null;
@@ -6688,7 +6785,7 @@ function renderTop(){
        有当前指针就报「3 / 8」，没有（章首/章末卡）才报「共 8 个」。 */
     var curNo = (st && st.kind === "point" && typeof st.pi === "number") ? st.pi + 1 : 0;
     if ($("dotCount")) $("dotCount").textContent = pts.length
-      ? (curNo ? (curNo + " / " + pts.length) : ("共 " + pts.length + " 个")) : "";
+      ? (curNo ? ("本节 " + curNo + " / " + pts.length) : ("本节共 " + pts.length + " 个")) : "";
   }
   renderResume();
   renderFooter();
@@ -6696,8 +6793,15 @@ function renderTop(){
 
 function renderFooter(){
   var st = stepAt(S.cur);
-  if ($("btnPrev")) $("btnPrev").disabled = !(S.cur > 0);
-  if ($("btnNext")) $("btnNext").disabled = !(S.cur < S.steps.length - 1);
+  /* 内嵌面板（作业 / 100 Days / 视频目录）开着时，底栏的"上一条 / 下一条"就是"退出面板"键，
+     一点就把人踢出去，而且没有任何说明。所以面板开着时它们停用、点阵清空（点阵属于卡片）。 */
+  var inPanel = surfaceIsInline();
+  if ($("btnPrev")) $("btnPrev").disabled = inPanel || !(S.cur > 0);
+  if ($("btnNext")) $("btnNext").disabled = inPanel || !(S.cur < S.steps.length - 1);
+  if (inPanel){
+    if ($("dots")) $("dots").innerHTML = "";
+    if ($("dotCount")) $("dotCount").textContent = "";
+  }
   /* ★ 这里原来还有「✅ 学完了」按钮的状态 —— 那个按钮本身已经删了 */
   void st;
 }
@@ -6996,6 +7100,33 @@ var SURF_KIND = "";          /* 内嵌模式下当前面板的种类（弹层模
    ★ 它不能用常规 openModal：那条路会 surfaceInlineOff()，把「测一测」整页关掉、
      退回作业列表 —— 用户报的「一点自动提交就被推出作业界面」就是它。 */
 var OVERLAY_MODAL = false;
+/* 帮助面板：把散落在各处的键盘能力收成一张表。原来没有入口 ——
+   图标库里有 help 字形却从来没接线，等于"能力存在但用户学不到"。 */
+function openHelpPanel(){
+  var rows = [
+    ["← → 或 J K", "上一张 / 下一张卡"],
+    ["Ctrl + K", "搜索（标题 + 正文）"],
+    ["Esc", "关闭当前面板 / 弹层 / 只付一次退栈"],
+    ["空格 / Enter", "打开当前聚焦的按钮"],
+    ["终端 ↑ ↓", "翻命令历史"],
+    ["终端 Tab / Ctrl + Space", "补全 / 列出候选"],
+    ["终端 Shift + Enter", "换行（不执行）"]
+  ];
+  openModal("help", "快捷键与帮助",
+    '<div class="body" style="font-size:14px;line-height:1.8">' +
+      '<table class="md-table"><thead><tr><th>按键</th><th>作用</th></tr></thead><tbody>' +
+      rows.map(function(r){
+        return "<tr><td><kbd>" + escapeHtml(r[0]) + "</kbd></td><td>" + escapeHtml(r[1]) + "</td></tr>";
+      }).join("") +
+      "</tbody></table>" +
+      "<p>完整说明见仓库根目录的 <code>计算概论学习终端-使用说明书.pdf</code>；" +
+      "题库与课件每周会更新，顶栏「更新」里可以先查有没有新内容。</p>" +
+      '<p class="asHint" style="padding:0">所有数据都在本机：讲义、课件、100 Days 副本可离线读；' +
+      "AI 解析与自动提交才需要联网。</p>" +
+    "</div>" +
+    '<div class="hwActions"><button data-act="closemodal">知道了</button></div>');
+}
+var MODAL_RETURN_FOCUS = null;   /* 打开弹层前焦点在哪：关的时候还回去 */
 var SURF_BACK = "";          /* 内嵌的"上一层 kind"：关掉当前面板时复原它（空 = 回到卡片） */
 
 function surfaceInlineOk(kind){
@@ -7110,6 +7241,7 @@ function openModal(kind, title, bodyHtml, opts){
        圆钮还压在右下角，挡住面板底部。★ 和当初 openAssistant 那个 bug 同源：
        凡是"自己改显隐状态"的函数，都要记得把外层同步叫一次。 */
     asFabSync();
+    renderFooter();              /* 底栏翻卡跟着停用（见 renderFooter 里的 inPanel） */
     return;
   }
   /* ---- 普通弹层 ---- */
@@ -7118,6 +7250,12 @@ function openModal(kind, title, bodyHtml, opts){
   $("modal").hidden = false;
   $("modal").setAttribute("data-kind", kind);
   $("modalTitle").innerHTML = escapeHtml(title || "");
+  /* 读屏/键盘：把焦点搬进弹层，关上再还回去。role/aria-modal/aria-labelledby 写在 shell.html 上。 */
+  try{
+    MODAL_RETURN_FOCUS = (document.activeElement && document.activeElement.focus) ? document.activeElement : null;
+    var mb0 = $("modalBody");
+    if (mb0 && mb0.focus) mb0.focus();
+  }catch(e){}
   if (keep) $("modalBody").innerHTML = bodyHtml || "";
   else modalBodyEl().innerHTML = bodyHtml || "";
   if ($("scrim")) $("scrim").hidden = false;
@@ -7142,6 +7280,7 @@ function surfaceInlineOff(restoreBack){
   if ($("inlineBody")) $("inlineBody").innerHTML = "";
   if ($("card")) $("card").hidden = false;
   renderRail();                      /* 材料栏回到当前知识卡片 */
+  renderTop();                       /* 底栏翻卡 + 点阵 + 顶栏面包屑跟着回来 */
 }
 function closeModal(){
   /* 关掉"检查更新"面板时把轮询停掉。★ 只清计时器、**不清 UP 里的状态** ——
@@ -7171,7 +7310,13 @@ function closeModal(){
   } else {
     $("modalBody").innerHTML = "";
   }
-  aiPanelGen();                 /* 关掉面板 = 代数 +1：在途的异步渲染自动作废 */
+  /* 焦点还给打开弹层之前那个元素 —— 键盘用户不该被丢回页面顶部 */
+  try{
+    if (MODAL_RETURN_FOCUS && MODAL_RETURN_FOCUS.focus &&
+        document.contains && document.contains(MODAL_RETURN_FOCUS)) MODAL_RETURN_FOCUS.focus();
+  }catch(e){}
+  MODAL_RETURN_FOCUS = null;
+  aiPanelGen();                 /* 关掉面板 = 代数 + 1：在途的异步渲染自动作废 */
   applyChrome();
   /* ★ 关层后刷新常驻助教那行上下文：读者器（100 Days / 讲义原文）关掉之后
      要切回底下那张卡，否则气泡一直显示"📖 Day11…"。
@@ -9599,6 +9744,7 @@ function renderProblem(){
     (p.global_id ? '<span class="lim">OJ #' + escapeHtml(p.global_id) + "</span>" : "") +
     '<span class="sp"></span>' +
     (HW_ALL.busy ? '<button class="tb" data-act="hwallcancel">⏹ 停止（' + HW_ALL.done + " / " + HW_ALL.total + "）</button>" : "") +
+    (p.oj_url ? '<span class="subSrc' + (hwSubmitCode().from === "ai" ? " ai" : "") + '" title="' + attr(hwSubmitHint()) + '">将提交：' + escapeHtml(hwSubmitSrcText()) + "</span>" : "") +
     (p.oj_url ? '<button class="primary subBtn" data-act="hwautosubmit" title="' + attr(hwSubmitHint()) + '">🚀 自动提交</button>' : "") +
     (p.oj_url ? '<button class="tb" data-act="hwsubmit" title="复制代码并打开提交页（手动交）">📤 复制并去提交</button>' : "") +
     '<button class="tb" data-act="hwback">‹ 回作业列表</button>' +
@@ -9611,7 +9757,7 @@ function renderProblem(){
   var body = HW.tab === "analysis" ? hwAnalysisHtml()
            : HW.tab === "test" ? hwTestHtml()
            : hwStatementHtml();
-  openModal("problem", title, head + bar + body);
+  openModal("problem", title, head + hwSubmitConfirmHtml() + bar + body);
   /* ★ 代码框必须紧跟渲染马上填上：stashProbCode() 是无条件把 textarea 的值抄回 state 的，
      要是渲染完 textarea 是空的，用户存的代码就被空串覆盖了。 */
   if (HW.tab === "test"){ fillProbCode(); hwLoadCases(); }
@@ -9623,7 +9769,7 @@ function renderProblemBody(){
 function hwStatementHtml(){
   var p = HW.prob, out = [];
   out.push(hwSampleHtml(p));
-  out.push('<div class="body">' + renderMarkdown(p.statement_md || "（这道题还没有题面）") + "</div>");
+  out.push('<div class="body">' + renderMarkdown(p.statement_md || "（这道题还没有题面）", { paragraphs: true }) + "</div>");
   if (Array.isArray(p.pitfalls) && p.pitfalls.length){
     /* ★ 点坑存的是纯文本，但里面**带反引号**（"光有 `a % 4 == 0` 不够"）。
        以前走 escapeHtml 直接印出来，用户看到的就是一串光秃秃的 ` ——
@@ -10444,18 +10590,11 @@ function hwSubmitCode(){
 }
 function hwSubmitHint(){
   var pick = hwSubmitCode();
-  var base;
   if (pick.from === "ai"){
-    base = aiFinalCodeIndex() > 0 ? "提交「解析」里 AI 修正后的代码" : "提交「解析」里 AI 写的那份代码";
-  }else if (pick.from === "mine"){
-    base = "提交「测一测」里你自己的代码";
-  }else{
-    base = "用你自己的 OJ 账号直接提交这道题，并读回评测结果";
+    return aiFinalCodeIndex() > 0 ? "提交「解析」里 AI 修正后的代码" : "提交「解析」里 AI 写的那份代码";
   }
-  /* 小测和作业在 OJ 上是同一类题集，自动提交完全一样 —— 只提醒时间窗 */
-  var quiz = false;
-  try{ quiz = hwIsQuiz(HW.hw); }catch(e){}
-  return quiz ? (base + "（小测同样能自动提交，注意截止时间）") : base;
+  if (pick.from === "mine") return "提交「测一测」里你自己的代码";
+  return "用你自己的 OJ 账号直接提交这道题，并读回评测结果";
 }
 function hwAutoSubmit(){
   var p = HW.prob;
@@ -10466,10 +10605,41 @@ function hwAutoSubmit(){
     toast("先写代码，或在「解析」里生成一份");
     return;
   }
-  var ok = "";
-  try{ ok = localStorage.getItem("ic.oj.consent") || ""; }catch(e){ ok = ""; }
-  if (!ok){ openOjConsent(pick.from); return; }
-  hwDoAutoSubmit(pick.code, pick.from);
+  /* ★★ 提交是全产品唯一不可撤销、会写进外部 OJ 记录的动作。所以**每次都要确认**：
+     把这一份代码钉在 HW.pendingSubmit 上，题面里展开一个确认块（不是弹层 ——
+     弹层会把题面顶掉，用户点「取消」就回不来了）；确认后提交的就是钉住的那份，
+     两次渲染之间页签一换也不会换掉交出去的东西。 */
+  HW.pendingSubmit = { code: pick.code, from: pick.from };
+  renderProblem();
+  var el = document.querySelector ? document.querySelector(".subConfirm") : null;
+  if (el && el.scrollIntoView) el.scrollIntoView({ block: "nearest" });
+}
+/* 来源文案：传 from 就用传进来的（确认块要显示"钉住的那份"），不传按当前状态算 */
+function hwFromText(from){
+  if (from === "ai"){
+    return aiFinalCodeIndex() > 0 ? "解析里 AI 修正后的代码" : "解析里 AI 写的那份代码";
+  }
+  if (from === "mine") return "测一测里你自己的代码";
+  return "还没有代码";
+}
+function hwSubmitSrcText(){ return hwFromText(hwSubmitCode().from); }
+/* 题面里的确认块：题目 + 来源 + 代码开头三行 + 两条后果 */
+function hwSubmitConfirmHtml(){
+  var pick = HW.pendingSubmit;
+  if (!pick || !String(pick.code || "").trim()) return "";
+  var lines = String(pick.code).split("\n");
+  var head3 = lines.slice(0, 3).join("\n");
+  var more = lines.length > 3 ? "\n…（共 " + lines.length + " 行）" : "";
+  var isAi = pick.from === "ai";
+  return '<div class="subConfirm">' +
+    '<div class="subConfirmHead">确认提交<span class="subSrc' + (isAi ? " ai" : "") + '">将提交：' +
+      escapeHtml(hwFromText(pick.from)) + "</span></div>" +
+    (isAi ? '<p class="subWarn">这是 AI 写的代码 —— 交上去会算在你自己的 OJ 提交记录里。</p>' : "") +
+    '<pre class="subPreview"><code>' + escapeHtml(head3 + more) + "</code></pre>" +
+    '<p class="subNote">提交会出现在 OJ 的提交列表里，和你在网页上交一样 —— 包括可能的次数限制。</p>' +
+    '<div class="subActions"><button class="primary" data-act="ojsubmit">确认提交</button>' +
+    '<button data-act="ojsubcancel">取消</button></div>' +
+  "</div>";
 }
 function openOjConsent(from){
   var which = (from === "ai")
@@ -11922,13 +12092,13 @@ function onDocClick(e){
     });
   }
   else if (act === "hwautosubmit") hwAutoSubmit();
-  else if (act === "ojconsent"){
-    try{ localStorage.setItem("ic.oj.consent", "1"); }catch(e){}
-    closeModal();
-    stashProbCode();
-    var pick0 = hwSubmitCode();
-    hwDoAutoSubmit(pick0.code, pick0.from);
+  else if (act === "ojsubmit"){
+    var pend = HW.pendingSubmit;
+    HW.pendingSubmit = null;
+    if (!pend || !String(pend.code || "").trim()){ toast("没有待提交的代码"); renderProblem(); return; }
+    hwDoAutoSubmit(pend.code, pend.from);
   }
+  else if (act === "ojsubcancel"){ HW.pendingSubmit = null; renderProblem(); }
   else if (act === "ojdologin") ojDoLogin();
   else if (act === "hwmark"){ hwSetMark(btn.getAttribute("data-v")); renderProblem(); }
   else if (act === "hwallcancel"){ HW_ALL.cancel = true; toast("正在停止：当前这题跑完就停"); }
@@ -11978,6 +12148,7 @@ function onDocClick(e){
       HW.ai = {};                       /* 本地也丢掉，下次重新生成 */
     }, function(e){ toast("清缓存失败：" + String(e && e.message ? e.message : e)); });
   }
+  else if (act === "help") openHelpPanel();
   else if (act === "closemodal") closeLayer();
   else if (act === "scrim") closeLayer();
   else if (act === "reload") reloadData();

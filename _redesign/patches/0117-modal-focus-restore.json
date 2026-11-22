@@ -1,0 +1,6 @@
+{
+  "id": "0117-modal-focus-restore",
+  "note": "关弹层时还原焦点",
+  "old": "  aiPanelGen();                 /* 关掉面板 = 代数 +1：在途的异步渲染自动作废 */",
+  "new": "  /* 焦点还给打开弹层之前那个元素 —— 键盘用户不该被丢回页面顶部 */\n  try{\n    if (MODAL_RETURN_FOCUS && MODAL_RETURN_FOCUS.focus &&\n        document.contains && document.contains(MODAL_RETURN_FOCUS)) MODAL_RETURN_FOCUS.focus();\n  }catch(e){}\n  MODAL_RETURN_FOCUS = null;\n  aiPanelGen();                 /* 关掉面板 = 代数 + 1：在途的异步渲染自动作废 */"
+}

@@ -30,5 +30,24 @@ _redesign/_probe*.js
 _redesign/_p_*.js
 _redesign/_shot*.png
 web/_pv*.html
-# ¹¤¾ßÄ¿Â¼ÀïÏÂ»®Ïß¿ªÍ·µÄÊÇÁÙÊ±½Å±¾£¬²»½ø²Ö¿â
+# ï¿½ï¿½ï¿½ï¿½Ä¿Â¼ï¿½ï¿½ï¿½Â»ï¿½ï¿½ß¿ï¿½Í·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½Å±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¿ï¿½
 _redesign/tools/_*
+
+# --- Impeccable (added by lead) ---
+# Ephemeral output, runtime state, per-dev overrides.
+**/.impeccable/config.local.json
+**/.impeccable/hook.cache.json
+**/.impeccable/hook.pending.json
+**/.impeccable/*.png
+**/.impeccable/shots*/
+**/.impeccable/review/
+**/.impeccable/questions/
+**/.impeccable/live/server.json
+**/.impeccable/live/sessions/
+**/.impeccable/live/previews/
+**/.impeccable/live/annotations/
+**/.impeccable/live/cache/
+**/.impeccable/live/pending-manual-edits.json
+**/.impeccable/live/*.png
+# Shared artifacts stay tracked: config.json, live/config.json, design.json,
+# surfaces/*.md, critique/*.md, critique/ignore.md

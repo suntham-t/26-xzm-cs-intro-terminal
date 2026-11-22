@@ -1,0 +1,6 @@
+{
+  "id": "0122-as-context-point-layer",
+  "note": "asContextPoint 先认层，认不出才回卡片流（修「上下文回退到讲义」）",
+  "old": "  /* ★ 阅读器（100 Days / 讲义原文 / 100Days 参考文件）是一个**全屏层**，",
+  "new": "  /* ★ 先认\"当前开着的是哪一层\"：作业 / 100 Days / 视频目录都是内嵌面板，\n     盖在卡片上而 S.cur 还指着底下那张卡。不认层就是那个 bug。 */\n  var _layer = asContextLayer();\n  if (_layer && _layer.kind !== \"reader\" && _layer.ctx) return _layer.ctx;\n\n  /* ★ 阅读器（100 Days / 讲义原文 / 100Days 参考文件）是一个**全屏层**，"
+}

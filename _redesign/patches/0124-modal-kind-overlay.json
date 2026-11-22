@@ -1,0 +1,6 @@
+{
+  "id": "0124-modal-kind-overlay",
+  "note": "modalKind 先报覆盖层（助教开着时它是前台那一层）",
+  "old": "    if (surfaceIsInline()) return SURF_KIND;",
+  "new": "    /* ★ 覆盖层（助教 / OJ 说明 / OJ 登录）盖在内嵌面板之上时，**它就是前台那一层**。\n       以前这里先报内嵌 kind，于是打开助教后 modalKind() 还是 \"problem\" ——\n       asMaybeAutoAsk、Esc 退栈、读屏全都被带偏。 */\n    if (OVERLAY_MODAL){\n      var m1 = $(\"modal\");\n      if (m1 && !m1.hidden) return (m1.getAttribute && m1.getAttribute(\"data-kind\")) || \"\";\n    }\n    if (surfaceIsInline()) return SURF_KIND;"
+}

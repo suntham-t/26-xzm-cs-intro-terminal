@@ -1,0 +1,6 @@
+{
+  "id": "0125-assistant-keep-surface",
+  "note": "打开助教不再关掉底下的作业面板（覆盖层）",
+  "old": "  openModal(\"assistant\", \"🤖 助教\", assistantPanelHtml());",
+  "new": "  /* ★ 助教是\"盖在当前界面上的问答层\"：用 keepSurface 打开，**不关掉底下的作业题面**。\n     以前它是普通弹层，openModal 内部会 surfaceInlineOff()，于是\"在作业里点助教\"\n     等于把你退出作业界面 —— 关掉助教之后落到卡片流，看起来就是上下文回退到讲义。 */\n  openModal(\"assistant\", \"🤖 助教\", assistantPanelHtml(), { keepSurface: true });"
+}

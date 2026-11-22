@@ -7936,6 +7936,13 @@ function modalKind(){
     /* 内嵌面板也算"开着的一层"，所以这里的 kind 要把它一起报出来 ——
        modalKind() 是**全项目**判断"现在在哪一层"的唯一入口（Esc、翻卡守卫、
        screenText 的〔弹层:x〕标签、asFabSync…都读它）。 */
+    /* ★ 覆盖层（助教 / OJ 说明 / OJ 登录）盖在内嵌面板之上时，**它就是前台那一层**。
+       以前这里先报内嵌 kind，于是打开助教后 modalKind() 还是 "problem" ——
+       asMaybeAutoAsk、Esc 退栈、读屏全都被带偏。 */
+    if (OVERLAY_MODAL){
+      var m1 = $("modal");
+      if (m1 && !m1.hidden) return (m1.getAttribute && m1.getAttribute("data-kind")) || "";
+    }
     if (surfaceIsInline()) return SURF_KIND;
     var m = $("modal");
     if (!m || m.hidden) return "";
@@ -11199,7 +11206,53 @@ function asMsgCount(){ return AS.msgs.length; }
      assistantContext() 贵，带上屏幕正文 —— 只在发送那一刻调一次
    早先我把 asRefreshCtx 的 chip 更新写成调 asContextPoint()（便宜），是对的；
    千万别为了"chip 里显示更多"把 screenText 挪进去。 */
+/* 当前"层"的结构化上下文：认得出作业 / 100 Days / 视频目录 / 阅读器。
+   返回 {kind, ctx}；不在任何层里返回 null（走卡片流）。
+
+   ★ 为什么必须有：作业和 100 Days 是**内嵌面板**（#inlinePanel），它盖在卡片上，
+     而 S.cur 还指着底下那张卡。不认层的话，打开作业再问助教，上下文会"回退"到
+     底层那张讲义卡（用户报的 bug 原话："作业界面打开之后再打开助教，上下文会自动
+     回退到最底层的讲义"）。
+   ★ 助教自己开着时（覆盖层），要认它**底下**压着的那一层 —— 他问的是题目，不是助教。
+
+   asContextPoint（定位 chip + 发给模型的 chapter/section/point）与 assistantContext
+   （发给模型的正文）共用这一份，免得"显示的说在看作业、发出去的说在看讲义"。 */
+function asContextLayer(){
+  var kind = "";
+  try{ kind = modalKind(); }catch(e){ return null; }
+  /* 助教 / OJ 说明这类"盖在面板上的小弹层"：往下看一层 */
+  if (kind === "assistant" || kind === "ojconsent" || kind === "ojlogin"){
+    kind = surfaceIsInline() ? SURF_KIND : "";
+  }
+  if (!kind) return null;
+  if (kind === "reader") return { kind: kind, ctx: null };   /* 阅读器有专门分支，见 asContextPoint */
+  if (kind === "problem" && HW.prob){
+    var p = HW.prob, hw = HW.hw || {};
+    return { kind: kind, ctx: {
+      chapter: "作业",
+      section: String(hw.title || hw.id || "作业"),
+      point: "第 " + p.no + " 题 " + String(p.title || ""),
+      p: null, problem: p
+    }};
+  }
+  if (kind === "hw"){
+    var h = HW.hw || {};
+    return { kind: kind, ctx: {
+      chapter: "作业",
+      section: String(h.title || h.id || "作业列表"),
+      point: "", p: null
+    }};
+  }
+  if (kind === "days") return { kind: kind, ctx: { chapter: "100 Days", section: "目录", point: "", p: null }};
+  if (kind === "videos") return { kind: kind, ctx: { chapter: "视频目录", section: "黑马程序员 Python 全套", point: "", p: null }};
+  return { kind: kind, ctx: { chapter: "面板", section: String(kind), point: "", p: null }};
+}
 function asContextPoint(){
+  /* ★ 先认"当前开着的是哪一层"：作业 / 100 Days / 视频目录都是内嵌面板，
+     盖在卡片上而 S.cur 还指着底下那张卡。不认层就是那个 bug。 */
+  var _layer = asContextLayer();
+  if (_layer && _layer.kind !== "reader" && _layer.ctx) return _layer.ctx;
+
   /* ★ 阅读器（100 Days / 讲义原文 / 100Days 参考文件）是一个**全屏层**，
      它盖在卡片上，但 S.cur 还指着底下那张卡 —— 所以原来看 100 Days 时问助教，
      它会以为你在看底下那张卡。用户反馈原话："我在看100days的时候他也能知道"。
@@ -11342,6 +11395,16 @@ function screenSurfaces(){
   var list = [];
   var mk = "";
   try{ mk = modalKind(); }catch(e){}
+  /* ★ 助教自己开着时**不读它自己**（把模型刚说的话再读回去 = 自我循环），
+     改读它底下压着的那一层：有内嵌面板就读面板，否则读卡片。 */
+  if (mk === "assistant"){
+    if (surfaceIsInline()){
+      list.push({ tag: "面板:" + SURF_KIND, el: $("inlineBody"), main: true });
+      return list;
+    }
+    list.push({ tag: "卡片", el: $("card"), main: true });
+    return list;
+  }
   if (mk){
     list.push({ tag: "弹层:" + mk, el: modalBodyEl(), main: true });
   }
@@ -11422,6 +11485,27 @@ function assistantContext(problem){
       point: String(problem.title || ("第 " + problem.no + " 题")),
       notes: String(problem.statement_md || "").slice(0, AS_NOTES_MAX),
       screen: scr, tutor: tut
+    });
+  }
+  /* ★ 非卡片层（作业题面 / 作业列表 / 100 Days / 视频目录）：
+     结构化定位走 asContextLayer；作业题面额外把**题面和用户正在写的代码**给模型 ——
+     问"这题错在哪"时最需要的就是这两样，而不是底下那张讲义的片段。 */
+  var _l = null;
+  try{ _l = asContextLayer(); }catch(e){ _l = null; }
+  if (_l && _l.ctx){
+    var lc = _l.ctx, lnotes = "";
+    if (lc.problem){
+      var ps = [String(lc.problem.statement_md || "").slice(0, AS_NOTES_MAX)];
+      try{
+        var mine = String((testState() || {}).code || "");
+        if (mine.trim()) ps.push("\n\n【我现在写的代码】\n```python\n" + mine.slice(0, 2000) + "\n```");
+      }catch(e){}
+      lnotes = ps.join("").slice(0, AS_NOTES_MAX);
+    }
+    return Promise.resolve({
+      chapter: lc.chapter, section: lc.section,
+      point: lc.point || lc.section,
+      notes: lnotes, screen: scr, tutor: tut
     });
   }
   var base = asContextPoint();
@@ -11597,8 +11681,10 @@ function asRefreshCtx(){
     /* ★ day 必须带上：不带上 AS.ctx 就丢了"这是 100 Days 第几天"，
        而气泡那行上下文读的正是 AS.ctx（发给服务端的那份走 asContextPoint，见
        assistantContext）。两边字段口径保持一致，免得"显示的和发出去的不一样"。 */
+    /* ★ point 有两种来源：卡片流给的是 p 对象，层上下文（作业/100 Days）给的是 ctx.point 字符串。
+       不认后者的话，作业里开助教 chip 只显示「作业 · 作业一」，丢掉"第几题"。 */
     return { chapter: b.chapter, section: b.section, day: b.day || null,
-             point: b.p ? String(b.p.title || b.p.id || "") : "", notes: "" };
+             point: b.p ? String(b.p.title || b.p.id || "") : String(b.point || ""), notes: "" };
   })();
   var el = $("asCtxTxt");
   if (el) el.textContent = asCtxText(AS.ctx);
@@ -11629,7 +11715,10 @@ function openAssistant(opts){
   /* 开助教面板 = 代数 +1：让设置面板那类"慢了一拍"的异步渲染自动让位 */
   aiPanelGen();
   if (opts.push !== false) pushLayer({ kind: "assistant", assistant: 1 });
-  openModal("assistant", "🤖 助教", assistantPanelHtml());
+  /* ★ 助教是"盖在当前界面上的问答层"：用 keepSurface 打开，**不关掉底下的作业题面**。
+     以前它是普通弹层，openModal 内部会 surfaceInlineOff()，于是"在作业里点助教"
+     等于把你退出作业界面 —— 关掉助教之后落到卡片流，看起来就是上下文回退到讲义。 */
+  openModal("assistant", "🤖 助教", assistantPanelHtml(), { keepSurface: true });
   /* ★ 必须显式同步一次圆钮：openModal() 只改 #modal/#scrim 的 hidden，**不会**调
      applyChrome()（那是 closeModal 才做的）。实测踩到：展开成完整面板后圆钮还挂着，
      压在弹层右上角。closeAsBubble() 里那次同步发生在 openModal 之前，管不到这里。 */

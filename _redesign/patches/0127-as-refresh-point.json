@@ -1,0 +1,6 @@
+{
+  "id": "0127-as-refresh-point",
+  "note": "chip 的 point 也要认层（作业层没有 p 对象，point 在 ctx.point 里）",
+  "old": "    return { chapter: b.chapter, section: b.section, day: b.day || null,\n             point: b.p ? String(b.p.title || b.p.id || \"\") : \"\", notes: \"\" };",
+  "new": "    /* ★ point 有两种来源：卡片流给的是 p 对象，层上下文（作业/100 Days）给的是 ctx.point 字符串。\n       不认后者的话，作业里开助教 chip 只显示「作业 · 作业一」，丢掉\"第几题\"。 */\n    return { chapter: b.chapter, section: b.section, day: b.day || null,\n             point: b.p ? String(b.p.title || b.p.id || \"\") : String(b.point || \"\"), notes: \"\" };"
+}

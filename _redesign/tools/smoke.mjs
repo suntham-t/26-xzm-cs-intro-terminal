@@ -382,6 +382,39 @@ async function main() {
     });
   }
 
+  // 5.5) 助教上下文要认"当前开着的层"
+  //   用户报的 bug：作业界面打开之后再打开助教，上下文自动回退到最底层的讲义。
+  //   两层原因：① openAssistant 是普通弹层，会把内嵌面板关掉；② asContextPoint 只认阅读器。
+  await loadFresh();
+  await check('assistant.ctx.hw 作业里开助教：上下文跟着作业走、面板不被关掉', async () => {
+    const v = await evaluate([
+      'document.querySelector("#btnHw").click();',
+      'await __sm.sleep(1400);',
+      'var row=document.querySelectorAll("button.hwRow")[0];',
+      'if(row) row.click();',
+      'await __sm.sleep(1600);',
+      'window.__IC__.openAssistant();',
+      'await __sm.sleep(900);',
+      'return JSON.stringify({',
+      '  chip:String((document.querySelector("#asCtxTxt")||{}).textContent||""),',
+      '  inlineHidden:document.querySelector("#inlinePanel").hidden,',
+      '  prob:!!document.querySelector(".probHead"),',
+      '  kind:String(document.querySelector("#modal").getAttribute("data-kind")||"")',
+      '});',
+    ].join('\n'));
+    const o = JSON.parse(v);
+    await pressKey('Escape');
+    await sleep(700);
+    const after = JSON.parse(await evaluate('return ' + STATE + ';'));
+    await evaluate('window.__IC__.closeAll(); await __sm.sleep(300); return true;');
+    if (!/^作业/.test(o.chip)) return { pass: false, detail: 'chip=' + o.chip + '（应是以「作业」开头）' };
+    if (o.inlineHidden || !o.prob) return { pass: false, detail: '开助教把作业面板关掉了：' + v };
+    // 关掉助教后：弹层收起（modalHidden=true），作业面板还在（inlineHidden=false）
+    if (!after.modalHidden) return { pass: false, detail: '助教层没关掉：' + JSON.stringify(after) };
+    if (after.inlineHidden) return { pass: false, detail: '关掉助教后面板一起没了（回退到卡片）：' + JSON.stringify(after) };
+    return { detail: 'chip=' + o.chip + '；关掉助教仍在作业题面' };
+  });
+
   // 6) 终端
   await loadFresh();
     // 每个 block 从干净页面重新加载：history 栈 / 键盘焦点 / 上次开的层都不跨 block 污染。：打开 → 执行 print(1+1) → 输出 2

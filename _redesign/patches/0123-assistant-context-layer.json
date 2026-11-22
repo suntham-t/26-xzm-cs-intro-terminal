@@ -1,0 +1,6 @@
+{
+  "id": "0123-assistant-context-layer",
+  "note": "作业层里问助教：给题面 + 你正在写的代码，而不是讲义片段",
+  "old": "  var base = asContextPoint();",
+  "new": "  /* ★ 非卡片层（作业题面 / 作业列表 / 100 Days / 视频目录）：\n     结构化定位走 asContextLayer；作业题面额外把**题面和用户正在写的代码**给模型 ——\n     问\"这题错在哪\"时最需要的就是这两样，而不是底下那张讲义的片段。 */\n  var _l = null;\n  try{ _l = asContextLayer(); }catch(e){ _l = null; }\n  if (_l && _l.ctx){\n    var lc = _l.ctx, lnotes = \"\";\n    if (lc.problem){\n      var ps = [String(lc.problem.statement_md || \"\").slice(0, AS_NOTES_MAX)];\n      try{\n        var mine = String((testState() || {}).code || \"\");\n        if (mine.trim()) ps.push(\"\\n\\n【我现在写的代码】\\n```python\\n\" + mine.slice(0, 2000) + \"\\n```\");\n      }catch(e){}\n      lnotes = ps.join(\"\").slice(0, AS_NOTES_MAX);\n    }\n    return Promise.resolve({\n      chapter: lc.chapter, section: lc.section,\n      point: lc.point || lc.section,\n      notes: lnotes, screen: scr, tutor: tut\n    });\n  }\n  var base = asContextPoint();"
+}

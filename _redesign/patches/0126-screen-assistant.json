@@ -1,0 +1,6 @@
+{
+  "id": "0126-screen-assistant",
+  "note": "读屏跳过助教自己，读它底下压着的面板",
+  "old": "function screenSurfaces(){\n  var list = [];\n  var mk = \"\";\n  try{ mk = modalKind(); }catch(e){}",
+  "new": "function screenSurfaces(){\n  var list = [];\n  var mk = \"\";\n  try{ mk = modalKind(); }catch(e){}\n  /* ★ 助教自己开着时**不读它自己**（把模型刚说的话再读回去 = 自我循环），\n     改读它底下压着的那一层：有内嵌面板就读面板，否则读卡片。 */\n  if (mk === \"assistant\"){\n    if (surfaceIsInline()){\n      list.push({ tag: \"面板:\" + SURF_KIND, el: $(\"inlineBody\"), main: true });\n      return list;\n    }\n    list.push({ tag: \"卡片\", el: $(\"card\"), main: true });\n    return list;\n  }"
+}

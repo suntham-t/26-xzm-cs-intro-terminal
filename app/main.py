@@ -2228,7 +2228,10 @@ AI_MAX_CACHE = 4 * 1024 * 1024
 #   （一个 KeyError 的追问烧了 5573 tokens 才吐正文）。预算小的时候正文会被挤成空字符串，
 #   finish_reason=length，用户看到一片空白而且**不报错**。
 #   实测该模型 /models 报 max_output_tokens=393216，16384 远在合法范围内。
-AI_MAX_TOKENS = 16384
+#   ★ v1.3.1：16384 在「思考档位=high」下不够 —— 一道题烧掉 4 万多字思考后
+#     finish_reason=length、正文为零（用户看到"只有思考过程"的死路）。提到 32768，
+#     同时 ai_stream_chat 加了自动降级重试（见那个函数）。
+AI_MAX_TOKENS = 32768
 AI_CONFIG_LOCK = threading.RLock()   # 可重入：ai_configure 持锁时会再调 save_ai_config
 AI_CACHE_LOCK = threading.Lock()
 # 计数器：自测要断言"缓存命中时一次 API 都没发"
@@ -2804,10 +2807,10 @@ def _chat_payload(cfg, messages, stream=True):
     return payload
 
 
-def ai_stream_chat(cfg, messages, emit):
-    """流式调 /chat/completions，边读边 emit。
+def _ai_stream_once(cfg, messages, emit):
+    """流式调一次 /chat/completions，返回 (正文, 思维链, finish_reason)。
 
-    返回 (正文全文, 思维链全文)。思考模式下 delta 里会有 reasoning_content。
+    ★ 内部函数，别直接调用：思考把预算吃光时要不要降级重试，归 ai_stream_chat 管。
     """
     payload = _chat_payload(cfg, messages, stream=True)
     req = urllib.request.Request(
@@ -2874,15 +2877,41 @@ def ai_stream_chat(cfg, messages, emit):
         with AI_CALLS_LOCK:
             AI_CALLS["errors"] += 1
         raise AiError("读流失败：%s" % _redact(repr(exc)))
-    text = "".join(text_parts)
-    reasoning = "".join(reason_parts)
-    if not text and finish_reason == "length":
-        # 预算被隐藏 reasoning 吃光、正文一个字都没有。**必须报错**：
-        # 以前这里会安静地 emit done，用户看到一片空白而且不知道为什么。
+    return "".join(text_parts), "".join(reason_parts), finish_reason
+
+
+def ai_stream_chat(cfg, messages, emit):
+    """流式调 /chat/completions，边读边 emit。返回 (正文全文, 思维链全文)。
+
+    ★ 思考档位开着时，隐藏 reasoning 和正文**共用同一份 max_tokens 预算**。
+      实测：思考档位=high 时一道题能烧掉 4 万多字推理，budget 用尽后
+      finish_reason=length、正文一个字都没有 —— 用户看到的就是"只有思考过程"
+      的死路（只能点重试，多半再死一次）。所以这里做一次自动降级：
+      正文为空且是被长度截断的，就改用「不思考」模式重试一次（第二次几乎必成），
+      并给前端推一条 retry 提示，让用户知道发生了什么。
+    """
+    text, reasoning, finish = _ai_stream_once(cfg, messages, emit)
+    if not text and finish == "length":
+        if cfg.get("thinking", "disabled") != "disabled":
+            emit({"type": "retry",
+                  "reason": "这次思考太长、正文被上限截断了，已自动改用「不思考」重试"})
+            cfg2 = dict(cfg)
+            cfg2["thinking"] = "disabled"
+            text2, reason2, _finish2 = _ai_stream_once(cfg2, messages, emit)
+            if text2:
+                return text2, (reasoning + reason2)
+            with AI_CALLS_LOCK:
+                AI_CALLS["errors"] += 1
+            raise AiError("模型两次都没给出正文（第二次也被截断）—— "
+                          "换个问法，或把问题拆小一点")
         with AI_CALLS_LOCK:
             AI_CALLS["errors"] += 1
         raise AiError("模型这次只输出了思考内容就被长度上限截断了，没有正文 —— "
-                      "请再问一次，或把问题拆小一点")
+                      "请再试一次，或把问题拆小一点")
+    if not text and finish is None:
+        with AI_CALLS_LOCK:
+            AI_CALLS["errors"] += 1
+        raise AiError("模型没有返回任何内容 —— 请再试一次")
     return text, reasoning
 
 
